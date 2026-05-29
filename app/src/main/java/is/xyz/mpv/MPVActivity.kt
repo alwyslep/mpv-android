@@ -23,6 +23,7 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.*
 import android.preference.PreferenceManager.getDefaultSharedPreferences
+import android.provider.Settings
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.util.DisplayMetrics
@@ -251,6 +252,20 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     override fun onCreate(icicle: Bundle?) {
         super.onCreate(icicle)
 
+        // JAV Soul Edition: config/scripts live in /sdcard/mpv, which needs "all files access" on Android 11+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            showToast("mpv 설정(/sdcard/mpv) 사용을 위해 '모든 파일 접근'을 허용하고 다시 실행하세요")
+            try {
+                startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:$packageName")))
+            } catch (e: Exception) {
+                try { startActivity(Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION)) }
+                catch (e2: Exception) { }
+            }
+            finish()
+            return
+        }
+
         // Do these here and not in MainActivity because mpv can be launched from a file browser
         Utils.copyAssets(this)
         BackgroundPlaybackService.createNotificationChannel(this)
@@ -300,7 +315,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
 
         player.addObserver(this)
-        player.initialize(filesDir.path, cacheDir.path)
+        player.initialize(Utils.mpvConfigDir().path, cacheDir.path)
         player.playFile(filepath)
 
         mediaSession = initMediaSession()

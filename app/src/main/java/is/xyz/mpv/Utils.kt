@@ -90,10 +90,13 @@ internal object Utils {
         }
     }
 
+    /** JAV Soul Edition: mpv config dir on external storage (/sdcard/mpv) */
+    fun mpvConfigDir(): File = File(Environment.getExternalStorageDirectory(), "mpv")
+
     fun copyAssets(context: Context) {
         val assetManager = context.assets
         val files = arrayOf("cacert.pem")
-        val configDir = context.filesDir.path
+        val configDir = mpvConfigDir().also { it.mkdirs() }.path
 
         for (name in files) {
             copyAssetFile(assetManager, name, File("$configDir/$name"))
