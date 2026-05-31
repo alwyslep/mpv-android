@@ -189,7 +189,7 @@ class PreferenceActivity : AppCompatActivity(),
                 true
             }
             findPreference<Preference>("action_clear_thumbs")?.setOnPreferenceClickListener {
-                `is`.xyz.mpv.ThumbLoader.clearCache()
+                `is`.xyz.mpv.ThumbLoader.clearCache(requireContext())
                 android.widget.Toast.makeText(requireContext(), "썸네일 캐시를 비웠습니다", android.widget.Toast.LENGTH_SHORT).show()
                 true
             }

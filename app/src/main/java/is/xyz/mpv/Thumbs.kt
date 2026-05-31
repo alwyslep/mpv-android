@@ -1,5 +1,6 @@
 package `is`.xyz.mpv
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
@@ -9,6 +10,9 @@ import android.util.LruCache
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
@@ -32,10 +36,11 @@ object ThumbLoader {
     // 검색용 — 이미 MMR 캐시된 [code, title] 노출(null = 아직 미확인).
     fun cachedMeta(key: String): Array<String>? = metaCache[key]
 
-    fun clearCache() {
+    fun clearCache(ctx: Context) {
         bmpCache.evictAll()
         metaCache.clear()
         durCache.clear()
+        try { cacheDir(ctx).deleteRecursively() } catch (_: Throwable) {}
     }
 
     fun load(
@@ -67,29 +72,45 @@ object ThumbLoader {
             var bmp = cb
             var meta = cm
             var dur = cd
-            val mmr = MediaMetadataRetriever()
-            try {
-                mmr.setDataSource(ctx, uri)
-                if (bmp == null) {
-                    val bytes = mmr.embeddedPicture
-                    if (bytes != null) bmp = decodeSampled(bytes, 600)
-                }
-                if (meta == null) {
-                    val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
-                    meta = if (raw.isNotEmpty()) parseTitle(raw) else arrayOf("", "")
-                }
-                if (needDur && dur == null) {
-                    dur = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: -1L
-                }
-                if (bmp == null) bmp = scaledFrame(mmr)  // 커버 없으면 비디오 프레임
-            } catch (_: Throwable) {
-            } finally {
-                try { mmr.release() } catch (_: Throwable) {}
+            val hk = hashKey(key)
+
+            // ① 디스크 캐시 (MMR 회피 — 재진입 즉시)
+            if (bmp == null) bmp = loadDiskBmp(ctx, hk)
+            if (meta == null) loadDiskMeta(ctx, hk)?.let { (c, t, d) ->
+                meta = arrayOf(c, t)
+                if (dur == null && d != null) dur = d
             }
 
-            if (bmp != null) bmpCache.put(key, bmp)
-            if (meta != null) metaCache[key] = meta
-            if (dur != null) durCache[key] = dur
+            // ② 부족분만 MMR
+            if (bmp == null || meta == null || (needDur && dur == null)) {
+                var freshBmp = false
+                val mmr = MediaMetadataRetriever()
+                try {
+                    mmr.setDataSource(ctx, uri)
+                    if (bmp == null) {
+                        val bytes = mmr.embeddedPicture
+                        if (bytes != null) { bmp = decodeSampled(bytes, 600); freshBmp = bmp != null }
+                    }
+                    if (meta == null) {
+                        val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
+                        meta = if (raw.isNotEmpty()) parseTitle(raw) else arrayOf("", "")
+                    }
+                    if (needDur && dur == null) {
+                        dur = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: -1L
+                    }
+                    if (bmp == null) { bmp = scaledFrame(mmr); freshBmp = bmp != null }  // 커버 없으면 프레임
+                } catch (_: Throwable) {
+                } finally {
+                    try { mmr.release() } catch (_: Throwable) {}
+                }
+                // 디스크 저장 (다음 진입부터 MMR 불필요)
+                if (freshBmp) bmp?.let { saveDiskBmp(ctx, hk, it) }
+                meta?.let { saveDiskMeta(ctx, hk, it, dur) }
+            }
+
+            if (bmp != null) bmpCache.put(key, bmp!!)
+            if (meta != null) metaCache[key] = meta!!
+            if (dur != null) durCache[key] = dur!!
 
             val fb = bmp; val fm = meta; val fd = dur
             thumb.post { if (thumb.tag == key) thumb.setImageBitmap(fb) }
@@ -146,6 +167,52 @@ object ThumbLoader {
             mmr.getFrameAtTime(3_000_000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
     } catch (_: Throwable) {
         null
+    }
+
+    // ─── 디스크 캐시 (cacheDir/thumbs/<md5>.jpg + .txt) ───
+    private fun cacheDir(ctx: Context): File {
+        val d = File(ctx.cacheDir, "thumbs")
+        if (!d.exists()) d.mkdirs()
+        return d
+    }
+
+    private fun hashKey(uri: String): String =
+        MessageDigest.getInstance("MD5").digest(uri.toByteArray()).joinToString("") { "%02x".format(it) }
+
+    private fun loadDiskBmp(ctx: Context, hk: String): Bitmap? {
+        val f = File(cacheDir(ctx), "$hk.jpg")
+        if (!f.exists()) return null
+        return try { BitmapFactory.decodeFile(f.path) } catch (_: Throwable) { null }
+    }
+
+    private fun saveDiskBmp(ctx: Context, hk: String, bmp: Bitmap) {
+        try {
+            FileOutputStream(File(cacheDir(ctx), "$hk.jpg")).use {
+                bmp.compress(Bitmap.CompressFormat.JPEG, 85, it)
+            }
+        } catch (_: Throwable) {
+        }
+    }
+
+    // codetitledur(미상은 "?")
+    private fun loadDiskMeta(ctx: Context, hk: String): Triple<String, String, Long?>? {
+        val f = File(cacheDir(ctx), "$hk.txt")
+        if (!f.exists()) return null
+        return try {
+            val p = f.readText().split('')
+            if (p.size < 3) null
+            else Triple(p[0], p[1], if (p[2] == "?") null else p[2].toLongOrNull())
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    private fun saveDiskMeta(ctx: Context, hk: String, meta: Array<String>, dur: Long?) {
+        try {
+            File(cacheDir(ctx), "$hk.txt")
+                .writeText(meta[0] + "" + meta[1] + "" + (dur?.toString() ?: "?"))
+        } catch (_: Throwable) {
+        }
     }
 
     private fun decodeSampled(bytes: ByteArray, target: Int): Bitmap? {
