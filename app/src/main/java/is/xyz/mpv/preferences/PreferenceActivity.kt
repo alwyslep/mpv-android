@@ -159,4 +159,28 @@ class PreferenceActivity : AppCompatActivity(),
             setPreferencesFromResource(R.xml.pref_advanced, rootKey)
         }
     }
+
+    // P2: mpv 에 없던 '미디어 라이브러리' 설정(우리 추가 기능 관리). prefs 파일은 LibPrefs 와 동일("media_library").
+    class MediaLibraryPreference : PreferenceFragmentCompat() {
+        override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            preferenceManager.sharedPreferencesName = "media_library"
+            setPreferencesFromResource(R.xml.pref_media_library, rootKey)
+            findPreference<Preference>("action_rebuild_index")?.setOnPreferenceClickListener {
+                `is`.xyz.mpv.SearchIndex.clear()
+                android.widget.Toast.makeText(requireContext(), "검색 인덱스를 비웠습니다 (다음 검색 시 재인덱싱)", android.widget.Toast.LENGTH_SHORT).show()
+                true
+            }
+            findPreference<Preference>("action_clear_trees")?.setOnPreferenceClickListener {
+                `is`.xyz.mpv.SafTrees.clear(requireContext())
+                `is`.xyz.mpv.SearchIndex.clear()
+                android.widget.Toast.makeText(requireContext(), "등록된 폴더를 초기화했습니다", android.widget.Toast.LENGTH_SHORT).show()
+                true
+            }
+            findPreference<Preference>("action_clear_thumbs")?.setOnPreferenceClickListener {
+                `is`.xyz.mpv.ThumbLoader.clearCache()
+                android.widget.Toast.makeText(requireContext(), "썸네일 캐시를 비웠습니다", android.widget.Toast.LENGTH_SHORT).show()
+                true
+            }
+        }
+    }
 }

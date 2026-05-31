@@ -156,4 +156,16 @@
         <item>playpause</item>
         <item>custom</item>
     </string-array>
+
+    <!-- P2: 미디어 라이브러리 — 기본 보기 모드 -->
+    <string-array name="ml_viewmode_entries">
+        <item>Folders</item>
+        <item>Videos</item>
+        <item>Tree</item>
+    </string-array>
+    <string-array name="ml_viewmode_values" translatable="false">
+        <item>folder</item>
+        <item>videos</item>
+        <item>tree</item>
+    </string-array>
 </resources>

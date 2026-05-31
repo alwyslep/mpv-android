@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="ml_viewmode_entries">
+        <item>폴더</item>
+        <item>동영상</item>
+        <item>트리</item>
+    </string-array>
+</resources>

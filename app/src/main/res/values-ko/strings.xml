@@ -18,4 +18,14 @@
     <string name="pref_header_advanced_summary">mpv.conf, 스크립트, 기타 고급 설정</string>
     <string name="pref_header_about_mpv">mpv 정보</string>
     <string name="pref_header_about_mpv_summary">버전, 라이선스, 기여자</string>
+
+    <string name="pref_header_medialib">미디어 라이브러리</string>
+    <string name="pref_header_medialib_summary">보기 모드, 폴더, 인덱스·캐시 관리</string>
+    <string name="pref_ml_grid">그리드 레이아웃</string>
+    <string name="pref_ml_viewmode">기본 보기 모드</string>
+    <string name="pref_ml_rebuild_index">검색 인덱스 다시 만들기</string>
+    <string name="pref_ml_rebuild_index_summary">다음 검색 시 폴더를 다시 인덱싱</string>
+    <string name="pref_ml_clear_trees">등록된 폴더 초기화</string>
+    <string name="pref_ml_clear_trees_summary">검색에 등록된 USB/SAF 폴더 모두 해제</string>
+    <string name="pref_ml_clear_thumbs">썸네일 캐시 비우기</string>
 </resources>

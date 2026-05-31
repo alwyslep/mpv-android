@@ -1,0 +1,31 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <SwitchPreferenceCompat
+        app:key="video_grid"
+        app:defaultValue="true"
+        app:title="@string/pref_ml_grid" />
+
+    <ListPreference
+        app:key="view_mode"
+        app:defaultValue="folder"
+        app:entries="@array/ml_viewmode_entries"
+        app:entryValues="@array/ml_viewmode_values"
+        app:title="@string/pref_ml_viewmode"
+        app:useSimpleSummaryProvider="true" />
+
+    <Preference
+        app:key="action_rebuild_index"
+        app:summary="@string/pref_ml_rebuild_index_summary"
+        app:title="@string/pref_ml_rebuild_index" />
+
+    <Preference
+        app:key="action_clear_trees"
+        app:summary="@string/pref_ml_clear_trees_summary"
+        app:title="@string/pref_ml_clear_trees" />
+
+    <Preference
+        app:key="action_clear_thumbs"
+        app:title="@string/pref_ml_clear_thumbs" />
+
+</PreferenceScreen>

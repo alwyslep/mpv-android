@@ -7,6 +7,11 @@
         app:summary="@string/pref_header_general_summary"
         app:title="@string/pref_header_general" />
     <Preference
+        app:fragment="is.xyz.mpv.preferences.PreferenceActivity$MediaLibraryPreference"
+        app:icon="@drawable/round_video_settings_24"
+        app:summary="@string/pref_header_medialib_summary"
+        app:title="@string/pref_header_medialib" />
+    <Preference
         app:fragment="is.xyz.mpv.preferences.PreferenceActivity$VideoPreference"
         app:icon="@drawable/round_play_arrow_24"
         app:summary="@string/pref_header_video_summary"
