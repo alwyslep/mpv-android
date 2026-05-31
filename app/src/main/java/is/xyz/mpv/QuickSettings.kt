@@ -44,7 +44,7 @@ object QuickSettings {
         grpLayout.addOnButtonCheckedListener { _, id, on -> if (on) pGrid = id == R.id.btn_grid }
 
         // 정렬 아이콘 셀
-        val primary = MaterialColors.getColor(v, com.google.android.material.R.attr.colorPrimary, 0)
+        val primary = MaterialColors.getColor(v, androidx.appcompat.R.attr.colorPrimary, 0)
         val variant = MaterialColors.getColor(v, com.google.android.material.R.attr.colorOnSurfaceVariant, 0)
         val cells = listOf(
             "name" to v.findViewById<LinearLayout>(R.id.sc_name),
