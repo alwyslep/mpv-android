@@ -299,7 +299,7 @@ object Progress {
 
 // MPVActivity 실행/복귀 — 이어보기 위치 전달 + 종료 결과(position/duration) 기록 + 최근재생.
 object Playback {
-    fun intentFor(ctx: Context, uri: String, title: String): Intent {
+    fun intentFor(ctx: Context, uri: String, title: String, resume: Boolean = true): Intent {
         Recents.add(ctx, uri, title)
         val i = if (uri.startsWith("content://")) {
             Intent(Intent.ACTION_VIEW, Uri.parse(uri))
@@ -307,7 +307,7 @@ object Playback {
             Intent().putExtra("filepath", uri)
         }
         i.setClass(ctx, MPVActivity::class.java)
-        Progress.get(ctx, uri)?.let { (pos, dur) ->
+        if (resume) Progress.get(ctx, uri)?.let { (pos, dur) ->
             // 시작 직후/거의 끝이면 이어보기 생략
             if (pos > 3000 && pos < dur - 3000) i.putExtra("position", pos.toInt())
         }

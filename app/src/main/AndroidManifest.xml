@@ -253,6 +253,13 @@
             android:parentActivityName=".MediaLibraryActivity"
             android:exported="false" />
 
+        <activity
+            android:name=".VideoDetailActivity"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/MediaLibraryTheme"
+            android:parentActivityName=".MediaLibraryActivity"
+            android:exported="false" />
+
         <!-- 기존 타일 런처(MainActivity)는 더 이상 진입점 아님 — PreferenceActivity parent 참조 위해 선언만 유지 -->
         <activity
             android:name=".MainActivity"

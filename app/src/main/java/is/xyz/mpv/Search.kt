@@ -149,6 +149,7 @@ class SearchAdapter(
             ThumbLoader.load(h.thumb, h.code, h.title, item.uri, item.name, durView = h.dur)
         }
         h.itemView.setOnClickListener { onClick(item) }
+        h.itemView.setOnLongClickListener { VideoDetailActivity.open(ctx, item.uri.toString(), item.name); true }
     }
 }
 

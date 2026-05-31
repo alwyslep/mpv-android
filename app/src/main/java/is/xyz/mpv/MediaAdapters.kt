@@ -103,5 +103,6 @@ class VideoAdapter(
         }
         ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
         h.itemView.setOnClickListener { onClick(v) }
+        h.itemView.setOnLongClickListener { VideoDetailActivity.open(ctx, v.uri.toString(), v.name); true }
     }
 }

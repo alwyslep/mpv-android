@@ -183,6 +183,7 @@ class TreeAdapter(
             }
             ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
             h.itemView.setOnClickListener { onVideo(e) }
+            h.itemView.setOnLongClickListener { VideoDetailActivity.open(ctx, v.uri.toString(), v.name); true }
         }
     }
 }
