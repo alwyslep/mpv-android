@@ -22,6 +22,7 @@ import androidx.core.util.Predicate
 import androidx.core.view.WindowCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import `is`.xyz.filepicker.DocumentPickerFragment
 import `is`.xyz.filepicker.FilePickerFragment
 import `is`.xyz.mpv.databinding.FragmentFilepickerChoiceBinding
@@ -36,8 +37,24 @@ class FilePickerActivity : AppCompatActivity(), AbstractFilePickerFragment.OnFil
 
     private var documentOpener = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
         it?.let { uri ->
-            finishWithResult(RESULT_OK, uri.toString())
+            if (isHome) playDirect(uri.toString())
+            else finishWithResult(RESULT_OK, uri.toString())
         }
+    }
+
+    // P1 (launcher): home 모드 — FilePicker 를 "홈"으로 띄우고, 픽한 항목을 결과반환 대신
+    //   곧장 MPVActivity 로 재생(브라우저 유지). 시동 루트는 저장된 SAF 트리, 없으면 1회 선택.
+    private val isHome get() = intent.getIntExtra("skip", -1) == HOME
+
+    private val homeTreeOpener = registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        if (uri == null) {
+            finish() // 첫 실행에 폴더 선택 취소 → 표시할 홈이 없으니 종료
+            return@registerForActivityResult
+        }
+        contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        PreferenceManager.getDefaultSharedPreferences(this).edit()
+            .putString("MainScreenFragment_remember_data", uri.toString()).apply()
+        initDocPicker(uri)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,6 +90,10 @@ class FilePickerActivity : AppCompatActivity(), AbstractFilePickerFragment.OnFil
             DOC_PICKER -> {
                 val root = Uri.parse(intent.getStringExtra("root")!!)
                 initDocPicker(root)
+                return
+            }
+            HOME -> {
+                initHome()
                 return
             }
         }
@@ -305,10 +326,10 @@ class FilePickerActivity : AppCompatActivity(), AbstractFilePickerFragment.OnFil
         val helper = Utils.OpenUrlDialog(this)
         with (helper) {
             builder.setPositiveButton(R.string.dialog_ok) { _, _ ->
-                finishWithResult(RESULT_OK, helper.text)
+                if (isHome) playDirect(helper.text) else finishWithResult(RESULT_OK, helper.text)
             }
             builder.setNegativeButton(R.string.dialog_cancel) { dialog, _ -> dialog.cancel() }
-            builder.setOnCancelListener { finishWithResult(RESULT_CANCELED) }
+            builder.setOnCancelListener { if (!isHome) finishWithResult(RESULT_CANCELED) }
             create().show()
         }
     }
@@ -347,14 +368,64 @@ class FilePickerActivity : AppCompatActivity(), AbstractFilePickerFragment.OnFil
         finish()
     }
 
-    override fun onFilePicked(file: File) = finishWithResult(RESULT_OK, file.absolutePath)
+    private fun playDirect(path: String) {
+        val i: Intent = if (path.startsWith("content://")) {
+            Intent(Intent.ACTION_VIEW, Uri.parse(path))
+        } else {
+            Intent().putExtra("filepath", path)
+        }
+        i.setClass(this, MPVActivity::class.java)
+        startActivity(i)
+    }
 
-    override fun onDirPicked(dir: File) = finishWithResult(RESULT_OK, dir.absolutePath)
+    private fun initHome() {
+        setupHomeFab()
+        val saved = PreferenceManager.getDefaultSharedPreferences(this)
+            .getString("MainScreenFragment_remember_data", null)
+        if (!saved.isNullOrEmpty()) {
+            val uri = Uri.parse(saved)
+            if (DocumentPickerFragment.isTreeUsable(this, uri)) {
+                initDocPicker(uri)
+                return
+            }
+        }
+        // 저장된 SAF 트리 없음/접근불가 → 1회 폴더 선택(이후 영구권한으로 바로 진입)
+        homeTreeOpener.launch(null)
+    }
+
+    private fun setupHomeFab() {
+        val menu = findViewById<View>(R.id.fab_menu)
+        val main = findViewById<FloatingActionButton>(R.id.fab_main)
+        main.visibility = View.VISIBLE
+        main.setOnClickListener {
+            menu.visibility = if (menu.visibility == View.VISIBLE) View.GONE else View.VISIBLE
+        }
+        findViewById<FloatingActionButton>(R.id.fab_url).setOnClickListener {
+            menu.visibility = View.GONE
+            showUrlDialog()
+        }
+        findViewById<FloatingActionButton>(R.id.fab_local).setOnClickListener {
+            menu.visibility = View.GONE
+            documentOpener.launch(arrayOf("*/*"))
+        }
+        findViewById<FloatingActionButton>(R.id.fab_settings).setOnClickListener {
+            menu.visibility = View.GONE
+            startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
+        }
+    }
+
+    override fun onFilePicked(file: File) =
+        if (isHome) playDirect(file.absolutePath) else finishWithResult(RESULT_OK, file.absolutePath)
+
+    override fun onDirPicked(dir: File) =
+        if (isHome) Unit else finishWithResult(RESULT_OK, dir.absolutePath)
 
     override fun onDocumentPicked(uri: Uri, isDir: Boolean) {
         assert(fragment2 != null)
-        if (!isDir)
-            finishWithResult(RESULT_OK, fragment2!!.pathToString(uri))
+        if (!isDir) {
+            val p = fragment2!!.pathToString(uri)
+            if (isHome) playDirect(p) else finishWithResult(RESULT_OK, p)
+        }
     }
 
     override fun onCancelled() = finishWithResult(RESULT_CANCELED)
@@ -416,5 +487,6 @@ class FilePickerActivity : AppCompatActivity(), AbstractFilePickerFragment.OnFil
         const val URL_DIALOG = 0
         const val FILE_PICKER = 1
         const val DOC_PICKER = 2
+        const val HOME = 3
     }
 }
