@@ -90,12 +90,13 @@ class VideoDetailActivity : AppCompatActivity() {
             } finally {
                 try { mmr.release() } catch (_: Throwable) {}
             }
+            val desc = Mp4Tags.description(this, uri)  // MMR 미노출 줄거리 — atom 직접 파싱
             val fb = cover; val fm = m; val fw = w; val fh = h; val fd = durMs
-            runOnUiThread { if (!isFinishing) bind(fb, fm, fw, fh, fd) }
+            runOnUiThread { if (!isFinishing) bind(fb, fm, fw, fh, fd, desc) }
         }.start()
     }
 
-    private fun bind(cover: android.graphics.Bitmap?, m: Map<String, String?>, w: Int, h: Int, durMs: Long) {
+    private fun bind(cover: android.graphics.Bitmap?, m: Map<String, String?>, w: Int, h: Int, durMs: Long, desc: String?) {
         cover?.let { findViewById<android.widget.ImageView>(R.id.cover).setImageBitmap(it) }
 
         // 품번/제목 — 임베드 title 우선(품번 중복 제거), 없으면 파일명
@@ -126,6 +127,22 @@ class VideoDetailActivity : AppCompatActivity() {
         addRow(box, "길이", if (durMs > 0) MediaLibrary.fmtDur(durMs) else null)
         addRow(box, "해상도", if (w > 0 && h > 0) "${w}×${h}" else null)
         addRow(box, "경로", if (uriStr.startsWith("content://")) null else uriStr)
+        if (!desc.isNullOrEmpty()) addParagraph(box, "줄거리", desc)
+    }
+
+    private fun addParagraph(box: LinearLayout, label: String, text: String) {
+        box.addView(TextView(this).apply {
+            this.text = label
+            setTextColor(0xFF9E9E9E.toInt())
+            textSize = 13f
+            setPadding(0, dp(14), 0, dp(4))
+        })
+        box.addView(TextView(this).apply {
+            this.text = text
+            setTextColor(0xFFD0D0D0.toInt())
+            textSize = 14f
+            setLineSpacing(dp(3).toFloat(), 1f)
+        })
     }
 
     private fun addRow(box: LinearLayout, label: String, value: String?) {
