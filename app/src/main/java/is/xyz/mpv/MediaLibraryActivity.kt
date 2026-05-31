@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
@@ -129,17 +130,29 @@ class MediaLibraryActivity : AppCompatActivity() {
         reqPerm.launch(perm)
     }
 
+    private fun spanCount(): Int = maxOf(2, resources.configuration.screenWidthDp / 170)
+
     private fun load() {
+        val mode = LibPrefs.viewMode(this)
+        val grid = LibPrefs.grid(this)
         Thread {
-            val vids = MediaLibrary.queryVideos(this)
-            val folds = LibPrefs.sortFolds(this, MediaLibrary.folders(vids))
-            runOnUiThread {
-                if (isFinishing) return@runOnUiThread
-                if (folds.isEmpty()) {
-                    empty.visibility = View.VISIBLE
-                    recycler.adapter = null
-                } else {
-                    empty.visibility = View.GONE
+            val allVids = MediaLibrary.queryVideos(this)
+            if (mode == "videos") {
+                val vids = LibPrefs.sortVids(this, allVids)
+                runOnUiThread {
+                    if (isFinishing) return@runOnUiThread
+                    empty.visibility = if (vids.isEmpty()) View.VISIBLE else View.GONE
+                    recycler.layoutManager =
+                        if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
+                    recycler.adapter = VideoAdapter(vids, grid) { v -> play(v.uri.toString(), v.name) }
+                }
+            } else {
+                // folder / tree(현재 folder 폴백)
+                val folds = LibPrefs.sortFolds(this, MediaLibrary.folders(allVids))
+                runOnUiThread {
+                    if (isFinishing) return@runOnUiThread
+                    empty.visibility = if (folds.isEmpty()) View.VISIBLE else View.GONE
+                    recycler.layoutManager = LinearLayoutManager(this)
                     recycler.adapter = FolderAdapter(folds) { f ->
                         startActivity(
                             Intent(this, FolderVideosActivity::class.java)

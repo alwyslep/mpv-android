@@ -11,6 +11,7 @@
     android:paddingBottom="10dp">
 
     <FrameLayout
+        android:id="@+id/thumb_box"
         android:layout_width="130dp"
         android:layout_height="80dp"
         android:background="#22000000">

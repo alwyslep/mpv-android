@@ -162,23 +162,35 @@ object LibPrefs {
     fun grid(ctx: Context) = p(ctx).getBoolean("video_grid", true)
     fun setGrid(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("video_grid", v).apply()
 
-    fun sortKey(ctx: Context): String = p(ctx).getString("sort_key", "name") ?: "name" // name|date|size
+    // folder | videos | tree (tree 는 현재 folder 로 폴백)
+    fun viewMode(ctx: Context): String = p(ctx).getString("view_mode", "folder") ?: "folder"
+    fun setViewMode(ctx: Context, v: String) = p(ctx).edit().putString("view_mode", v).apply()
+
+    // name(제목) | length(길이) | date(날짜) | size(크기) | path(위치)
+    fun sortKey(ctx: Context): String = p(ctx).getString("sort_key", "name") ?: "name"
     fun sortAsc(ctx: Context) = p(ctx).getBoolean("sort_asc", true)
     fun setSort(ctx: Context, key: String, asc: Boolean) =
         p(ctx).edit().putString("sort_key", key).putBoolean("sort_asc", asc).apply()
 
-    fun showPath(ctx: Context) = p(ctx).getBoolean("show_path", true)
-    fun showSize(ctx: Context) = p(ctx).getBoolean("show_size", true)
-    fun showRes(ctx: Context) = p(ctx).getBoolean("show_res", true)
-    fun showDur(ctx: Context) = p(ctx).getBoolean("show_dur", true)
+    fun showDur(ctx: Context) = p(ctx).getBoolean("show_dur", true)        // 길이
+    fun showExt(ctx: Context) = p(ctx).getBoolean("show_ext", false)       // 파일형식
+    fun showPath(ctx: Context) = p(ctx).getBoolean("show_path", true)      // 경로
+    fun showProgress(ctx: Context) = p(ctx).getBoolean("show_progress", true) // 재생진행률(placeholder)
+    fun showRes(ctx: Context) = p(ctx).getBoolean("show_res", true)        // 해상도
+    fun showSize(ctx: Context) = p(ctx).getBoolean("show_size", true)      // 크기
+    fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 섬네일
     fun setField(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 
     private fun <T> sortGeneric(
-        ctx: Context, list: List<T>, name: (T) -> String, date: (T) -> Long, size: (T) -> Long
+        ctx: Context, list: List<T>,
+        name: (T) -> String, date: (T) -> Long, size: (T) -> Long,
+        length: (T) -> Long, path: (T) -> String
     ): List<T> {
         val cmp = when (sortKey(ctx)) {
             "date" -> compareBy<T> { date(it) }
             "size" -> compareBy<T> { size(it) }
+            "length" -> compareBy<T> { length(it) }
+            "path" -> compareBy<T> { path(it).lowercase() }
             else -> compareBy<T> { name(it).lowercase() }
         }
         val s = list.sortedWith(cmp)
@@ -186,13 +198,14 @@ object LibPrefs {
     }
 
     fun sortVids(ctx: Context, l: List<Vid>): List<Vid> =
-        sortGeneric(ctx, l, { it.name }, { it.dateModified }, { it.size })
+        sortGeneric(ctx, l, { it.name }, { it.dateModified }, { it.size }, { it.durationMs }, { it.folderPath })
 
     fun sortFolds(ctx: Context, l: List<Fold>): List<Fold> =
-        sortGeneric(ctx, l, { it.name }, { it.rep?.dateModified ?: 0L }, { it.count.toLong() })
+        sortGeneric(ctx, l, { it.name }, { it.rep?.dateModified ?: 0L }, { it.count.toLong() },
+            { it.rep?.durationMs ?: 0L }, { it.path })
 
     fun sortSaf(ctx: Context, l: List<SafEntry>): List<SafEntry> =
-        sortGeneric(ctx, l, { it.name }, { 0L }, { it.size })
+        sortGeneric(ctx, l, { it.name }, { 0L }, { it.size }, { 0L }, { it.name })
 }
 
 // 사용자가 '폴더 열기'로 권한 준 SAF 트리 uri 들 — 통합 검색 인덱싱 대상.

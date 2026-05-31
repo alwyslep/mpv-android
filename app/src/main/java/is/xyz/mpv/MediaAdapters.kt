@@ -59,6 +59,7 @@ class VideoAdapter(
 ) : RecyclerView.Adapter<VideoAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
+        val thumbBox: View = v.findViewById(R.id.thumb_box)
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val dur: TextView = v.findViewById(R.id.dur)
         val code: TextView = v.findViewById(R.id.code)
@@ -77,9 +78,11 @@ class VideoAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         val v = items[position]
         val ctx = h.itemView.context
+        h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
         val res = if (v.height > 0 && LibPrefs.showRes(ctx)) "${v.height}p" else ""
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
-        h.meta.text = listOf(res, sz).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
+        h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
         // MediaStore 는 길이를 알고 있으니 직접 설정(durView 미사용)
         if (LibPrefs.showDur(ctx) && v.durationMs > 0) {
             h.dur.visibility = View.VISIBLE

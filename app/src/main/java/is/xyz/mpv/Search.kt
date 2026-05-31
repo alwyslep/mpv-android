@@ -101,6 +101,7 @@ class SearchAdapter(
 ) : RecyclerView.Adapter<SearchAdapter.VH>() {
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
+        val thumbBox: View = v.findViewById(R.id.thumb_box)
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val dur: TextView = v.findViewById(R.id.dur)
         val code: TextView = v.findViewById(R.id.code)
@@ -123,6 +124,7 @@ class SearchAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         val item = items[position]
         val ctx = h.itemView.context
+        h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
         val sizePart = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(item.size) else ""
         h.meta.text = listOf(item.folder, sizePart).filter { s -> s.isNotEmpty() }
             .joinToString("  ·  ")

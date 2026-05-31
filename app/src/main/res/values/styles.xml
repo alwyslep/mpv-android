@@ -56,6 +56,16 @@
         <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
 
+    <!-- P2: 빠른설정 시트 섹션 라벨 -->
+    <style name="QsLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:layout_marginTop">16dp</item>
+        <item name="android:layout_marginBottom">4dp</item>
+    </style>
+
     <!-- Material3 Switches -->
     <style name="Preference.SwitchPreferenceCompat" parent="Preference.SwitchPreferenceCompat.Material" tools:override="true">
         <item name="android:widgetLayout">@layout/material_preferences_switch</item>
