@@ -6,8 +6,6 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import coil.decode.VideoFrameDecoder
-import coil.load
 
 // P2: 폴더 카드 — 대표 비디오 썸네일(우하단 길이 오버레이) + 폴더명 + 경로 + "N 동영상".
 class FolderAdapter(
@@ -43,10 +41,7 @@ class FolderAdapter(
             h.dur.visibility = View.GONE
         }
         if (f.rep != null) {
-            h.thumb.load(f.rep.uri) {
-                decoderFactory(VideoFrameDecoder.Factory())
-                crossfade(true)
-            }
+            ThumbLoader.load(h.thumb, f.rep.uri, f.rep.path)
         } else {
             h.thumb.setImageDrawable(null)
         }
@@ -86,10 +81,7 @@ class VideoAdapter(
         } else {
             h.dur.visibility = View.GONE
         }
-        h.thumb.load(v.uri) {
-            decoderFactory(VideoFrameDecoder.Factory())
-            crossfade(true)
-        }
+        ThumbLoader.load(h.thumb, v.uri, v.path)
         h.itemView.setOnClickListener { onClick(v) }
     }
 }
