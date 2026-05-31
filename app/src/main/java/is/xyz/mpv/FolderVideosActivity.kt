@@ -46,7 +46,7 @@ class FolderVideosActivity : AppCompatActivity() {
         rebuild()
 
         Thread {
-            val list = MediaLibrary.videosIn(MediaLibrary.queryVideos(this), path)
+            val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), path))
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 vids = list

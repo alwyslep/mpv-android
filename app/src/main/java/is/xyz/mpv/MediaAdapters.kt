@@ -30,11 +30,13 @@ class FolderAdapter(
 
     override fun onBindViewHolder(h: VH, position: Int) {
         val f = items[position]
+        val ctx = h.itemView.context
         h.name.text = f.name
         h.path.text = f.path
+        h.path.visibility = if (LibPrefs.showPath(ctx)) View.VISIBLE else View.GONE
         h.count.text = "${f.count} 동영상"
         val d = f.rep?.durationMs ?: 0L
-        if (d > 0) {
+        if (LibPrefs.showDur(ctx) && d > 0) {
             h.dur.visibility = View.VISIBLE
             h.dur.text = MediaLibrary.fmtDur(d)
         } else {
@@ -74,11 +76,12 @@ class VideoAdapter(
 
     override fun onBindViewHolder(h: VH, position: Int) {
         val v = items[position]
-        val res = if (v.height > 0) "${v.height}p" else ""
-        val sz = MediaLibrary.fmtSize(v.size)
+        val ctx = h.itemView.context
+        val res = if (v.height > 0 && LibPrefs.showRes(ctx)) "${v.height}p" else ""
+        val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         h.meta.text = listOf(res, sz).filter { it.isNotEmpty() }.joinToString("  ·  ")
         // MediaStore 는 길이를 알고 있으니 직접 설정(durView 미사용)
-        if (v.durationMs > 0) {
+        if (LibPrefs.showDur(ctx) && v.durationMs > 0) {
             h.dur.visibility = View.VISIBLE
             h.dur.text = MediaLibrary.fmtDur(v.durationMs)
         } else {

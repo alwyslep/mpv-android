@@ -122,9 +122,14 @@ class SearchAdapter(
 
     override fun onBindViewHolder(h: VH, position: Int) {
         val item = items[position]
-        h.meta.text = listOf(item.folder, MediaLibrary.fmtSize(item.size)).filter { s -> s.isNotEmpty() }
+        val ctx = h.itemView.context
+        val sizePart = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(item.size) else ""
+        h.meta.text = listOf(item.folder, sizePart).filter { s -> s.isNotEmpty() }
             .joinToString("  ·  ")
-        if (item.durationMs > 0) {
+        if (!LibPrefs.showDur(ctx)) {
+            h.dur.visibility = View.GONE
+            ThumbLoader.load(h.thumb, h.code, h.title, item.uri, item.name)
+        } else if (item.durationMs > 0) {
             h.dur.visibility = View.VISIBLE
             h.dur.text = MediaLibrary.fmtDur(item.durationMs)
             ThumbLoader.load(h.thumb, h.code, h.title, item.uri, item.name)

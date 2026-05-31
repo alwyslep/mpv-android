@@ -104,7 +104,9 @@ class SafBrowserActivity : AppCompatActivity() {
             }
         } catch (_: Throwable) {
         }
-        return out.sortedWith(compareByDescending<SafEntry> { it.isDir }.thenBy { it.name.lowercase() })
+        val dirs = out.filter { it.isDir }.sortedBy { it.name.lowercase() }
+        val vids = LibPrefs.sortSaf(this, out.filter { !it.isDir })
+        return dirs + vids
     }
 
     private fun rebuild() {
@@ -195,9 +197,15 @@ class SafAdapter(
             h.name.text = e.name
             h.itemView.setOnClickListener { onFolder(e) }
         } else if (h is VidVH) {
-            h.meta.text = MediaLibrary.fmtSize(e.size)
+            val ctx = h.itemView.context
+            h.meta.text = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(e.size) else ""
             val fallback = e.name.substringBeforeLast(".")
-            ThumbLoader.load(h.thumb, h.code, h.title, e.uri, fallback, durView = h.dur)
+            if (LibPrefs.showDur(ctx)) {
+                ThumbLoader.load(h.thumb, h.code, h.title, e.uri, fallback, durView = h.dur)
+            } else {
+                h.dur.visibility = View.GONE
+                ThumbLoader.load(h.thumb, h.code, h.title, e.uri, fallback)
+            }
             h.itemView.setOnClickListener { onVideo(e) }
         }
     }

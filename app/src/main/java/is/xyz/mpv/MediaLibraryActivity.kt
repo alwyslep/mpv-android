@@ -59,13 +59,18 @@ class MediaLibraryActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_search_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 1, 1, "설정").apply {
+        toolbar.menu.add(0, 3, 1, "빠른 설정").apply {
+            setIcon(R.drawable.ic_tune_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.menu.add(0, 1, 2, "설정").apply {
             setIcon(R.drawable.ic_settings_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
+                3 -> QuickSettings.show(this) { load() }
                 1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
             }
             true
@@ -127,7 +132,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     private fun load() {
         Thread {
             val vids = MediaLibrary.queryVideos(this)
-            val folds = MediaLibrary.folders(vids)
+            val folds = LibPrefs.sortFolds(this, MediaLibrary.folders(vids))
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 if (folds.isEmpty()) {
