@@ -82,6 +82,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private var audioFocusRestore: () -> Unit = {}
 
     private val psc = Utils.PlaybackStateCache()
+    // 재생완료 위치기록: psc.eof() 가 position/duration 을 비우므로, END_FILE 직전 마지막 값 보존.
+    private var lastPos = -1L
+    private var lastDur = 0L
     private var mediaSession: MediaSessionCompat? = null
 
     private lateinit var binding: PlayerBinding
@@ -340,8 +343,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val result = Intent(RESULT_INTENT)
         result.data = if (intent.data?.scheme == "file") null else intent.data
         if (includeTimePos) {
-            result.putExtra("position", psc.position.toInt())
-            result.putExtra("duration", psc.duration.toInt())
+            // psc 가 eof 로 비워졌으면(완료 경로) END_FILE 직전 보존값 사용
+            val pos = if (psc.position >= 0) psc.position else lastPos
+            val dur = if (psc.duration > 0) psc.duration else lastDur
+            result.putExtra("position", pos.toInt())
+            result.putExtra("duration", dur.toInt())
         }
         setResult(code, result)
         finish()
@@ -1993,12 +1999,18 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     override fun event(eventId: Int) {
         if (eventId == MpvEvent.MPV_EVENT_END_FILE) {
+            // eof() 가 비우기 전 마지막 위치 보존(재생완료 위치기록)
+            if (psc.position >= 0) lastPos = psc.position
+            if (psc.duration > 0) lastDur = psc.duration
             psc.eof()
             updateMediaSession()
         }
 
         if (eventId == MpvEvent.MPV_EVENT_SHUTDOWN)
-            finishWithResult(if (playbackHasStarted) RESULT_OK else RESULT_CANCELED)
+            finishWithResult(
+                if (playbackHasStarted) RESULT_OK else RESULT_CANCELED,
+                playbackHasStarted
+            )
 
         if (eventId == MpvEvent.MPV_EVENT_START_FILE) {
             val cmds = onloadCommands.toTypedArray()
