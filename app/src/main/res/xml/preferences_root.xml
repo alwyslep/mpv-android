@@ -22,6 +22,11 @@
         app:summary="@string/pref_header_ui_summary"
         app:title="@string/pref_header_ui" />
     <Preference
+        app:fragment="is.xyz.mpv.preferences.PreferenceActivity$SubtitlePreference"
+        app:icon="@drawable/ic_subtitle_pref_24"
+        app:summary="@string/pref_header_subtitle_summary"
+        app:title="@string/pref_header_subtitle" />
+    <Preference
         app:fragment="is.xyz.mpv.preferences.PreferenceActivity$GesturePreference"
         app:icon="@drawable/round_gesture_24"
         app:summary="@string/pref_header_gestures_summary"

@@ -94,6 +94,21 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
             MPVLib.setOptionString("vd-lavc-skiploopfilter", "nonkey")
         }
 
+        // P2: 자막 외관(mpv UI 신설 — 기존엔 자막 '언어'만 있었음)
+        sharedPreferences.getString("sub_font_size", "")?.let {
+            if (it.isNotBlank()) MPVLib.setOptionString("sub-font-size", it)
+        }
+        if (sharedPreferences.getBoolean("sub_bold", false))
+            MPVLib.setOptionString("sub-bold", "yes")
+        if (sharedPreferences.getBoolean("sub_background", false))
+            MPVLib.setOptionString("sub-back-color", "#80000000")
+        // 내장(ASS) 스타일 적용 OFF → 우리 폰트/크기로 강제
+        if (!sharedPreferences.getBoolean("sub_embedded_styles", true))
+            MPVLib.setOptionString("sub-ass-override", "force")
+        sharedPreferences.getString("sub_codepage", "")?.let {
+            if (it.isNotBlank()) MPVLib.setOptionString("sub-codepage", it)
+        }
+
         MPVLib.setOptionString("gpu-context", "android")
         MPVLib.setOptionString("opengl-es", "yes")
         MPVLib.setOptionString("hwdec", hwdec)

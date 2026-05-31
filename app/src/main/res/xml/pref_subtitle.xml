@@ -1,0 +1,36 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <ListPreference
+        app:key="sub_font_size"
+        app:defaultValue=""
+        app:entries="@array/sub_font_size_entries"
+        app:entryValues="@array/sub_font_size_values"
+        app:title="@string/pref_sub_font_size"
+        app:useSimpleSummaryProvider="true" />
+
+    <SwitchPreferenceCompat
+        app:key="sub_bold"
+        app:defaultValue="false"
+        app:title="@string/pref_sub_bold" />
+
+    <SwitchPreferenceCompat
+        app:key="sub_background"
+        app:defaultValue="false"
+        app:title="@string/pref_sub_background" />
+
+    <SwitchPreferenceCompat
+        app:key="sub_embedded_styles"
+        app:defaultValue="true"
+        app:summary="@string/pref_sub_embedded_styles_summary"
+        app:title="@string/pref_sub_embedded_styles" />
+
+    <ListPreference
+        app:key="sub_codepage"
+        app:defaultValue=""
+        app:entries="@array/sub_codepage_entries"
+        app:entryValues="@array/sub_codepage_values"
+        app:title="@string/pref_sub_codepage"
+        app:useSimpleSummaryProvider="true" />
+
+</PreferenceScreen>

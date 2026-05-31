@@ -168,4 +168,34 @@
         <item>videos</item>
         <item>tree</item>
     </string-array>
+
+    <!-- P2: 자막 외관 -->
+    <string-array name="sub_font_size_entries">
+        <item>Default</item>
+        <item>Small</item>
+        <item>Medium</item>
+        <item>Large</item>
+        <item>Extra large</item>
+    </string-array>
+    <string-array name="sub_font_size_values" translatable="false">
+        <item></item>
+        <item>30</item>
+        <item>45</item>
+        <item>55</item>
+        <item>70</item>
+    </string-array>
+    <string-array name="sub_codepage_entries">
+        <item>Auto</item>
+        <item>UTF-8</item>
+        <item>Korean (EUC-KR)</item>
+        <item>Korean (CP949)</item>
+        <item>Japanese (Shift-JIS)</item>
+    </string-array>
+    <string-array name="sub_codepage_values" translatable="false">
+        <item></item>
+        <item>utf-8</item>
+        <item>euc-kr</item>
+        <item>cp949</item>
+        <item>shift-jis</item>
+    </string-array>
 </resources>

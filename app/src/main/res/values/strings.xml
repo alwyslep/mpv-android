@@ -107,6 +107,16 @@
     <string name="pref_ml_clear_trees_summary">Remove all USB/SAF folders from search</string>
     <string name="pref_ml_clear_thumbs">Clear thumbnail cache</string>
 
+    <!-- P2: Subtitle appearance (added; stock mpv UI had language only) -->
+    <string name="pref_header_subtitle">Subtitles (appearance)</string>
+    <string name="pref_header_subtitle_summary">Size, bold, background, encoding</string>
+    <string name="pref_sub_font_size">Subtitle size</string>
+    <string name="pref_sub_bold">Bold subtitles</string>
+    <string name="pref_sub_background">Subtitle background box</string>
+    <string name="pref_sub_embedded_styles">Apply embedded styles</string>
+    <string name="pref_sub_embedded_styles_summary">Off: force the size/bold set above</string>
+    <string name="pref_sub_codepage">Subtitle text encoding</string>
+
     <string name="pref_default_file_manager_path_title">Default file manager path</string>
     <string name="pref_default_file_manager_path_summary" translatable="false">%s</string>
 

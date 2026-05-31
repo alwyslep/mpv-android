@@ -128,6 +128,12 @@ class PreferenceActivity : AppCompatActivity(),
         }
     }
 
+    class SubtitlePreference : PreferenceFragmentCompat() {
+        override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            setPreferencesFromResource(R.xml.pref_subtitle, rootKey)
+        }
+    }
+
     class UIPreference : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.pref_ui, rootKey)

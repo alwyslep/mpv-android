@@ -28,4 +28,13 @@
     <string name="pref_ml_clear_trees">등록된 폴더 초기화</string>
     <string name="pref_ml_clear_trees_summary">검색에 등록된 USB/SAF 폴더 모두 해제</string>
     <string name="pref_ml_clear_thumbs">썸네일 캐시 비우기</string>
+
+    <string name="pref_header_subtitle">자막 (외관)</string>
+    <string name="pref_header_subtitle_summary">글자 크기, 굵게, 배경, 인코딩</string>
+    <string name="pref_sub_font_size">자막 글자 크기</string>
+    <string name="pref_sub_bold">자막 굵게</string>
+    <string name="pref_sub_background">자막 배경 상자</string>
+    <string name="pref_sub_embedded_styles">내장 자막 스타일 적용</string>
+    <string name="pref_sub_embedded_styles_summary">끄면 위에서 정한 크기·굵게를 강제 적용</string>
+    <string name="pref_sub_codepage">자막 텍스트 인코딩</string>
 </resources>
