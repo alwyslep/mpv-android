@@ -29,9 +29,21 @@ class MediaLibraryActivity : AppCompatActivity() {
     private lateinit var empty: TextView
     private lateinit var fabMenu: View
 
-    private val openLocal =
-        registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            uri?.let { play(it.toString(), it.lastPathSegment ?: "video") }
+    // 로컬/USB 폴더 1개 선택 → 내 SAF 타일 브라우저로 진입(OS 선택기 대신).
+    private val openTree =
+        registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+            uri?.let {
+                try {
+                    contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                } catch (_: Exception) {
+                }
+                val title = (it.lastPathSegment ?: "폴더").substringAfterLast(":").substringAfterLast("/")
+                startActivity(
+                    Intent(this, SafBrowserActivity::class.java)
+                        .putExtra("tree", it.toString())
+                        .putExtra("title", title)
+                )
+            }
         }
 
     private val reqPerm =
@@ -76,9 +88,9 @@ class MediaLibraryActivity : AppCompatActivity() {
         findViewById<ExtendedFloatingActionButton>(R.id.fab_local).setOnClickListener {
             fabMenu.visibility = View.GONE
             try {
-                openLocal.launch(arrayOf("video/*", "*/*"))
+                openTree.launch(null)
             } catch (e: Exception) {
-                Toast.makeText(this, "파일 선택기를 열 수 없습니다", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "폴더 선택기를 열 수 없습니다", Toast.LENGTH_SHORT).show()
             }
         }
         findViewById<ExtendedFloatingActionButton>(R.id.fab_recent).setOnClickListener {

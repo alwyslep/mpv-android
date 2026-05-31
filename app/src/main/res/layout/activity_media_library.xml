@@ -69,7 +69,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginBottom="12dp"
-            android:text="로컬 동영상 열기"
+            android:text="폴더 열기 (USB/내부)"
             app:icon="@drawable/ic_file_open_48dp" />
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton

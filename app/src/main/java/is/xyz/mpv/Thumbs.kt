@@ -10,6 +10,7 @@ import android.os.Build
 import android.provider.MediaStore
 import android.util.LruCache
 import android.util.Size
+import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import java.util.concurrent.ConcurrentHashMap
@@ -18,7 +19,8 @@ import java.util.concurrent.Executors
 // P2: 비디오 카드 메타 로더 — 컨테이너 임베드 정보를 우선 반영한다.
 //   썸네일 우선순위 ① 임베드 커버(covr/attached_pic, reMux+metaTag) ② MediaStore 시스템 썸네일 ③ ThumbnailUtils
 //   라벨        ① 임베드 타이틀 "품번 공백들 한글제목" → "품번\n한글제목" ② 없으면 파일명
-//   RecyclerView 재사용 경합은 View.tag 로 막는다. 커버 비트맵은 LruCache, 타이틀은 작아 영구 캐시.
+//   길이        durView 가 주어지면(SAF 등 길이 미상) MMR 로 함께 추출.
+//   RecyclerView 재사용 경합은 View.tag 로 막는다.
 object ThumbLoader {
     private val exec = Executors.newFixedThreadPool(3)
     private val bmpCache = object : LruCache<String, Bitmap>(
@@ -26,25 +28,37 @@ object ThumbLoader {
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
-    // 값 "" = MMR 확인했으나 임베드 타이틀 없음(파일명 사용). null = 아직 미확인.
-    private val titleCache = ConcurrentHashMap<String, String>()
+    private val titleCache = ConcurrentHashMap<String, String>() // "" = 임베드 타이틀 없음
+    private val durCache = ConcurrentHashMap<String, Long>()      // -1 = 확인했으나 없음
 
-    fun load(thumb: ImageView, titleView: TextView?, uri: Uri, path: String, fallbackName: String) {
+    fun load(
+        thumb: ImageView,
+        titleView: TextView?,
+        uri: Uri,
+        path: String,
+        fallbackName: String,
+        durView: TextView? = null
+    ) {
         val key = uri.toString()
         thumb.tag = key
         titleView?.tag = key
+        durView?.tag = key
 
         val cb = bmpCache.get(key)
         val ct = titleCache[key]
+        val cd = durCache[key]
         thumb.setImageBitmap(cb)
         titleView?.text = displayTitle(ct, fallbackName)
+        if (durView != null) applyDur(durView, cd)
 
-        if (cb != null && ct != null) return  // 둘 다 캐시 → MMR 불필요
+        val needDur = durView != null && cd == null
+        if (cb != null && ct != null && !needDur) return  // 캐시 충분
 
         val ctx = thumb.context.applicationContext
         exec.execute {
             var bmp = cb
             var title = ct
+            var dur = cd
             val mmr = MediaMetadataRetriever()
             try {
                 mmr.setDataSource(ctx, uri)
@@ -56,27 +70,39 @@ object ThumbLoader {
                     val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
                     title = if (raw.isNotEmpty()) formatTitle(raw) else ""
                 }
+                if (needDur && dur == null) {
+                    dur = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: -1L
+                }
             } catch (_: Throwable) {
             } finally {
                 try { mmr.release() } catch (_: Throwable) {}
             }
-            // 임베드 커버 없으면 시스템 썸네일 fallback
             if (bmp == null) bmp = systemThumb(ctx, uri, path)
 
             if (bmp != null) bmpCache.put(key, bmp)
             if (title != null) titleCache[key] = title
+            if (dur != null) durCache[key] = dur
 
-            val fb = bmp
-            val ft = title
+            val fb = bmp; val ft = title; val fd = dur
             thumb.post { if (thumb.tag == key) thumb.setImageBitmap(fb) }
             titleView?.post { if (titleView.tag == key) titleView.text = displayTitle(ft, fallbackName) }
+            durView?.post { if (durView.tag == key) applyDur(durView, fd) }
+        }
+    }
+
+    private fun applyDur(durView: TextView, ms: Long?) {
+        if (ms != null && ms > 0) {
+            durView.visibility = View.VISIBLE
+            durView.text = MediaLibrary.fmtDur(ms)
+        } else {
+            durView.visibility = View.GONE
         }
     }
 
     private fun displayTitle(cached: String?, fallbackName: String): String =
         if (cached.isNullOrEmpty()) fallbackName else cached
 
-    // "MIDD-850   유부녀의 비밀" → "MIDD-850\n유부녀의 비밀" (첫 공백run 기준 품번/제목 분리)
+    // "MIDD-850   유부녀의 비밀" → "MIDD-850\n유부녀의 비밀"
     private fun formatTitle(raw: String): String {
         val parts = raw.split(Regex("\\s+"), limit = 2)
         return if (parts.size == 2 && parts[1].isNotBlank()) "${parts[0]}\n${parts[1]}" else raw
@@ -84,13 +110,15 @@ object ThumbLoader {
 
     private fun systemThumb(ctx: Context, uri: Uri, path: String): Bitmap? {
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && uri.authority == MediaStore.AUTHORITY)
                 return ctx.contentResolver.loadThumbnail(uri, Size(360, 240), null)
         } catch (_: Throwable) {
         }
         return try {
-            @Suppress("DEPRECATION")
-            ThumbnailUtils.createVideoThumbnail(path, MediaStore.Images.Thumbnails.MINI_KIND)
+            if (path.isNotEmpty()) {
+                @Suppress("DEPRECATION")
+                ThumbnailUtils.createVideoThumbnail(path, MediaStore.Images.Thumbnails.MINI_KIND)
+            } else null
         } catch (_: Throwable) {
             null
         }
