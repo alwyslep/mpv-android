@@ -12,6 +12,8 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
@@ -208,10 +210,11 @@
             </intent-filter>
         </activity>
 
+        <!-- P2: 런처 = 미디어 라이브러리 홈 (NextPlayer식) -->
         <activity
-            android:name=".MainActivity"
+            android:name=".MediaLibraryActivity"
             android:configChanges="orientation|screenSize"
-            android:theme="@style/FilePickerTheme"
+            android:theme="@style/MediaLibraryTheme"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -220,6 +223,20 @@
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".FolderVideosActivity"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/MediaLibraryTheme"
+            android:parentActivityName=".MediaLibraryActivity"
+            android:exported="false" />
+
+        <!-- 기존 타일 런처(MainActivity)는 더 이상 진입점 아님 — PreferenceActivity parent 참조 위해 선언만 유지 -->
+        <activity
+            android:name=".MainActivity"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/FilePickerTheme"
+            android:exported="false" />
 
         <activity
             android:name=".FilePickerActivity"

@@ -1,0 +1,155 @@
+package `is`.xyz.mpv
+
+import android.content.ContentUris
+import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
+
+// P2 (media library home): NextPlayer식 폴더/비디오 홈을 위한 MediaStore 라이브 쿼리.
+//   Room/sync 인프라 없이 매 진입 시 MediaStore 를 직접 읽어 폴더(bucket)별로 묶는다.
+
+data class Vid(
+    val id: Long,
+    val uri: Uri,
+    val path: String,
+    val name: String,      // 확장자 제외
+    val nameExt: String,   // 확장자 포함
+    val durationMs: Long,
+    val size: Long,
+    val width: Int,
+    val height: Int,
+    val folderName: String,
+    val folderPath: String,
+    val dateModified: Long
+)
+
+data class Fold(
+    val name: String,
+    val path: String,
+    val count: Int,
+    val rep: Vid?          // 대표 비디오(썸네일 + 길이 오버레이용, 최신순 첫번째)
+)
+
+object MediaLibrary {
+    fun fmtDur(ms: Long): String {
+        if (ms <= 0) return ""
+        val s = ms / 1000
+        val h = s / 3600
+        val m = (s % 3600) / 60
+        val sec = s % 60
+        return if (h > 0) "%d:%02d:%02d".format(h, m, sec) else "%02d:%02d".format(m, sec)
+    }
+
+    fun fmtSize(bytes: Long): String {
+        if (bytes <= 0) return ""
+        val kb = bytes / 1024.0
+        val mb = kb / 1024.0
+        val gb = mb / 1024.0
+        return when {
+            gb >= 1 -> "%.1f GB".format(gb)
+            mb >= 1 -> "%.0f MB".format(mb)
+            else -> "%.0f KB".format(kb)
+        }
+    }
+
+    fun queryVideos(ctx: Context): List<Vid> {
+        val out = ArrayList<Vid>()
+        val proj = arrayOf(
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DATA,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.SIZE,
+            MediaStore.Video.Media.WIDTH,
+            MediaStore.Video.Media.HEIGHT,
+            MediaStore.Video.Media.DATE_MODIFIED
+        )
+        val coll = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
+        val sort = "${MediaStore.Video.Media.DATE_MODIFIED} DESC"
+        ctx.contentResolver.query(coll, proj, null, null, sort)?.use { c ->
+            val iId = c.getColumnIndexOrThrow(MediaStore.Video.Media._ID)
+            val iData = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
+            val iName = c.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME)
+            val iDur = c.getColumnIndexOrThrow(MediaStore.Video.Media.DURATION)
+            val iSize = c.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE)
+            val iW = c.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
+            val iH = c.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
+            val iDate = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+            while (c.moveToNext()) {
+                val id = c.getLong(iId)
+                val data = c.getString(iData) ?: ""
+                val nameExt = c.getString(iName) ?: (if (data.isNotEmpty()) File(data).name else "video")
+                val name = nameExt.substringBeforeLast(".")
+                val parent = if (data.isNotEmpty()) (File(data).parent ?: "") else ""
+                out.add(
+                    Vid(
+                        id = id,
+                        uri = ContentUris.withAppendedId(coll, id),
+                        path = data,
+                        name = name,
+                        nameExt = nameExt,
+                        durationMs = c.getLong(iDur),
+                        size = c.getLong(iSize),
+                        width = c.getInt(iW),
+                        height = c.getInt(iH),
+                        folderName = if (parent.isNotEmpty()) File(parent).name else "(기타)",
+                        folderPath = parent,
+                        dateModified = c.getLong(iDate)
+                    )
+                )
+            }
+        }
+        return out
+    }
+
+    fun folders(vids: List<Vid>): List<Fold> {
+        val map = LinkedHashMap<String, MutableList<Vid>>()
+        for (v in vids) map.getOrPut(v.folderPath) { ArrayList() }.add(v)
+        return map.map { (path, list) ->
+            Fold(
+                name = if (path.isNotEmpty()) File(path).name else "(기타)",
+                path = path,
+                count = list.size,
+                rep = list.firstOrNull()   // 이미 DATE_MODIFIED DESC → 최신 영상이 대표
+            )
+        }.sortedBy { it.name.lowercase() }
+    }
+
+    fun videosIn(vids: List<Vid>, folderPath: String): List<Vid> =
+        vids.filter { it.folderPath == folderPath }
+}
+
+// 최근 재생 목록 — Room 없이 SharedPreferences(JSON)로 간단 유지. 재생 진입 시 기록.
+object Recents {
+    private const val PREFS = "media_library"
+    private const val KEY = "recent_played_v1"
+    private const val MAX = 30
+
+    fun add(ctx: Context, uri: String, title: String) {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val arr = JSONArray(p.getString(KEY, "[]"))
+        val out = JSONArray()
+        out.put(JSONObject().put("uri", uri).put("title", title))
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            if (o.optString("uri") == uri) continue
+            out.put(o)
+            if (out.length() >= MAX) break
+        }
+        p.edit().putString(KEY, out.toString()).apply()
+    }
+
+    fun list(ctx: Context): List<Pair<String, String>> {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val arr = JSONArray(p.getString(KEY, "[]"))
+        val out = ArrayList<Pair<String, String>>()
+        for (i in 0 until arr.length()) {
+            val o = arr.getJSONObject(i)
+            out.add(o.optString("uri") to o.optString("title"))
+        }
+        return out
+    }
+}

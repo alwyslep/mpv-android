@@ -71,4 +71,7 @@ dependencies {
     implementation 'androidx.media:media:1.7.1'
     implementation 'androidx.preference:preference-ktx:1.2.1'
     implementation 'com.google.android.material:material:1.13.0'
+    // P2 (media library home): 비디오 썸네일 비동기 로딩 + 프레임 디코딩
+    implementation 'io.coil-kt:coil:2.7.0'
+    implementation 'io.coil-kt:coil-video:2.7.0'
 }

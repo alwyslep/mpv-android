@@ -51,6 +51,11 @@
     </style>
 
 
+    <!-- P2: 미디어 라이브러리 홈 (NextPlayer식 다크 Material3, 자체 Toolbar 사용 → NoActionBar) -->
+    <style name="MediaLibraryTheme" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">?attr/colorSurface</item>
+    </style>
+
     <!-- Material3 Switches -->
     <style name="Preference.SwitchPreferenceCompat" parent="Preference.SwitchPreferenceCompat.Material" tools:override="true">
         <item name="android:widgetLayout">@layout/material_preferences_switch</item>
