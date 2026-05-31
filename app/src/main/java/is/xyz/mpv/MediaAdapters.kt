@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
@@ -62,6 +63,7 @@ class VideoAdapter(
         val thumbBox: View = v.findViewById(R.id.thumb_box)
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val dur: TextView = v.findViewById(R.id.dur)
+        val progress: ProgressBar = v.findViewById(R.id.progress)
         val code: TextView = v.findViewById(R.id.code)
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
@@ -89,6 +91,13 @@ class VideoAdapter(
             h.dur.text = MediaLibrary.fmtDur(v.durationMs)
         } else {
             h.dur.visibility = View.GONE
+        }
+        val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, v.uri.toString()) else 0f
+        if (pct > 0f) {
+            h.progress.visibility = View.VISIBLE
+            h.progress.progress = (pct * 100).toInt()
+        } else {
+            h.progress.visibility = View.GONE
         }
         ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
         h.itemView.setOnClickListener { onClick(v) }

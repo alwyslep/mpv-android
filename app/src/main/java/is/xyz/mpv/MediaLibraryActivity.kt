@@ -51,6 +51,13 @@ class MediaLibraryActivity : AppCompatActivity() {
     private val reqPerm =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { load() }
 
+    // 재생 결과(위치/길이) 기록 — 이어보기·진행률
+    private var pendingUri: String? = null
+    private val playLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            pendingUri?.let { Playback.onResult(this, it, res.data) }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media_library)
@@ -166,14 +173,8 @@ class MediaLibraryActivity : AppCompatActivity() {
     }
 
     private fun play(uri: String, title: String) {
-        Recents.add(this, uri, title)
-        val i = if (uri.startsWith("content://")) {
-            Intent(Intent.ACTION_VIEW, Uri.parse(uri))
-        } else {
-            Intent().putExtra("filepath", uri)
-        }
-        i.setClass(this, MPVActivity::class.java)
-        startActivity(i)
+        pendingUri = uri
+        playLauncher.launch(Playback.intentFor(this, uri, title))
     }
 
     private fun showUrlDialog() {

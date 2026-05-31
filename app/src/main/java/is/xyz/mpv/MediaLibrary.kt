@@ -2,6 +2,7 @@ package `is`.xyz.mpv
 
 import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.MediaStore
 import org.json.JSONArray
@@ -225,4 +226,57 @@ object SafTrees {
 
     fun clear(ctx: Context) =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()
+}
+
+// 재생 위치 저장 — 이어보기 + 타일 진행률. uri 별 {pos, dur} (ms).
+object Progress {
+    private const val PREFS = "media_library"
+    private const val KEY = "progress_v1"
+
+    fun save(ctx: Context, uri: String, posMs: Long, durMs: Long) {
+        if (durMs <= 0) return
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val o = JSONObject(p.getString(KEY, "{}"))
+        o.put(uri, JSONObject().put("p", posMs).put("d", durMs))
+        p.edit().putString(KEY, o.toString()).apply()
+    }
+
+    // (pos, dur) ms 또는 null
+    fun get(ctx: Context, uri: String): Pair<Long, Long>? {
+        val o = JSONObject(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "{}"))
+        if (!o.has(uri)) return null
+        val e = o.getJSONObject(uri)
+        return e.optLong("p") to e.optLong("d")
+    }
+
+    fun percent(ctx: Context, uri: String): Float {
+        val (pos, dur) = get(ctx, uri) ?: return 0f
+        if (dur <= 0) return 0f
+        return (pos.toFloat() / dur).coerceIn(0f, 1f)
+    }
+}
+
+// MPVActivity 실행/복귀 — 이어보기 위치 전달 + 종료 결과(position/duration) 기록 + 최근재생.
+object Playback {
+    fun intentFor(ctx: Context, uri: String, title: String): Intent {
+        Recents.add(ctx, uri, title)
+        val i = if (uri.startsWith("content://")) {
+            Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+        } else {
+            Intent().putExtra("filepath", uri)
+        }
+        i.setClass(ctx, MPVActivity::class.java)
+        Progress.get(ctx, uri)?.let { (pos, dur) ->
+            // 시작 직후/거의 끝이면 이어보기 생략
+            if (pos > 3000 && pos < dur - 3000) i.putExtra("position", pos.toInt())
+        }
+        return i
+    }
+
+    fun onResult(ctx: Context, uri: String, data: Intent?) {
+        if (data == null) return
+        val pos = data.getIntExtra("position", -1)
+        val dur = data.getIntExtra("duration", -1)
+        if (pos >= 0 && dur > 0) Progress.save(ctx, uri, pos.toLong(), dur.toLong())
+    }
 }

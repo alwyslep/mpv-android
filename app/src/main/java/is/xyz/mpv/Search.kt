@@ -11,9 +11,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -104,6 +106,7 @@ class SearchAdapter(
         val thumbBox: View = v.findViewById(R.id.thumb_box)
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val dur: TextView = v.findViewById(R.id.dur)
+        val progress: ProgressBar = v.findViewById(R.id.progress)
         val code: TextView = v.findViewById(R.id.code)
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
@@ -125,6 +128,13 @@ class SearchAdapter(
         val item = items[position]
         val ctx = h.itemView.context
         h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
+        val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, item.uri.toString()) else 0f
+        if (pct > 0f) {
+            h.progress.visibility = View.VISIBLE
+            h.progress.progress = (pct * 100).toInt()
+        } else {
+            h.progress.visibility = View.GONE
+        }
         val sizePart = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(item.size) else ""
         h.meta.text = listOf(item.folder, sizePart).filter { s -> s.isNotEmpty() }
             .joinToString("  ·  ")
@@ -151,6 +161,13 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var adapter: SearchAdapter
     private val handler = Handler(Looper.getMainLooper())
     private var pending: Runnable? = null
+
+    private var pendingUri: String? = null
+    private val playLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            runQuery()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -217,10 +234,8 @@ class SearchActivity : AppCompatActivity() {
         status.text = "‘${input.text}’ — ${res.size}개"
     }
 
-    private fun play(it: SearchItem) {
-        Recents.add(this, it.uri.toString(), it.name)
-        val i = Intent(Intent.ACTION_VIEW, it.uri)
-        i.setClass(this, MPVActivity::class.java)
-        startActivity(i)
+    private fun play(item: SearchItem) {
+        pendingUri = item.uri.toString()
+        playLauncher.launch(Playback.intentFor(this, item.uri.toString(), item.name))
     }
 }

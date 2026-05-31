@@ -1,8 +1,8 @@
 package `is`.xyz.mpv
 
-import android.content.Intent
 import android.os.Bundle
 import android.view.MenuItem
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -16,6 +16,13 @@ class FolderVideosActivity : AppCompatActivity() {
     private var vids: List<Vid> = emptyList()
     private var grid = true
     private var toggleItem: MenuItem? = null
+
+    private var pendingUri: String? = null
+    private val playLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            rebuild()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,9 +79,7 @@ class FolderVideosActivity : AppCompatActivity() {
     }
 
     private fun play(v: Vid) {
-        Recents.add(this, v.uri.toString(), v.name)
-        val i = Intent(Intent.ACTION_VIEW, v.uri)
-        i.setClass(this, MPVActivity::class.java)
-        startActivity(i)
+        pendingUri = v.uri.toString()
+        playLauncher.launch(Playback.intentFor(this, v.uri.toString(), v.name))
     }
 }

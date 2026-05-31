@@ -4,11 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
+import androidx.activity.result.contract.ActivityResultContracts
 import android.view.LayoutInflater
 import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -34,6 +36,13 @@ class SafBrowserActivity : AppCompatActivity() {
     private var entries: List<SafEntry> = emptyList()
     private var grid = true
     private var toggleItem: MenuItem? = null
+
+    private var pendingUri: String? = null
+    private val playLauncher =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
+            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            rebuild()
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -136,10 +145,8 @@ class SafBrowserActivity : AppCompatActivity() {
     }
 
     private fun play(e: SafEntry) {
-        Recents.add(this, e.uri.toString(), e.name.substringBeforeLast("."))
-        val i = Intent(Intent.ACTION_VIEW, e.uri)
-        i.setClass(this, MPVActivity::class.java)
-        startActivity(i)
+        pendingUri = e.uri.toString()
+        playLauncher.launch(Playback.intentFor(this, e.uri.toString(), e.name.substringBeforeLast(".")))
     }
 
     companion object {
@@ -173,6 +180,7 @@ class SafAdapter(
         val thumbBox: View = v.findViewById(R.id.thumb_box)
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val dur: TextView = v.findViewById(R.id.dur)
+        val progress: ProgressBar = v.findViewById(R.id.progress)
         val code: TextView = v.findViewById(R.id.code)
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
@@ -204,6 +212,13 @@ class SafAdapter(
             val extPart = if (LibPrefs.showExt(ctx)) e.name.substringAfterLast(".", "").uppercase() else ""
             h.meta.text = listOf(szPart, extPart).filter { it.isNotEmpty() }.joinToString("  ·  ")
             val fallback = e.name.substringBeforeLast(".")
+            val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, e.uri.toString()) else 0f
+            if (pct > 0f) {
+                h.progress.visibility = View.VISIBLE
+                h.progress.progress = (pct * 100).toInt()
+            } else {
+                h.progress.visibility = View.GONE
+            }
             if (LibPrefs.showDur(ctx)) {
                 ThumbLoader.load(h.thumb, h.code, h.title, e.uri, fallback, durView = h.dur)
             } else {
