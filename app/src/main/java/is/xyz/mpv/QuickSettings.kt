@@ -22,6 +22,7 @@ object QuickSettings {
 
         // 보류 상태(완료 전까지 prefs 미반영)
         var pMode = LibPrefs.viewMode(ctx)
+        var pWatch = LibPrefs.watchFilter(ctx)
         var pGrid = LibPrefs.grid(ctx)
         var pSort = LibPrefs.sortKey(ctx)
         var pAsc = LibPrefs.sortAsc(ctx)
@@ -38,6 +39,25 @@ object QuickSettings {
         grpMode.check(when (pMode) { "videos" -> R.id.btn_mode_videos; "tree" -> R.id.btn_mode_tree; else -> R.id.btn_mode_folder })
         grpMode.addOnButtonCheckedListener { _, id, on ->
             if (on) pMode = when (id) { R.id.btn_mode_videos -> "videos"; R.id.btn_mode_tree -> "tree"; else -> "folder" }
+        }
+
+        // 시청 상태
+        val grpWatch = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_watch)
+        grpWatch.check(
+            when (pWatch) {
+                "unwatched" -> R.id.w_unwatched
+                "watching" -> R.id.w_watching
+                "watched" -> R.id.w_watched
+                else -> R.id.w_all
+            }
+        )
+        grpWatch.addOnButtonCheckedListener { _, id, on ->
+            if (on) pWatch = when (id) {
+                R.id.w_unwatched -> "unwatched"
+                R.id.w_watching -> "watching"
+                R.id.w_watched -> "watched"
+                else -> "all"
+            }
         }
 
         // 레이아웃
@@ -94,6 +114,7 @@ object QuickSettings {
         v.findViewById<MaterialButton>(R.id.btn_cancel).setOnClickListener { dlg.dismiss() }
         v.findViewById<MaterialButton>(R.id.btn_done).setOnClickListener {
             LibPrefs.setViewMode(ctx, pMode)
+            LibPrefs.setWatchFilter(ctx, pWatch)
             LibPrefs.setGrid(ctx, pGrid)
             LibPrefs.setSort(ctx, pSort, pAsc)
             LibPrefs.setField(ctx, "show_dur", pDur)

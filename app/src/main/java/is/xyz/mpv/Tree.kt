@@ -72,6 +72,7 @@ class TreeActivity : AppCompatActivity() {
             val vids = MediaLibrary.queryVideos(this)
             val dir = intent.getStringExtra("dir") ?: MediaLibrary.treeRoot(vids)
             val list = MediaLibrary.treeChildren(vids, dir)
+                .filter { it.dirPath != null || LibPrefs.passWatch(this, it.vid!!.uri.toString()) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 entries = list

@@ -150,7 +150,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         Thread {
             val allVids = MediaLibrary.queryVideos(this)
             if (mode == "videos") {
-                val vids = LibPrefs.sortVids(this, allVids)
+                val vids = LibPrefs.sortVids(this, allVids).filter { LibPrefs.passWatch(this, it.uri.toString()) }
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     empty.visibility = if (vids.isEmpty()) View.VISIBLE else View.GONE

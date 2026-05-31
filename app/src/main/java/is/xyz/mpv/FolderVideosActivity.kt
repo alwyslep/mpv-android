@@ -69,6 +69,7 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun reload() {
         Thread {
             val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
+                .filter { LibPrefs.passWatch(this, it.uri.toString()) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 vids = list

@@ -239,6 +239,7 @@ class SearchActivity : AppCompatActivity() {
             return
         }
         val res = index.asSequence().filter { item ->
+            if (!LibPrefs.passWatch(this, item.uri.toString())) return@filter false
             if (item.name.lowercase().contains(q)) return@filter true
             val m = ThumbLoader.cachedMeta(item.uri.toString()) ?: return@filter false
             m[0].lowercase().contains(q) || m[1].lowercase().contains(q)

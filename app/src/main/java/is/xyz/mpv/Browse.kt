@@ -134,7 +134,7 @@ class BrowseActivity : AppCompatActivity() {
     private fun showVideos(name: String) {
         inVideos = true
         toolbar.title = name
-        val items = all.filter { keyOf(it).trim() == name }.map {
+        val items = all.filter { keyOf(it).trim() == name && LibPrefs.passWatch(this, it.uri) }.map {
             SearchItem(it.code.ifEmpty { it.title }, Uri.parse(it.uri), "", it.dur ?: 0L, 0L)
         }
         status.text = "${items.size}개"

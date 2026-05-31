@@ -223,6 +223,29 @@ object LibPrefs {
     fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 섬네일
     fun setField(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 
+    // 시청 상태 필터: all | unwatched | watching | watched
+    fun watchFilter(ctx: Context): String = p(ctx).getString("watch_filter", "all") ?: "all"
+    fun setWatchFilter(ctx: Context, v: String) = p(ctx).edit().putString("watch_filter", v).apply()
+
+    // 0 안 봄 · 1 보는 중 · 2 다 봄 (Progress 위치 기준)
+    fun watchStatus(ctx: Context, uri: String): Int {
+        val pr = Progress.get(ctx, uri) ?: return 0
+        val (pos, dur) = pr
+        if (dur <= 0) return if (pos > 3000) 1 else 0
+        return when {
+            pos >= dur - 3000 -> 2
+            pos > 3000 -> 1
+            else -> 0
+        }
+    }
+
+    fun passWatch(ctx: Context, uri: String): Boolean = when (watchFilter(ctx)) {
+        "unwatched" -> watchStatus(ctx, uri) == 0
+        "watching" -> watchStatus(ctx, uri) == 1
+        "watched" -> watchStatus(ctx, uri) == 2
+        else -> true
+    }
+
     private fun <T> sortGeneric(
         ctx: Context, list: List<T>,
         name: (T) -> String, date: (T) -> Long, size: (T) -> Long,

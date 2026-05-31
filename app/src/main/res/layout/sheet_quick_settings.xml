@@ -37,6 +37,27 @@
                 android:layout_weight="1" android:layout_height="wrap_content" android:text="동영상" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
+        <TextView style="@style/QsLabel" android:text="시청 상태" />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/grp_watch"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+            <com.google.android.material.button.MaterialButton android:id="@+id/w_all"
+                style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="전체" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/w_unwatched"
+                style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="안 봄" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/w_watching"
+                style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="보는 중" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/w_watched"
+                style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="다 봄" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
         <TextView style="@style/QsLabel" android:text="미디어 레이아웃" />
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/grp_layout"
