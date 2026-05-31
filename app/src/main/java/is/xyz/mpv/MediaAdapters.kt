@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 // P2: 폴더 카드 — 대표 비디오의 임베드 커버(우하단 길이) + 폴더명 + 경로 + "N 동영상".
 class FolderAdapter(
     private val items: List<Fold>,
+    private val grid: Boolean,
     private val onClick: (Fold) -> Unit
 ) : RecyclerView.Adapter<FolderAdapter.VH>() {
 
@@ -23,7 +24,8 @@ class FolderAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-        val v = LayoutInflater.from(parent.context).inflate(R.layout.item_folder, parent, false)
+        val layout = if (grid) R.layout.item_folder_grid else R.layout.item_folder
+        val v = LayoutInflater.from(parent.context).inflate(layout, parent, false)
         return VH(v)
     }
 

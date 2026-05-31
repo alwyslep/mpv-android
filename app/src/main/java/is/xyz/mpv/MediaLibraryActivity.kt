@@ -186,8 +186,9 @@ class MediaLibraryActivity : AppCompatActivity() {
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     empty.visibility = if (folds.isEmpty()) View.VISIBLE else View.GONE
-                    recycler.layoutManager = LinearLayoutManager(this)
-                    recycler.adapter = FolderAdapter(folds) { f ->
+                    recycler.layoutManager =
+                        if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
+                    recycler.adapter = FolderAdapter(folds, grid) { f ->
                         startActivity(
                             Intent(this, FolderVideosActivity::class.java)
                                 .putExtra("path", f.path)
