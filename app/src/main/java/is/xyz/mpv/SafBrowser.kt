@@ -170,7 +170,8 @@ class SafAdapter(
     class VidVH(v: View) : RecyclerView.ViewHolder(v) {
         val thumb: ImageView = v.findViewById(R.id.thumb)
         val dur: TextView = v.findViewById(R.id.dur)
-        val name: TextView = v.findViewById(R.id.name)
+        val code: TextView = v.findViewById(R.id.code)
+        val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
     }
 
@@ -196,7 +197,7 @@ class SafAdapter(
         } else if (h is VidVH) {
             h.meta.text = MediaLibrary.fmtSize(e.size)
             val fallback = e.name.substringBeforeLast(".")
-            ThumbLoader.load(h.thumb, h.name, e.uri, "", fallback, durView = h.dur)
+            ThumbLoader.load(h.thumb, h.code, h.title, e.uri, fallback, durView = h.dur)
             h.itemView.setOnClickListener { onVideo(e) }
         }
     }

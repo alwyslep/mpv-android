@@ -1,25 +1,22 @@
 package `is`.xyz.mpv
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.media.ThumbnailUtils
 import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
 import android.util.LruCache
-import android.util.Size
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 
-// P2: 비디오 카드 메타 로더 — 컨테이너 임베드 정보를 우선 반영한다.
-//   썸네일 우선순위 ① 임베드 커버(covr/attached_pic, reMux+metaTag) ② MediaStore 시스템 썸네일 ③ ThumbnailUtils
-//   라벨        ① 임베드 타이틀 "품번 공백들 한글제목" → "품번\n한글제목" ② 없으면 파일명
-//   길이        durView 가 주어지면(SAF 등 길이 미상) MMR 로 함께 추출.
+// P2: 비디오 카드 메타 로더.
+//   썸네일 ① 임베드 커버(covr/attached_pic) ② 없으면 비디오 프레임(MMR)
+//   라벨   임베드 타이틀 "품번 공백 한글제목" → code=품번 / title=한글제목(품번 중복 제거).
+//          임베드 타이틀 없으면 code=파일명, title 숨김.
+//   길이   durView 주어지면 MMR 로 함께 추출(SAF 등 길이 미상).
 //   RecyclerView 재사용 경합은 View.tag 로 막는다.
 object ThumbLoader {
     private val exec = Executors.newFixedThreadPool(3)
@@ -28,36 +25,38 @@ object ThumbLoader {
     ) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
-    private val titleCache = ConcurrentHashMap<String, String>() // "" = 임베드 타이틀 없음
-    private val durCache = ConcurrentHashMap<String, Long>()      // -1 = 확인했으나 없음
+    // [code, title]. ["",""] = 임베드 타이틀 없음(파일명 사용). null = 미확인.
+    private val metaCache = ConcurrentHashMap<String, Array<String>>()
+    private val durCache = ConcurrentHashMap<String, Long>() // -1 = 없음
 
     fun load(
         thumb: ImageView,
+        codeView: TextView?,
         titleView: TextView?,
         uri: Uri,
-        path: String,
         fallbackName: String,
         durView: TextView? = null
     ) {
         val key = uri.toString()
         thumb.tag = key
+        codeView?.tag = key
         titleView?.tag = key
         durView?.tag = key
 
         val cb = bmpCache.get(key)
-        val ct = titleCache[key]
+        val cm = metaCache[key]
         val cd = durCache[key]
         thumb.setImageBitmap(cb)
-        titleView?.text = displayTitle(ct, fallbackName)
+        applyText(codeView, titleView, cm, fallbackName)
         if (durView != null) applyDur(durView, cd)
 
         val needDur = durView != null && cd == null
-        if (cb != null && ct != null && !needDur) return  // 캐시 충분
+        if (cb != null && cm != null && !needDur) return
 
         val ctx = thumb.context.applicationContext
         exec.execute {
             var bmp = cb
-            var title = ct
+            var meta = cm
             var dur = cd
             val mmr = MediaMetadataRetriever()
             try {
@@ -66,28 +65,60 @@ object ThumbLoader {
                     val bytes = mmr.embeddedPicture
                     if (bytes != null) bmp = decodeSampled(bytes, 600)
                 }
-                if (title == null) {
+                if (meta == null) {
                     val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
-                    title = if (raw.isNotEmpty()) formatTitle(raw) else ""
+                    meta = if (raw.isNotEmpty()) parseTitle(raw) else arrayOf("", "")
                 }
                 if (needDur && dur == null) {
                     dur = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: -1L
                 }
+                if (bmp == null) bmp = scaledFrame(mmr)  // 커버 없으면 비디오 프레임
             } catch (_: Throwable) {
             } finally {
                 try { mmr.release() } catch (_: Throwable) {}
             }
-            if (bmp == null) bmp = systemThumb(ctx, uri, path)
 
             if (bmp != null) bmpCache.put(key, bmp)
-            if (title != null) titleCache[key] = title
+            if (meta != null) metaCache[key] = meta
             if (dur != null) durCache[key] = dur
 
-            val fb = bmp; val ft = title; val fd = dur
+            val fb = bmp; val fm = meta; val fd = dur
             thumb.post { if (thumb.tag == key) thumb.setImageBitmap(fb) }
-            titleView?.post { if (titleView.tag == key) titleView.text = displayTitle(ft, fallbackName) }
+            codeView?.post { if (codeView.tag == key) applyText(codeView, titleView, fm, fallbackName) }
             durView?.post { if (durView.tag == key) applyDur(durView, fd) }
         }
+    }
+
+    private fun applyText(codeView: TextView?, titleView: TextView?, meta: Array<String>?, fallback: String) {
+        val hasEmbed = meta != null && !(meta[0].isEmpty() && meta[1].isEmpty())
+        if (hasEmbed) {
+            codeView?.text = meta!![0]
+            if (meta[1].isNotEmpty()) {
+                titleView?.text = meta[1]
+                titleView?.visibility = View.VISIBLE
+            } else {
+                titleView?.text = ""
+                titleView?.visibility = View.GONE
+            }
+        } else {
+            // 미확인이거나 임베드 없음 → 파일명
+            codeView?.text = fallback
+            titleView?.text = ""
+            titleView?.visibility = View.GONE
+        }
+    }
+
+    // "MIDD-850   유부녀의 비밀" → ["MIDD-850","유부녀의 비밀"]. 제목에 품번 중복되면 제거.
+    private fun parseTitle(raw: String): Array<String> {
+        val t = raw.trim()
+        if (t.isEmpty()) return arrayOf("", "")
+        val parts = t.split(Regex("\\s+"), limit = 2)
+        val code = parts[0]
+        var title = if (parts.size == 2) parts[1].trim() else ""
+        while (title.isNotEmpty() && title.startsWith(code)) {
+            title = title.removePrefix(code).trimStart()
+        }
+        return arrayOf(code, title)
     }
 
     private fun applyDur(durView: TextView, ms: Long?) {
@@ -99,29 +130,13 @@ object ThumbLoader {
         }
     }
 
-    private fun displayTitle(cached: String?, fallbackName: String): String =
-        if (cached.isNullOrEmpty()) fallbackName else cached
-
-    // "MIDD-850   유부녀의 비밀" → "MIDD-850\n유부녀의 비밀"
-    private fun formatTitle(raw: String): String {
-        val parts = raw.split(Regex("\\s+"), limit = 2)
-        return if (parts.size == 2 && parts[1].isNotBlank()) "${parts[0]}\n${parts[1]}" else raw
-    }
-
-    private fun systemThumb(ctx: Context, uri: Uri, path: String): Bitmap? {
-        try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && uri.authority == MediaStore.AUTHORITY)
-                return ctx.contentResolver.loadThumbnail(uri, Size(360, 240), null)
-        } catch (_: Throwable) {
-        }
-        return try {
-            if (path.isNotEmpty()) {
-                @Suppress("DEPRECATION")
-                ThumbnailUtils.createVideoThumbnail(path, MediaStore.Images.Thumbnails.MINI_KIND)
-            } else null
-        } catch (_: Throwable) {
-            null
-        }
+    private fun scaledFrame(mmr: MediaMetadataRetriever): Bitmap? = try {
+        if (Build.VERSION.SDK_INT >= 27)
+            mmr.getScaledFrameAtTime(3_000_000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 360, 240)
+        else
+            mmr.getFrameAtTime(3_000_000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+    } catch (_: Throwable) {
+        null
     }
 
     private fun decodeSampled(bytes: ByteArray, target: Int): Bitmap? {
