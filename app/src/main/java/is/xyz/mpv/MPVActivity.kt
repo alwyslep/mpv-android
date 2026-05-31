@@ -335,7 +335,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         volumeControlStream = STREAM_TYPE
     }
 
-    private fun finishWithResult(code: Int, includeTimePos: Boolean = false) {
+    private fun finishWithResult(code: Int, includeTimePos: Boolean = false, includeTracks: Boolean = false) {
         // Refer to http://mpv-android.github.io/mpv-android/intent.html
         // FIXME: should track end-file events to accurately report OK vs CANCELED
         if (isFinishing) // only count first call
@@ -348,6 +348,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             val dur = if (psc.duration > 0) psc.duration else lastDur
             result.putExtra("position", pos.toInt())
             result.putExtra("duration", dur.toInt())
+        }
+        if (includeTracks) {
+            // 트랙 선택 기억 — 플레이어 살아있는 경로(뒤로키)에서만 읽는다.
+            try {
+                MPVLib.getPropertyString("aid")?.let { result.putExtra("saved_aid", it) }
+                MPVLib.getPropertyString("sid")?.let { result.putExtra("saved_sid", it) }
+            } catch (_: Throwable) {
+            }
         }
         setResult(code, result)
         finish()
@@ -972,7 +980,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         val notYetPlayed = psc.playlistCount - psc.playlistPos - 1
         if (notYetPlayed <= 0 || !playlistExitWarning) {
-            finishWithResult(RESULT_OK, true)
+            finishWithResult(RESULT_OK, true, true)
             return
         }
 
@@ -981,7 +989,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             setMessage(getString(R.string.exit_warning_playlist, notYetPlayed))
             setPositiveButton(R.string.dialog_yes) { dialog, _ ->
                 dialog.dismiss()
-                finishWithResult(RESULT_OK, true)
+                finishWithResult(RESULT_OK, true, true)
             }
             setNegativeButton(R.string.dialog_no) { dialog, _ ->
                 dialog.dismiss()
@@ -1037,7 +1045,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             // Note: On Android 12 or older there's another bug with this: the result will not
             // be delivered to the calling activity and is instead instantly returned the next
             // time, which makes it looks like the file picker is broken.
-            finishWithResult(RESULT_OK, true)
+            finishWithResult(RESULT_OK, true, true)
         }
     }
 
@@ -1173,6 +1181,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         extras.getInt("position", 0).let {
             if (it > 0)
                 pushOption("start", "${it / 1000f}")
+        }
+        // 트랙 선택 기억 복원 (saved_aid/saved_sid)
+        extras.getString("saved_aid", "").let {
+            if (!it.isNullOrEmpty()) pushOption("aid", it)
+        }
+        extras.getString("saved_sid", "").let {
+            if (!it.isNullOrEmpty()) pushOption("sid", it)
         }
         extras.getString("title", "").let {
             if (!it.isNullOrEmpty())

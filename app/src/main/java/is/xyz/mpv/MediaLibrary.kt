@@ -334,6 +334,10 @@ object Playback {
             // 시작 직후/거의 끝이면 이어보기 생략
             if (pos > 3000 && pos < dur - 3000) i.putExtra("position", pos.toInt())
         }
+        Tracks.get(ctx, uri)?.let { (aid, sid) ->
+            if (aid.isNotEmpty()) i.putExtra("saved_aid", aid)
+            if (sid.isNotEmpty()) i.putExtra("saved_sid", sid)
+        }
         return i
     }
 
@@ -342,5 +346,28 @@ object Playback {
         val pos = data.getIntExtra("position", -1)
         val dur = data.getIntExtra("duration", -1)
         if (pos >= 0 && dur > 0) Progress.save(ctx, uri, pos.toLong(), dur.toLong())
+        val aid = data.getStringExtra("saved_aid")
+        val sid = data.getStringExtra("saved_sid")
+        if (aid != null || sid != null) Tracks.save(ctx, uri, aid ?: "", sid ?: "")
+    }
+}
+
+// 오디오/자막 트랙 선택 기억 — uri 별 {aid, sid}(mpv 트랙 id 문자열).
+object Tracks {
+    private const val PREFS = "media_library"
+    private const val KEY = "tracks_v1"
+
+    fun save(ctx: Context, uri: String, aid: String, sid: String) {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val o = JSONObject(p.getString(KEY, "{}"))
+        o.put(uri, JSONObject().put("a", aid).put("s", sid))
+        p.edit().putString(KEY, o.toString()).apply()
+    }
+
+    fun get(ctx: Context, uri: String): Pair<String, String>? {
+        val o = JSONObject(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "{}"))
+        if (!o.has(uri)) return null
+        val e = o.getJSONObject(uri)
+        return e.optString("a") to e.optString("s")
     }
 }
