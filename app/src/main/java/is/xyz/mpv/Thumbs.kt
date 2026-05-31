@@ -22,6 +22,11 @@ import java.util.concurrent.Executors
 //          임베드 타이틀 없으면 code=파일명, title 숨김.
 //   길이   durView 주어지면 MMR 로 함께 추출(SAF 등 길이 미상).
 //   RecyclerView 재사용 경합은 View.tag 로 막는다.
+data class CachedVideo(
+    val uri: String, val code: String, val title: String, val dur: Long?,
+    val artist: String, val studio: String, val series: String
+)
+
 object ThumbLoader {
     private val exec = Executors.newFixedThreadPool(3)
     private val bmpCache = object : LruCache<String, Bitmap>(
@@ -81,9 +86,10 @@ object ThumbLoader {
                 if (dur == null && d != null) dur = d
             }
 
-            // ② 부족분만 MMR
+            // ② 부족분만 MMR — 이때 배우/스튜디오/시리즈도 함께 추출해 7필드 캐시
             if (bmp == null || meta == null || (needDur && dur == null)) {
                 var freshBmp = false
+                var art = ""; var stu = ""; var ser = ""
                 val mmr = MediaMetadataRetriever()
                 try {
                     mmr.setDataSource(ctx, uri)
@@ -95,17 +101,19 @@ object ThumbLoader {
                         val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
                         meta = if (raw.isNotEmpty()) parseTitle(raw) else arrayOf("", "")
                     }
-                    if (needDur && dur == null) {
+                    if (dur == null) {
                         dur = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: -1L
                     }
+                    art = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim().orEmpty()
+                    stu = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)?.trim().orEmpty()
+                    ser = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim().orEmpty()
                     if (bmp == null) { bmp = scaledFrame(mmr); freshBmp = bmp != null }  // 커버 없으면 프레임
                 } catch (_: Throwable) {
                 } finally {
                     try { mmr.release() } catch (_: Throwable) {}
                 }
-                // 디스크 저장 (다음 진입부터 MMR 불필요)
                 if (freshBmp) bmp?.let { saveDiskBmp(ctx, hk, it) }
-                meta?.let { saveDiskMeta(ctx, hk, it, dur) }
+                meta?.let { saveDiskMeta(ctx, hk, key, it, dur, art, stu, ser) }
             }
 
             if (bmp != null) bmpCache.put(key, bmp!!)
@@ -194,25 +202,38 @@ object ThumbLoader {
         }
     }
 
-    // codetitledur(미상은 "?")
+    // 7필드(\n): uri / code / title / dur(미상 "?") / 배우 / 스튜디오 / 시리즈
     private fun loadDiskMeta(ctx: Context, hk: String): Triple<String, String, Long?>? {
-        val f = File(cacheDir(ctx), "$hk.txt")
+        val c = readCachedFile(File(cacheDir(ctx), "$hk.txt")) ?: return null
+        return Triple(c.code, c.title, c.dur)
+    }
+
+    private fun saveDiskMeta(ctx: Context, hk: String, uri: String, meta: Array<String>, dur: Long?, artist: String, studio: String, series: String) {
+        try {
+            File(cacheDir(ctx), "$hk.txt").writeText(
+                listOf(uri, meta[0], meta[1], (dur?.toString() ?: "?"), artist, studio, series).joinToString("\n")
+            )
+        } catch (_: Throwable) {
+        }
+    }
+
+    private fun readCachedFile(f: File): CachedVideo? {
         if (!f.exists()) return null
         return try {
-            val p = f.readText().split('')
-            if (p.size < 3) null
-            else Triple(p[0], p[1], if (p[2] == "?") null else p[2].toLongOrNull())
+            val p = f.readText().split('\n')
+            if (p.size < 7) null
+            else CachedVideo(p[0], p[1], p[2], if (p[3] == "?") null else p[3].toLongOrNull(), p[4], p[5], p[6])
         } catch (_: Throwable) {
             null
         }
     }
 
-    private fun saveDiskMeta(ctx: Context, hk: String, meta: Array<String>, dur: Long?) {
-        try {
-            File(cacheDir(ctx), "$hk.txt")
-                .writeText(meta[0] + "" + meta[1] + "" + (dur?.toString() ?: "?"))
-        } catch (_: Throwable) {
-        }
+    // 배우/스튜디오/시리즈 뷰용 — 디스크에 캐시된(=브라우징된) 영상 메타 전부.
+    fun readAllCachedMeta(ctx: Context): List<CachedVideo> {
+        val out = ArrayList<CachedVideo>()
+        File(ctx.cacheDir, "thumbs").listFiles { f -> f.name.endsWith(".txt") }
+            ?.forEach { readCachedFile(it)?.let(out::add) }
+        return out
     }
 
     private fun decodeSampled(bytes: ByteArray, target: Int): Bitmap? {

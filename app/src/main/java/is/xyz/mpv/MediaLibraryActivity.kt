@@ -67,7 +67,11 @@ class MediaLibraryActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_search_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 3, 1, "빠른 설정").apply {
+        toolbar.menu.add(0, 4, 1, "분류(배우/스튜디오)").apply {
+            setIcon(R.drawable.ic_people_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.menu.add(0, 3, 2, "빠른 설정").apply {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
@@ -78,6 +82,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
+                4 -> startActivity(Intent(this, BrowseActivity::class.java))
                 3 -> QuickSettings.show(this) { load() }
                 1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
             }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:gravity="center_vertical"
+    android:background="?attr/selectableItemBackground"
+    android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingTop="14dp" android:paddingBottom="14dp">
+    <TextView android:id="@+id/name" android:layout_width="0dp" android:layout_height="wrap_content"
+        android:layout_weight="1" android:maxLines="2" android:ellipsize="end"
+        android:textColor="?attr/colorOnSurface" android:textSize="15sp" />
+    <TextView android:id="@+id/count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginStart="10dp" android:background="#33888888"
+        android:paddingStart="8dp" android:paddingEnd="8dp" android:paddingTop="2dp" android:paddingBottom="2dp"
+        android:textColor="?attr/colorOnSurfaceVariant" android:textSize="12sp" />
+</LinearLayout>
