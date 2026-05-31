@@ -10,6 +10,12 @@
         app:useSimpleSummaryProvider="true" />
 
     <SwitchPreferenceCompat
+        app:key="autoplay_next"
+        app:defaultValue="false"
+        app:summary="@string/pref_player_autoplay_summary"
+        app:title="@string/pref_player_autoplay" />
+
+    <SwitchPreferenceCompat
         app:key="player_volume_boost"
         app:defaultValue="false"
         app:title="@string/pref_player_volume_boost" />

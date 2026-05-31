@@ -43,4 +43,6 @@
     <string name="pref_player_speed">기본 재생 속도</string>
     <string name="pref_player_volume_boost">볼륨 부스트 허용 (200%)</string>
     <string name="pref_player_video_zoom">기본 화면비 / 줌</string>
+    <string name="pref_player_autoplay">자동 다음 재생</string>
+    <string name="pref_player_autoplay_summary">폴더 순서로 영상이 끝나면 다음 영상 자동 재생</string>
 </resources>

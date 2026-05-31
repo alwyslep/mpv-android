@@ -19,10 +19,21 @@ class FolderVideosActivity : AppCompatActivity() {
     private var folderPath = ""
 
     private var pendingUri: String? = null
+    private var playIndex = -1
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            val u = pendingUri
+            if (u != null) Playback.onResult(this, u, res.data)
             rebuild()
+            // 자동 다음 재생: 방금 작품을 끝까지 봤고(다 봄) 다음이 있으면
+            if (u != null &&
+                androidx.preference.PreferenceManager.getDefaultSharedPreferences(this)
+                    .getBoolean("autoplay_next", false) &&
+                LibPrefs.watchStatus(this, u) == 2 &&
+                playIndex + 1 in vids.indices
+            ) {
+                play(vids[playIndex + 1])
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +106,7 @@ class FolderVideosActivity : AppCompatActivity() {
     }
 
     private fun play(v: Vid) {
+        playIndex = vids.indexOfFirst { it.uri == v.uri }
         pendingUri = v.uri.toString()
         playLauncher.launch(Playback.intentFor(this, v.uri.toString(), v.name))
     }

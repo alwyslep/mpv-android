@@ -123,6 +123,8 @@
     <string name="pref_player_speed">Default playback speed</string>
     <string name="pref_player_volume_boost">Allow volume boost (200%)</string>
     <string name="pref_player_video_zoom">Default aspect / zoom</string>
+    <string name="pref_player_autoplay">Auto-play next</string>
+    <string name="pref_player_autoplay_summary">Play next video in folder when one finishes</string>
 
     <string name="pref_default_file_manager_path_title">Default file manager path</string>
     <string name="pref_default_file_manager_path_summary" translatable="false">%s</string>
