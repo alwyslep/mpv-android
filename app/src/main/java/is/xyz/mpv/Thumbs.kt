@@ -29,6 +29,9 @@ object ThumbLoader {
     private val metaCache = ConcurrentHashMap<String, Array<String>>()
     private val durCache = ConcurrentHashMap<String, Long>() // -1 = 없음
 
+    // 검색용 — 이미 MMR 캐시된 [code, title] 노출(null = 아직 미확인).
+    fun cachedMeta(key: String): Array<String>? = metaCache[key]
+
     fun load(
         thumb: ImageView,
         codeView: TextView?,

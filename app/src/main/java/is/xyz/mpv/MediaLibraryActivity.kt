@@ -37,6 +37,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                     contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (_: Exception) {
                 }
+                SafTrees.add(this, it.toString())  // 통합 검색 인덱싱 대상에 등록
                 val title = (it.lastPathSegment ?: "폴더").substringAfterLast(":").substringAfterLast("/")
                 startActivity(
                     Intent(this, SafBrowserActivity::class.java)
@@ -54,12 +55,19 @@ class MediaLibraryActivity : AppCompatActivity() {
         setContentView(R.layout.activity_media_library)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        toolbar.menu.add(0, 1, 0, "설정").apply {
+        toolbar.menu.add(0, 2, 0, "검색").apply {
+            setIcon(R.drawable.ic_search_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.menu.add(0, 1, 1, "설정").apply {
             setIcon(R.drawable.ic_settings_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.setOnMenuItemClickListener {
-            startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                2 -> startActivity(Intent(this, SearchActivity::class.java))
+                1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
+            }
             true
         }
 

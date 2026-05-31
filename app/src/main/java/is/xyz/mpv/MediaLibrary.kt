@@ -153,3 +153,19 @@ object Recents {
         return out
     }
 }
+
+// 사용자가 '폴더 열기'로 권한 준 SAF 트리 uri 들 — 통합 검색 인덱싱 대상.
+object SafTrees {
+    private const val PREFS = "media_library"
+    private const val KEY = "saf_trees_v1"
+
+    fun add(ctx: Context, treeUri: String) {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val cur = LinkedHashSet(p.getStringSet(KEY, emptySet()) ?: emptySet())
+        cur.add(treeUri)
+        p.edit().putStringSet(KEY, cur).apply()
+    }
+
+    fun all(ctx: Context): Set<String> =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY, emptySet()) ?: emptySet()
+}
