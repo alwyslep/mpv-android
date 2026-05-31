@@ -20,4 +20,18 @@
         <item>한국어 (CP949)</item>
         <item>일본어 (Shift-JIS)</item>
     </string-array>
+
+    <string-array name="player_speed_entries">
+        <item>기본 (1.0배)</item>
+        <item>0.75배</item>
+        <item>1.25배</item>
+        <item>1.5배</item>
+        <item>2.0배</item>
+    </string-array>
+    <string-array name="player_video_zoom_entries">
+        <item>화면에 맞춤</item>
+        <item>꽉 채움(자르기)</item>
+        <item>늘이기</item>
+        <item>원본 크기</item>
+    </string-array>
 </resources>

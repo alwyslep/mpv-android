@@ -109,6 +109,18 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
             if (it.isNotBlank()) MPVLib.setOptionString("sub-codepage", it)
         }
 
+        // P2: 플레이어(재생) — 기본 재생속도 / 볼륨 부스트 / 화면비·줌 (mpv UI 신설)
+        sharedPreferences.getString("player_speed", "")?.let {
+            if (it.isNotBlank()) MPVLib.setOptionString("speed", it)
+        }
+        if (sharedPreferences.getBoolean("player_volume_boost", false))
+            MPVLib.setOptionString("volume-max", "200")
+        when (sharedPreferences.getString("player_video_zoom", "")) {
+            "crop" -> MPVLib.setOptionString("panscan", "1.0")
+            "stretch" -> MPVLib.setOptionString("keepaspect", "no")
+            "original" -> MPVLib.setOptionString("video-unscaled", "yes")
+        }
+
         MPVLib.setOptionString("gpu-context", "android")
         MPVLib.setOptionString("opengl-es", "yes")
         MPVLib.setOptionString("hwdec", hwdec)

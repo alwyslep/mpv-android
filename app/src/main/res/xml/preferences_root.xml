@@ -17,6 +17,11 @@
         app:summary="@string/pref_header_video_summary"
         app:title="@string/pref_header_video" />
     <Preference
+        app:fragment="is.xyz.mpv.preferences.PreferenceActivity$PlayerPreference"
+        app:icon="@drawable/ic_player_pref_24"
+        app:summary="@string/pref_header_player_summary"
+        app:title="@string/pref_header_player" />
+    <Preference
         app:fragment="is.xyz.mpv.preferences.PreferenceActivity$UIPreference"
         app:icon="@drawable/round_video_settings_24"
         app:summary="@string/pref_header_ui_summary"

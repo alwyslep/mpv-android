@@ -37,4 +37,10 @@
     <string name="pref_sub_embedded_styles">내장 자막 스타일 적용</string>
     <string name="pref_sub_embedded_styles_summary">끄면 위에서 정한 크기·굵게를 강제 적용</string>
     <string name="pref_sub_codepage">자막 텍스트 인코딩</string>
+
+    <string name="pref_header_player">플레이어</string>
+    <string name="pref_header_player_summary">기본 재생 속도, 볼륨 부스트, 화면비</string>
+    <string name="pref_player_speed">기본 재생 속도</string>
+    <string name="pref_player_volume_boost">볼륨 부스트 허용 (200%)</string>
+    <string name="pref_player_video_zoom">기본 화면비 / 줌</string>
 </resources>

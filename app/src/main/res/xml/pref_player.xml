@@ -1,0 +1,25 @@
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <ListPreference
+        app:key="player_speed"
+        app:defaultValue=""
+        app:entries="@array/player_speed_entries"
+        app:entryValues="@array/player_speed_values"
+        app:title="@string/pref_player_speed"
+        app:useSimpleSummaryProvider="true" />
+
+    <SwitchPreferenceCompat
+        app:key="player_volume_boost"
+        app:defaultValue="false"
+        app:title="@string/pref_player_volume_boost" />
+
+    <ListPreference
+        app:key="player_video_zoom"
+        app:defaultValue=""
+        app:entries="@array/player_video_zoom_entries"
+        app:entryValues="@array/player_video_zoom_values"
+        app:title="@string/pref_player_video_zoom"
+        app:useSimpleSummaryProvider="true" />
+
+</PreferenceScreen>

@@ -117,6 +117,13 @@
     <string name="pref_sub_embedded_styles_summary">Off: force the size/bold set above</string>
     <string name="pref_sub_codepage">Subtitle text encoding</string>
 
+    <!-- P2: Player playback (added; not in stock mpv UI) -->
+    <string name="pref_header_player">Player</string>
+    <string name="pref_header_player_summary">Default speed, volume boost, aspect</string>
+    <string name="pref_player_speed">Default playback speed</string>
+    <string name="pref_player_volume_boost">Allow volume boost (200%)</string>
+    <string name="pref_player_video_zoom">Default aspect / zoom</string>
+
     <string name="pref_default_file_manager_path_title">Default file manager path</string>
     <string name="pref_default_file_manager_path_summary" translatable="false">%s</string>
 
