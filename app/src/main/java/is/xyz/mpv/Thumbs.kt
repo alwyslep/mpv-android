@@ -41,6 +41,28 @@ object ThumbLoader {
     // 검색용 — 이미 MMR 캐시된 [code, title] 노출(null = 아직 미확인).
     fun cachedMeta(key: String): Array<String>? = metaCache[key]
 
+    // 전체 스캔용 — 커버 없이 메타(품번/제목/길이/배우/스튜디오/시리즈)만 MMR→디스크 캐시.
+    //   이미 .txt 있으면 skip. 커버는 타일 볼 때 지연 로드.
+    fun indexMeta(ctx: Context, uri: Uri, fallbackName: String) {
+        val key = uri.toString()
+        val hk = hashKey(key)
+        if (File(cacheDir(ctx), "$hk.txt").exists()) return
+        val mmr = MediaMetadataRetriever()
+        try {
+            mmr.setDataSource(ctx, uri)
+            val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
+            val meta = if (raw.isNotEmpty()) parseTitle(raw) else arrayOf("", "")
+            val dur = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: -1L
+            val art = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim().orEmpty()
+            val stu = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)?.trim().orEmpty()
+            val ser = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim().orEmpty()
+            saveDiskMeta(ctx, hk, key, meta, dur, art, stu, ser)
+        } catch (_: Throwable) {
+        } finally {
+            try { mmr.release() } catch (_: Throwable) {}
+        }
+    }
+
     fun clearCache(ctx: Context) {
         bmpCache.evictAll()
         metaCache.clear()

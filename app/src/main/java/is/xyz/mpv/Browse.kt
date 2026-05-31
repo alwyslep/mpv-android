@@ -3,9 +3,13 @@ package `is`.xyz.mpv
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -30,6 +34,9 @@ class BrowseActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             pendingUri?.let { Playback.onResult(this, it, res.data) }
         }
+    private val scanPool = Executors.newFixedThreadPool(4)
+    @Volatile private var dead = false
+    @Volatile private var scanning = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +45,8 @@ class BrowseActivity : AppCompatActivity() {
         status = findViewById(R.id.status)
         toolbar = findViewById(R.id.toolbar)
         toolbar.setNavigationOnClickListener { onBack() }
+        toolbar.menu.add(0, 1, 0, "전체 스캔").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.setOnMenuItemClickListener { if (it.itemId == 1) fullScan(); true }
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = onBack()
         })
@@ -59,6 +68,43 @@ class BrowseActivity : AppCompatActivity() {
 
     private fun onBack() {
         if (inVideos) { inVideos = false; showNames() } else finish()
+    }
+
+    override fun onDestroy() {
+        dead = true
+        scanPool.shutdownNow()
+        super.onDestroy()
+    }
+
+    // 전체 스캔 — 라이브러리 전체(내부+저장 SAF 트리) 메타를 MMR 일괄 인덱싱(병렬 4, 진행률).
+    //   커버 없이 메타만(빠름) + 디스크 캐시라 1회성. 누적 캐시가 채워져 모든 작품이 분류에 잡힘.
+    private fun fullScan() {
+        if (scanning) return
+        scanning = true
+        status.text = "전체 스캔 준비…"
+        Thread {
+            val items = SearchIndex.cached() ?: SearchIndex.build(this)
+            val total = items.size
+            if (total == 0) {
+                runOnUiThread { if (!isFinishing) { status.text = "스캔할 영상 없음"; scanning = false } }
+                return@Thread
+            }
+            val done = AtomicInteger(0)
+            val latch = CountDownLatch(total)
+            for (it in items) {
+                scanPool.execute {
+                    if (!dead) try { ThumbLoader.indexMeta(this, it.uri, it.name) } catch (_: Throwable) {}
+                    val d = done.incrementAndGet()
+                    if (d % 25 == 0 || d == total)
+                        runOnUiThread { if (!isFinishing) status.text = "전체 스캔 $d/$total" }
+                    latch.countDown()
+                }
+            }
+            latch.await()
+            if (dead) return@Thread
+            all = ThumbLoader.readAllCachedMeta(this)
+            runOnUiThread { if (!isFinishing) { scanning = false; showNames() } }
+        }.start()
     }
 
     private fun keyOf(c: CachedVideo): String = when (dim) {
