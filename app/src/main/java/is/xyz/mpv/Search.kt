@@ -161,6 +161,7 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var adapter: SearchAdapter
     private val handler = Handler(Looper.getMainLooper())
     private var pending: Runnable? = null
+    private var grid = true
 
     private var pendingUri: String? = null
     private val playLauncher =
@@ -178,11 +179,16 @@ class SearchActivity : AppCompatActivity() {
         input = findViewById(R.id.input)
         recycler = findViewById(R.id.recycler)
 
-        val grid = getSharedPreferences("media_library", MODE_PRIVATE).getBoolean("video_grid", true)
-        val span = maxOf(2, resources.configuration.screenWidthDp / 170)
-        recycler.layoutManager = GridLayoutManager(this, span)
-        adapter = SearchAdapter(emptyList(), grid) { play(it) }
-        recycler.adapter = adapter
+        grid = LibPrefs.grid(this)
+        setupRecycler()
+
+        findViewById<ImageButton>(R.id.qs).setOnClickListener {
+            QuickSettings.show(this) {
+                grid = LibPrefs.grid(this)
+                setupRecycler()
+                runQuery()
+            }
+        }
 
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) { runQuery(); true } else false
@@ -199,6 +205,12 @@ class SearchActivity : AppCompatActivity() {
         })
 
         ensureIndex()
+    }
+
+    private fun setupRecycler() {
+        recycler.layoutManager = GridLayoutManager(this, maxOf(2, resources.configuration.screenWidthDp / 170))
+        adapter = SearchAdapter(emptyList(), grid) { play(it) }
+        recycler.adapter = adapter
     }
 
     private fun ensureIndex() {

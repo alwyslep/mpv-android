@@ -16,6 +16,7 @@ class FolderVideosActivity : AppCompatActivity() {
     private var vids: List<Vid> = emptyList()
     private var grid = true
     private var toggleItem: MenuItem? = null
+    private var folderPath = ""
 
     private var pendingUri: String? = null
     private val playLauncher =
@@ -28,7 +29,7 @@ class FolderVideosActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
 
-        val path = intent.getStringExtra("path") ?: ""
+        folderPath = intent.getStringExtra("path") ?: ""
         val name = intent.getStringExtra("name") ?: "폴더"
 
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
@@ -40,20 +41,34 @@ class FolderVideosActivity : AppCompatActivity() {
         toggleItem = toolbar.menu.add(0, 1, 0, "보기 전환").apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        toolbar.menu.add(0, 2, 1, "빠른 설정").apply {
+            setIcon(R.drawable.ic_tune_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
         updateToggleIcon()
-        toolbar.setOnMenuItemClickListener {
-            grid = !grid
-            prefs.edit().putBoolean("video_grid", grid).apply()
-            updateToggleIcon()
-            rebuild()
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> {
+                    grid = !grid
+                    prefs.edit().putBoolean("video_grid", grid).apply()
+                    updateToggleIcon()
+                    rebuild()
+                }
+                2 -> QuickSettings.show(this) {
+                    grid = LibPrefs.grid(this); updateToggleIcon(); reload()
+                }
+            }
             true
         }
 
         recycler = findViewById(R.id.recycler)
         rebuild()
+        reload()
+    }
 
+    private fun reload() {
         Thread {
-            val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), path))
+            val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 vids = list

@@ -42,18 +42,32 @@ class TreeActivity : AppCompatActivity() {
         toggleItem = toolbar.menu.add(0, 1, 0, "보기 전환").apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        toolbar.menu.add(0, 2, 1, "빠른 설정").apply {
+            setIcon(R.drawable.ic_tune_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
         updateToggleIcon()
-        toolbar.setOnMenuItemClickListener {
-            grid = !grid
-            prefs.edit().putBoolean("video_grid", grid).apply()
-            updateToggleIcon()
-            rebuild()
+        toolbar.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> {
+                    grid = !grid
+                    prefs.edit().putBoolean("video_grid", grid).apply()
+                    updateToggleIcon()
+                    rebuild()
+                }
+                2 -> QuickSettings.show(this) {
+                    grid = LibPrefs.grid(this); updateToggleIcon(); reload()
+                }
+            }
             true
         }
 
         recycler = findViewById(R.id.recycler)
         rebuild()
+        reload()
+    }
 
+    private fun reload() {
         Thread {
             val vids = MediaLibrary.queryVideos(this)
             val dir = intent.getStringExtra("dir") ?: MediaLibrary.treeRoot(vids)

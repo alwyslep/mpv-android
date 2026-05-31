@@ -36,6 +36,14 @@
             android:imeOptions="actionSearch"
             android:maxLines="1"
             android:singleLine="true" />
+
+        <ImageButton
+            android:id="@+id/qs"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_tune_24"
+            android:contentDescription="빠른 설정" />
     </LinearLayout>
 
     <TextView
