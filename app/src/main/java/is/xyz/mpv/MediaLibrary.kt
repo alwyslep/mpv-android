@@ -34,6 +34,13 @@ data class Fold(
     val rep: Vid?          // 대표 비디오(썸네일 + 길이 오버레이용, 최신순 첫번째)
 )
 
+// 트리 모드 항목 — dirPath != null 이면 하위폴더, vid != null 이면 영상.
+data class TreeEntry(
+    val name: String,
+    val dirPath: String?,
+    val vid: Vid?
+)
+
 object MediaLibrary {
     fun fmtDur(ms: Long): String {
         if (ms <= 0) return ""
@@ -121,6 +128,40 @@ object MediaLibrary {
 
     fun videosIn(vids: List<Vid>, folderPath: String): List<Vid> =
         vids.filter { it.folderPath == folderPath }
+
+    // 모든 영상 폴더경로의 최장 공통 조상(트리 루트).
+    fun treeRoot(vids: List<Vid>): String {
+        val paths = vids.map { it.folderPath }.filter { it.isNotEmpty() }.distinct()
+        if (paths.isEmpty()) return ""
+        var prefix = paths[0].split("/")
+        for (p in paths.drop(1)) {
+            val segs = p.split("/")
+            var i = 0
+            while (i < prefix.size && i < segs.size && prefix[i] == segs[i]) i++
+            prefix = prefix.subList(0, i)
+        }
+        return prefix.joinToString("/")
+    }
+
+    // dir 직속 하위폴더(영상 보유) + dir 직속 영상.
+    fun treeChildren(vids: List<Vid>, dir: String): List<TreeEntry> {
+        val prefix = if (dir.isEmpty() || dir == "/") "/" else "$dir/"
+        val dirs = sortedSetOf<String>()
+        val files = ArrayList<Vid>()
+        for (v in vids) {
+            val fp = v.folderPath
+            if (fp == dir) {
+                files.add(v)
+            } else if (fp.startsWith(prefix)) {
+                val seg = fp.substring(prefix.length).substringBefore("/")
+                if (seg.isNotEmpty()) dirs.add(prefix + seg)
+            }
+        }
+        val out = ArrayList<TreeEntry>()
+        for (d in dirs) out.add(TreeEntry(File(d).name, d, null))
+        for (v in files.sortedBy { it.name.lowercase() }) out.add(TreeEntry(v.name, null, v))
+        return out
+    }
 }
 
 // 최근 재생 목록 — Room 없이 SharedPreferences(JSON)로 간단 유지. 재생 진입 시 기록.

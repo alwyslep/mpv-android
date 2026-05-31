@@ -153,8 +153,35 @@ class MediaLibraryActivity : AppCompatActivity() {
                         if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
                     recycler.adapter = VideoAdapter(vids, grid) { v -> play(v.uri.toString(), v.name) }
                 }
+            } else if (mode == "tree") {
+                val root = MediaLibrary.treeRoot(allVids)
+                val children = MediaLibrary.treeChildren(allVids, root)
+                runOnUiThread {
+                    if (isFinishing) return@runOnUiThread
+                    empty.visibility = if (children.isEmpty()) View.VISIBLE else View.GONE
+                    if (grid) {
+                        val glm = GridLayoutManager(this, spanCount())
+                        glm.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+                            override fun getSpanSize(position: Int): Int =
+                                if (position < children.size && children[position].dirPath != null) spanCount() else 1
+                        }
+                        recycler.layoutManager = glm
+                    } else {
+                        recycler.layoutManager = LinearLayoutManager(this)
+                    }
+                    recycler.adapter = TreeAdapter(children, grid,
+                        onDir = { e ->
+                            startActivity(
+                                Intent(this, TreeActivity::class.java)
+                                    .putExtra("dir", e.dirPath)
+                                    .putExtra("title", e.name)
+                            )
+                        },
+                        onVideo = { e -> e.vid?.let { play(it.uri.toString(), it.name) } }
+                    )
+                }
             } else {
-                // folder / tree(현재 folder 폴백)
+                // folder
                 val folds = LibPrefs.sortFolds(this, MediaLibrary.folders(allVids))
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
