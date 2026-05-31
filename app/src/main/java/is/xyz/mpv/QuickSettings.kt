@@ -1,6 +1,8 @@
 package `is`.xyz.mpv
 
 import android.content.Context
+import android.content.res.ColorStateList
+import android.graphics.Color
 import android.graphics.Typeface
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -58,7 +60,14 @@ object QuickSettings {
                 val sel = key == pSort
                 val ic = cell.getChildAt(0) as ImageView
                 val lbl = cell.getChildAt(1) as TextView
-                ic.setColorFilter(if (sel) primary else variant)
+                if (sel) {
+                    ic.setBackgroundResource(R.drawable.bg_sort_circle)
+                    ic.backgroundTintList = ColorStateList.valueOf(primary)
+                    ic.setColorFilter(Color.WHITE)
+                } else {
+                    ic.setBackgroundResource(0)
+                    ic.setColorFilter(variant)
+                }
                 lbl.setTextColor(if (sel) primary else variant)
                 lbl.setTypeface(null, if (sel) Typeface.BOLD else Typeface.NORMAL)
             }

@@ -59,23 +59,23 @@
             android:orientation="horizontal"
             android:baselineAligned="false">
             <LinearLayout android:id="@+id/sc_name" style="@style/SortCell">
-                <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_s_title" android:contentDescription="제목" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_title" android:contentDescription="제목" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="제목" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_length" style="@style/SortCell">
-                <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_s_length" android:contentDescription="길이" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_length" android:contentDescription="길이" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="길이" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_date" style="@style/SortCell">
-                <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_s_date" android:contentDescription="날짜" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_date" android:contentDescription="날짜" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="날짜" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_size" style="@style/SortCell">
-                <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_s_size" android:contentDescription="크기" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_size" android:contentDescription="크기" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="크기" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_path" style="@style/SortCell">
-                <ImageView android:layout_width="26dp" android:layout_height="26dp" android:src="@drawable/ic_s_loc" android:contentDescription="위치" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_loc" android:contentDescription="위치" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="위치" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
         </LinearLayout>
