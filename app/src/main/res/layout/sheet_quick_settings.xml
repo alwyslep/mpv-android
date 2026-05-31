@@ -99,13 +99,13 @@
             android:id="@+id/grp_fields"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_dur" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="길이" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_ext" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="파일 형식" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_path" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="경로" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_progress" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="재생 진행률" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_res" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="해상도" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_size" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="크기" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_thumb" style="@style/Widget.Material3.Chip.Filter" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="섬네일" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_dur" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="길이" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_ext" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="파일 형식" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_path" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="경로" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_progress" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="재생 진행률" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_res" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="해상도" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_size" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="크기" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_thumb" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="섬네일" />
         </com.google.android.material.chip.ChipGroup>
 
         <LinearLayout

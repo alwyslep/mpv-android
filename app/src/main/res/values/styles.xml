@@ -56,6 +56,14 @@
         <item name="android:windowBackground">?attr/colorSurface</item>
     </style>
 
+    <!-- P2: 빠른설정 필드 칩 — ○(미선택)/✓(선택) 선두 아이콘(NextPlayer식) -->
+    <style name="FieldChip" parent="Widget.Material3.Chip.Filter">
+        <item name="chipIcon">@drawable/ic_circle_outline_24</item>
+        <item name="chipIconVisible">true</item>
+        <item name="checkedIcon">@drawable/ic_check_circle_24</item>
+        <item name="checkedIconVisible">true</item>
+    </style>
+
     <!-- P2: 빠른설정 정렬 아이콘 셀(균등 분포) -->
     <style name="SortCell">
         <item name="android:layout_width">0dp</item>
