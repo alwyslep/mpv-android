@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- P2: 한국어 로케일 오버레이. 설정 랜딩을 NextPlayer식(아이콘+한글 제목+부제)으로.
+         mpv 카테고리/콘텐츠는 유지하고 표기만 한글화. 하위 옵션 화면은 점진 번역. -->
+    <string name="title_activity_settings">설정</string>
+
+    <string name="pref_header_general">일반</string>
+    <string name="pref_header_general_summary">테마, 언어, 시작 동작</string>
+    <string name="pref_header_video">비디오</string>
+    <string name="pref_header_video_summary">디코더, 화질, 하드웨어 가속</string>
+    <string name="pref_header_ui">사용자 인터페이스</string>
+    <string name="pref_header_ui_summary">화면 표시, OSD, 컨트롤</string>
+    <string name="pref_header_gestures">터치 제스처</string>
+    <string name="pref_header_gestures_summary">재생 중 스와이프·탭 동작</string>
+    <string name="pref_header_developer">개발자</string>
+    <string name="pref_header_developer_summary">로그, 디버그 옵션</string>
+    <string name="pref_header_advanced">고급</string>
+    <string name="pref_header_advanced_summary">mpv.conf, 스크립트, 기타 고급 설정</string>
+    <string name="pref_header_about_mpv">mpv 정보</string>
+    <string name="pref_header_about_mpv_summary">버전, 라이선스, 기여자</string>
+</resources>
