@@ -168,10 +168,17 @@ class SearchActivity : AppCompatActivity() {
     private var grid = true
 
     private var pendingUri: String? = null
+    private var results: List<SearchItem> = emptyList()
+    private var playlist: List<SearchItem> = emptyList()
+    private var playIndex = -1
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            val u = pendingUri
+            if (u != null) Playback.onResult(this, u, res.data)
             runQuery()
+            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in playlist.indices) {
+                play(playlist[playIndex + 1])
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -247,11 +254,14 @@ class SearchActivity : AppCompatActivity() {
             val m = ThumbLoader.cachedMeta(item.uri.toString()) ?: return@filter false
             m[0].lowercase().contains(q) || m[1].lowercase().contains(q)
         }.take(500).toList()
+        results = res
         adapter.update(res)
         status.text = "‘${input.text}’ — ${res.size}개"
     }
 
     private fun play(item: SearchItem) {
+        playlist = results
+        playIndex = playlist.indexOfFirst { it.uri == item.uri }
         pendingUri = item.uri.toString()
         playLauncher.launch(Playback.intentFor(this, item.uri.toString(), item.name))
     }

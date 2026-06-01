@@ -85,6 +85,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // 재생완료 위치기록: psc.eof() 가 position/duration 을 비우므로, END_FILE 직전 마지막 값 보존.
     private var lastPos = -1L
     private var lastDur = 0L
+    // 트랙 선택 기억: eof/SHUTDOWN 경로에선 코어가 죽어 aid/sid 를 못 읽으므로 END_FILE 직전 보존.
+    private var lastAid: String? = null
+    private var lastSid: String? = null
     private var mediaSession: MediaSessionCompat? = null
 
     private lateinit var binding: PlayerBinding
@@ -350,12 +353,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             result.putExtra("duration", dur.toInt())
         }
         if (includeTracks) {
-            // 트랙 선택 기억 — 플레이어 살아있는 경로(뒤로키)에서만 읽는다.
-            try {
-                MPVLib.getPropertyString("aid")?.let { result.putExtra("saved_aid", it) }
-                MPVLib.getPropertyString("sid")?.let { result.putExtra("saved_sid", it) }
-            } catch (_: Throwable) {
-            }
+            // 살아있는 경로(뒤로키)면 직접 읽고, eof/SHUTDOWN 경로면 END_FILE 보존값 사용.
+            val aid = try { MPVLib.getPropertyString("aid") } catch (_: Throwable) { null } ?: lastAid
+            val sid = try { MPVLib.getPropertyString("sid") } catch (_: Throwable) { null } ?: lastSid
+            aid?.let { result.putExtra("saved_aid", it) }
+            sid?.let { result.putExtra("saved_sid", it) }
         }
         setResult(code, result)
         finish()
@@ -2014,9 +2016,14 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
     override fun event(eventId: Int) {
         if (eventId == MpvEvent.MPV_EVENT_END_FILE) {
-            // eof() 가 비우기 전 마지막 위치 보존(재생완료 위치기록)
+            // eof() 가 비우기 전 마지막 위치·트랙 보존(재생완료 위치기록 + 트랙 기억)
             if (psc.position >= 0) lastPos = psc.position
             if (psc.duration > 0) lastDur = psc.duration
+            try {
+                MPVLib.getPropertyString("aid")?.let { lastAid = it }
+                MPVLib.getPropertyString("sid")?.let { lastSid = it }
+            } catch (_: Throwable) {
+            }
             psc.eof()
             updateMediaSession()
         }
@@ -2024,7 +2031,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (eventId == MpvEvent.MPV_EVENT_SHUTDOWN)
             finishWithResult(
                 if (playbackHasStarted) RESULT_OK else RESULT_CANCELED,
-                playbackHasStarted
+                playbackHasStarted,
+                playbackHasStarted   // eof 완료 경로에서도 트랙 기억(END_FILE 보존값)
             )
 
         if (eventId == MpvEvent.MPV_EVENT_START_FILE) {

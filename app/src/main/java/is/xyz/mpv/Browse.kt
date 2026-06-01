@@ -30,9 +30,15 @@ class BrowseActivity : AppCompatActivity() {
     private var inVideos = false
 
     private var pendingUri: String? = null
+    private var browseItems: List<SearchItem> = emptyList()
+    private var playIndex = -1
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            val u = pendingUri
+            if (u != null) Playback.onResult(this, u, res.data)
+            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in browseItems.indices) {
+                playBrowse(browseItems[playIndex + 1])
+            }
         }
     private val scanPool = Executors.newFixedThreadPool(4)
     @Volatile private var dead = false
@@ -137,15 +143,19 @@ class BrowseActivity : AppCompatActivity() {
         val items = all.filter { keyOf(it).trim() == name && LibPrefs.passWatch(this, it.uri) }.map {
             SearchItem(it.code.ifEmpty { it.title }, Uri.parse(it.uri), "", it.dur ?: 0L, 0L)
         }
+        browseItems = items
         status.text = "${items.size}개"
         val grid = LibPrefs.grid(this)
         recycler.layoutManager =
             if (grid) GridLayoutManager(this, maxOf(2, resources.configuration.screenWidthDp / 170))
             else LinearLayoutManager(this)
-        recycler.adapter = SearchAdapter(items, grid) { item ->
-            pendingUri = item.uri.toString()
-            playLauncher.launch(Playback.intentFor(this, item.uri.toString(), item.name))
-        }
+        recycler.adapter = SearchAdapter(items, grid) { item -> playBrowse(item) }
+    }
+
+    private fun playBrowse(item: SearchItem) {
+        playIndex = browseItems.indexOfFirst { it.uri == item.uri }
+        pendingUri = item.uri.toString()
+        playLauncher.launch(Playback.intentFor(this, item.uri.toString(), item.name))
     }
 
     class NameAdapter(

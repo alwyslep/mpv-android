@@ -53,9 +53,16 @@ class MediaLibraryActivity : AppCompatActivity() {
 
     // 재생 결과(위치/길이) 기록 — 이어보기·진행률
     private var pendingUri: String? = null
+    private var homeVids: List<Pair<String, String>> = emptyList()  // 자동 다음재생용 (uri, name)
+    private var playIndex = -1
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            val u = pendingUri
+            if (u != null) Playback.onResult(this, u, res.data)
+            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in homeVids.indices) {
+                val (nu, nn) = homeVids[playIndex + 1]
+                play(nu, nn)
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -153,6 +160,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 val vids = LibPrefs.sortVids(this, allVids).filter { LibPrefs.passWatch(this, it.uri.toString()) }
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
+                    homeVids = vids.map { it.uri.toString() to it.name }
                     empty.visibility = if (vids.isEmpty()) View.VISIBLE else View.GONE
                     recycler.layoutManager =
                         if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
@@ -174,6 +182,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                     } else {
                         recycler.layoutManager = LinearLayoutManager(this)
                     }
+                    homeVids = children.mapNotNull { it.vid }.map { it.uri.toString() to it.name }
                     recycler.adapter = TreeAdapter(children, grid,
                         onDir = { e ->
                             startActivity(
@@ -206,6 +215,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     }
 
     private fun play(uri: String, title: String) {
+        playIndex = homeVids.indexOfFirst { it.first == uri }
         pendingUri = uri
         playLauncher.launch(Playback.intentFor(this, uri, title))
     }

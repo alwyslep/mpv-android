@@ -25,8 +25,14 @@ class TreeActivity : AppCompatActivity() {
     private var pendingUri: String? = null
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
-            pendingUri?.let { Playback.onResult(this, it, res.data) }
+            val u = pendingUri
+            if (u != null) Playback.onResult(this, u, res.data)
             rebuild()
+            if (u != null && Playback.shouldAdvance(this, u)) {
+                val vids = entries.mapNotNull { it.vid }
+                val idx = vids.indexOfFirst { it.uri.toString() == u }
+                if (idx >= 0 && idx + 1 in vids.indices) play(vids[idx + 1])
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {

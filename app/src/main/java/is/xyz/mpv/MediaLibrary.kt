@@ -354,6 +354,11 @@ object Playback {
         return i
     }
 
+    // 자동 다음재생 조건: 설정 ON + 방금 작품을 끝까지 봄(다 봄).
+    fun shouldAdvance(ctx: Context, uri: String): Boolean =
+        androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+            .getBoolean("autoplay_next", false) && LibPrefs.watchStatus(ctx, uri) == 2
+
     fun onResult(ctx: Context, uri: String, data: Intent?) {
         if (data == null) return
         val pos = data.getIntExtra("position", -1)
