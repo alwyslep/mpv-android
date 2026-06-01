@@ -456,7 +456,7 @@ object ReviewSync {
         val app = ctx.applicationContext
         Thread {
             try {
-                val code = Thumbs.codeOf(app, uri) ?: return@Thread
+                val code = ThumbLoader.codeOf(app, uri) ?: return@Thread
                 val body = JSONObject().put("code", code)
                 for ((k, v) in fields) if (v != null) body.put(k, v)
                 val url = URL(LibPrefs.hubUrl(app).trimEnd('/') + "/review")
