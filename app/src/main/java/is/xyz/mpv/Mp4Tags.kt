@@ -11,7 +11,18 @@ import java.nio.channels.FileChannel
 //   경로: moov → udta → meta(+4 full-atom flags) → ilst → desc|ldes|©cmt → data(+8) → UTF-8.
 object Mp4Tags {
 
-    fun description(ctx: Context, uri: Uri): String? {
+    // 줄거리 — ldes(synopsis)/desc(description)/©des. ⚠️©cmt(comment) 제외:
+    //   jav_dl 가 comment=품번을 항상 넣어서, 실제 줄거리 없을 때 품번이 줄거리로 오용됨.
+    fun description(ctx: Context, uri: Uri): String? =
+        read(ctx, uri, listOf("ldes", "desc", "©des"))
+
+    // 릴리스 날짜(보통 연도) — ilst ©day. MMR METADATA_KEY_DATE 는 컨테이너 creation_time
+    //   (HLS concat mp4 는 0 → QuickTime 에폭 1904-01-01 표시)이라 안 씀.
+    fun releaseDate(ctx: Context, uri: Uri): String? =
+        read(ctx, uri, listOf("©day"))
+
+    // moov→udta→meta→ilst 진입 후 keys 순서대로 첫 비어있지 않은 값 반환.
+    private fun read(ctx: Context, uri: Uri, keys: List<String>): String? {
         return try {
             ctx.contentResolver.openFileDescriptor(uri, "r")?.use { pfd ->
                 FileInputStream(pfd.fileDescriptor).channel.use { ch ->
@@ -21,7 +32,7 @@ object Mp4Tags {
                     val meta = findChild(ch, udta.first, udta.second, "meta") ?: return null
                     // meta 는 full-atom — payload 앞 4바이트(version/flags) 건너뜀
                     val ilst = findChild(ch, meta.first + 4, meta.second - 4, "ilst") ?: return null
-                    for (key in listOf("ldes", "desc", "©des", "©cmt")) {
+                    for (key in keys) {
                         val item = findChild(ch, ilst.first, ilst.second, key) ?: continue
                         val data = findChild(ch, item.first, item.second, "data") ?: continue
                         // data payload: 4(version/flags)+4(reserved) 뒤가 값

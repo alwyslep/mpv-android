@@ -117,7 +117,7 @@ class VideoDetailActivity : AppCompatActivity() {
                 m["album"] = k(MediaMetadataRetriever.METADATA_KEY_ALBUM)
                 m["albumartist"] = k(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
                 m["genre"] = k(MediaMetadataRetriever.METADATA_KEY_GENRE)
-                m["date"] = k(MediaMetadataRetriever.METADATA_KEY_DATE)
+                // 날짜는 아래 Mp4Tags.releaseDate(ilst ©day)로 — MMR date 는 컨테이너시간(1904).
                 w = k(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
                 h = k(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                 durMs = k(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
@@ -127,6 +127,7 @@ class VideoDetailActivity : AppCompatActivity() {
                 try { mmr.release() } catch (_: Throwable) {}
             }
             val desc = Mp4Tags.description(this, uri)  // MMR 미노출 줄거리 — atom 직접 파싱
+            m["date"] = Mp4Tags.releaseDate(this, uri) // ilst ©day(릴리스 연도), MMR date 회피
             val fb = cover; val fm = m; val fw = w; val fh = h; val fd = durMs
             runOnUiThread { if (!isFinishing) bind(fb, fm, fw, fh, fd, desc) }
         }.start()
@@ -156,15 +157,16 @@ class VideoDetailActivity : AppCompatActivity() {
 
         val box = findViewById<LinearLayout>(R.id.meta_container)
         box.removeAllViews()
-        addRow(box, "배우", m["artist"])
-        addRow(box, "시리즈", m["album"])
-        addRow(box, "스튜디오", m["albumartist"])
-        addRow(box, "장르", m["genre"])
-        addRow(box, "날짜", m["date"])
-        addRow(box, "길이", if (durMs > 0) MediaLibrary.fmtDur(durMs) else null)
-        addRow(box, "해상도", if (w > 0 && h > 0) "${w}×${h}" else null)
-        addRow(box, "경로", if (uriStr.startsWith("content://")) null else uriStr)
-        if (!desc.isNullOrEmpty()) addParagraph(box, "줄거리", desc)
+        // 이모지 표지(context_core.md §1 사용자 표시 규약) — 라벨 빠른 식별.
+        addRow(box, "🎭 배우", m["artist"])
+        addRow(box, "📚 시리즈", m["album"])
+        addRow(box, "🏢 스튜디오", m["albumartist"])
+        addRow(box, "🏷️ 장르", m["genre"])
+        addRow(box, "📅 날짜", m["date"])
+        addRow(box, "⏱️ 길이", if (durMs > 0) MediaLibrary.fmtDur(durMs) else null)
+        addRow(box, "🖥️ 해상도", if (w > 0 && h > 0) "${w}×${h}" else null)
+        addRow(box, "📁 경로", if (uriStr.startsWith("content://")) null else uriStr)
+        if (!desc.isNullOrEmpty()) addParagraph(box, "📝 줄거리", desc)
     }
 
     // B-56 pull-display: 허브 GET /library → 임베드와 겹치지 않는 cross-system 상태 섹션.
@@ -179,13 +181,13 @@ class VideoDetailActivity : AppCompatActivity() {
                 if (cat == null && dl == null) return@runOnUiThread
                 val box = findViewById<LinearLayout>(R.id.meta_container)
                 box.addView(TextView(this).apply {
-                    text = "통합 (허브)"
+                    text = "🔗 통합 (허브)"
                     setTextColor(0xFF80CBC4.toInt())   // 청록 — 임베드 메타와 구분
                     textSize = 13f
                     setPadding(0, dp(16), 0, dp(4))
                 })
-                addRow(box, "카탈로그", cat)
-                addRow(box, "다운로드", dl)
+                addRow(box, "📖 카탈로그", cat)
+                addRow(box, "⬇️ 다운로드", dl)
             }
         }
     }
@@ -233,7 +235,7 @@ class VideoDetailActivity : AppCompatActivity() {
             text = label
             setTextColor(0xFF9E9E9E.toInt())
             textSize = 13f
-            width = dp(64)
+            width = dp(86)   // 이모지 표지 추가분 여유
         }
         val v = TextView(this).apply {
             text = value
