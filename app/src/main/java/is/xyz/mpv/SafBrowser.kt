@@ -240,7 +240,10 @@ class SafAdapter(
                 ThumbLoader.load(h.thumb, h.code, h.title, e.uri, fallback)
             }
             h.itemView.setOnClickListener { onVideo(e) }
-            h.itemView.setOnLongClickListener { VideoDetailActivity.open(ctx, e.uri.toString(), fallback); true }
+            h.itemView.setOnLongClickListener {
+                VideoActions.longPress(it, e.uri.toString(), fallback) { notifyItemChanged(h.bindingAdapterPosition) }
+                true
+            }
         }
     }
 }

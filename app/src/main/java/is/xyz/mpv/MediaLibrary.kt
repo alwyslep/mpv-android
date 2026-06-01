@@ -227,6 +227,12 @@ object LibPrefs {
     fun watchFilter(ctx: Context): String = p(ctx).getString("watch_filter", "all") ?: "all"
     fun setWatchFilter(ctx: Context, v: String) = p(ctx).edit().putString("watch_filter", v).apply()
 
+    // 즐겨찾기만 보기
+    fun favOnly(ctx: Context) = p(ctx).getBoolean("fav_only", false)
+    fun setFavOnly(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("fav_only", v).apply()
+
+    fun showFav(ctx: Context) = p(ctx).getBoolean("show_fav", true)  // ♥/평점 뱃지
+
     // 0 안 봄 · 1 보는 중 · 2 다 봄 (Progress 위치 기준)
     fun watchStatus(ctx: Context, uri: String): Int {
         val pr = Progress.get(ctx, uri) ?: return 0
@@ -239,23 +245,29 @@ object LibPrefs {
         }
     }
 
-    fun passWatch(ctx: Context, uri: String): Boolean = when (watchFilter(ctx)) {
-        "unwatched" -> watchStatus(ctx, uri) == 0
-        "watching" -> watchStatus(ctx, uri) == 1
-        "watched" -> watchStatus(ctx, uri) == 2
-        else -> true
+    // 행 필터 통합: 시청 상태 + 즐겨찾기. (호출처 다수라 이름 유지)
+    fun passWatch(ctx: Context, uri: String): Boolean {
+        val watchOk = when (watchFilter(ctx)) {
+            "unwatched" -> watchStatus(ctx, uri) == 0
+            "watching" -> watchStatus(ctx, uri) == 1
+            "watched" -> watchStatus(ctx, uri) == 2
+            else -> true
+        }
+        if (!watchOk) return false
+        return !favOnly(ctx) || Favorites.has(ctx, uri)
     }
 
     private fun <T> sortGeneric(
         ctx: Context, list: List<T>,
         name: (T) -> String, date: (T) -> Long, size: (T) -> Long,
-        length: (T) -> Long, path: (T) -> String
+        length: (T) -> Long, path: (T) -> String, rating: (T) -> Int
     ): List<T> {
         val cmp = when (sortKey(ctx)) {
             "date" -> compareBy<T> { date(it) }
             "size" -> compareBy<T> { size(it) }
             "length" -> compareBy<T> { length(it) }
             "path" -> compareBy<T> { path(it).lowercase() }
+            "rating" -> compareBy<T> { rating(it) }
             else -> compareBy<T> { name(it).lowercase() }
         }
         val s = list.sortedWith(cmp)
@@ -263,14 +275,15 @@ object LibPrefs {
     }
 
     fun sortVids(ctx: Context, l: List<Vid>): List<Vid> =
-        sortGeneric(ctx, l, { it.name }, { it.dateModified }, { it.size }, { it.durationMs }, { it.folderPath })
+        sortGeneric(ctx, l, { it.name }, { it.dateModified }, { it.size }, { it.durationMs }, { it.folderPath },
+            { Ratings.get(ctx, it.uri.toString()) })
 
     fun sortFolds(ctx: Context, l: List<Fold>): List<Fold> =
         sortGeneric(ctx, l, { it.name }, { it.rep?.dateModified ?: 0L }, { it.count.toLong() },
-            { it.rep?.durationMs ?: 0L }, { it.path })
+            { it.rep?.durationMs ?: 0L }, { it.path }, { 0 })
 
     fun sortSaf(ctx: Context, l: List<SafEntry>): List<SafEntry> =
-        sortGeneric(ctx, l, { it.name }, { 0L }, { it.size }, { 0L }, { it.name })
+        sortGeneric(ctx, l, { it.name }, { 0L }, { it.size }, { 0L }, { it.name }, { 0 })
 }
 
 // 사용자가 '폴더 열기'로 권한 준 SAF 트리 uri 들 — 통합 검색 인덱싱 대상.
@@ -369,5 +382,40 @@ object Tracks {
         if (!o.has(uri)) return null
         val e = o.getJSONObject(uri)
         return e.optString("a") to e.optString("s")
+    }
+}
+
+// 즐겨찾기(찜) — uri 집합. prefs StringSet.
+object Favorites {
+    private const val PREFS = "media_library"
+    private const val KEY = "favorites_v1"
+
+    fun has(ctx: Context, uri: String): Boolean =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY, emptySet())?.contains(uri) ?: false
+
+    fun toggle(ctx: Context, uri: String): Boolean {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val cur = LinkedHashSet(p.getStringSet(KEY, emptySet()) ?: emptySet())
+        val now = if (cur.contains(uri)) { cur.remove(uri); false } else { cur.add(uri); true }
+        p.edit().putStringSet(KEY, cur).apply()
+        return now
+    }
+}
+
+// 평점 — uri 별 1~5 (0 = 없음). prefs JSON.
+object Ratings {
+    private const val PREFS = "media_library"
+    private const val KEY = "ratings_v1"
+
+    fun get(ctx: Context, uri: String): Int {
+        val o = JSONObject(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "{}"))
+        return o.optInt(uri, 0)
+    }
+
+    fun set(ctx: Context, uri: String, stars: Int) {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val o = JSONObject(p.getString(KEY, "{}"))
+        if (stars <= 0) o.remove(uri) else o.put(uri, stars.coerceIn(1, 5))
+        p.edit().putString(KEY, o.toString()).apply()
     }
 }

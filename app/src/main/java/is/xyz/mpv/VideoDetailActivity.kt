@@ -39,6 +39,8 @@ class VideoDetailActivity : AppCompatActivity() {
         toolbar.title = "정보"
         toolbar.setNavigationOnClickListener { finish() }
 
+        setupFavRating()
+
         findViewById<MaterialButton>(R.id.btn_play).setOnClickListener {
             playLauncher.launch(Playback.intentFor(this, uriStr, fallbackName, resume = false))
         }
@@ -53,6 +55,40 @@ class VideoDetailActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         updateResumeButton()
+    }
+
+    private val stars by lazy {
+        listOf(R.id.star_1, R.id.star_2, R.id.star_3, R.id.star_4, R.id.star_5)
+            .map { findViewById<android.widget.ImageView>(it) }
+    }
+
+    private fun setupFavRating() {
+        val fav = findViewById<android.widget.ImageView>(R.id.fav_btn)
+        fav.setOnClickListener {
+            Favorites.toggle(this, uriStr)
+            paintFav(fav)
+        }
+        paintFav(fav)
+        stars.forEachIndexed { i, iv ->
+            iv.setOnClickListener {
+                val want = i + 1
+                // 같은 별을 다시 누르면 해제
+                Ratings.set(this, uriStr, if (Ratings.get(this, uriStr) == want) 0 else want)
+                paintStars()
+            }
+        }
+        paintStars()
+    }
+
+    private fun paintFav(fav: android.widget.ImageView) {
+        fav.setImageResource(if (Favorites.has(this, uriStr)) R.drawable.ic_fav else R.drawable.ic_fav_border)
+    }
+
+    private fun paintStars() {
+        val r = Ratings.get(this, uriStr)
+        stars.forEachIndexed { i, iv ->
+            iv.setImageResource(if (i < r) R.drawable.ic_star else R.drawable.ic_star_border)
+        }
     }
 
     private fun updateResumeButton() {

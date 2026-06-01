@@ -23,6 +23,8 @@ object QuickSettings {
         // 보류 상태(완료 전까지 prefs 미반영)
         var pMode = LibPrefs.viewMode(ctx)
         var pWatch = LibPrefs.watchFilter(ctx)
+        var pFavOnly = LibPrefs.favOnly(ctx)
+        var pShowFav = LibPrefs.showFav(ctx)
         var pGrid = LibPrefs.grid(ctx)
         var pSort = LibPrefs.sortKey(ctx)
         var pAsc = LibPrefs.sortAsc(ctx)
@@ -60,6 +62,9 @@ object QuickSettings {
             }
         }
 
+        // 즐겨찾기만
+        bindChip(v.findViewById(R.id.chip_fav_only), pFavOnly) { pFavOnly = it }
+
         // 레이아웃
         val grpLayout = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_layout)
         grpLayout.check(if (pGrid) R.id.btn_grid else R.id.btn_list)
@@ -73,7 +78,8 @@ object QuickSettings {
             "length" to v.findViewById<LinearLayout>(R.id.sc_length),
             "date" to v.findViewById<LinearLayout>(R.id.sc_date),
             "size" to v.findViewById<LinearLayout>(R.id.sc_size),
-            "path" to v.findViewById<LinearLayout>(R.id.sc_path)
+            "path" to v.findViewById<LinearLayout>(R.id.sc_path),
+            "rating" to v.findViewById<LinearLayout>(R.id.sc_rating)
         )
         fun paint() {
             for ((key, cell) in cells) {
@@ -108,6 +114,7 @@ object QuickSettings {
         bindChip(v.findViewById(R.id.chip_f_res), pRes) { pRes = it }
         bindChip(v.findViewById(R.id.chip_f_size), pSize) { pSize = it }
         bindChip(v.findViewById(R.id.chip_f_thumb), pThumb) { pThumb = it }
+        bindChip(v.findViewById(R.id.chip_f_fav), pShowFav) { pShowFav = it }
 
         val dlg = MaterialAlertDialogBuilder(act).setView(v).create()
 
@@ -115,6 +122,8 @@ object QuickSettings {
         v.findViewById<MaterialButton>(R.id.btn_done).setOnClickListener {
             LibPrefs.setViewMode(ctx, pMode)
             LibPrefs.setWatchFilter(ctx, pWatch)
+            LibPrefs.setFavOnly(ctx, pFavOnly)
+            LibPrefs.setField(ctx, "show_fav", pShowFav)
             LibPrefs.setGrid(ctx, pGrid)
             LibPrefs.setSort(ctx, pSort, pAsc)
             LibPrefs.setField(ctx, "show_dur", pDur)

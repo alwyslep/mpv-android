@@ -58,6 +58,13 @@
                 android:layout_weight="1" android:layout_height="wrap_content" android:text="다 봄" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
+        <TextView style="@style/QsLabel" android:text="즐겨찾기" />
+        <com.google.android.material.chip.ChipGroup
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+            <com.google.android.material.chip.Chip android:id="@+id/chip_fav_only" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="즐겨찾기만" />
+        </com.google.android.material.chip.ChipGroup>
+
         <TextView style="@style/QsLabel" android:text="미디어 레이아웃" />
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/grp_layout"
@@ -99,6 +106,10 @@
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_loc" android:contentDescription="위치" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="위치" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
+            <LinearLayout android:id="@+id/sc_rating" style="@style/SortCell">
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_rating" android:contentDescription="평점" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="평점" android:textSize="11sp" android:layout_marginTop="4dp" />
+            </LinearLayout>
         </LinearLayout>
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/grp_order"
@@ -127,6 +138,7 @@
             <com.google.android.material.chip.Chip android:id="@+id/chip_f_res" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="해상도" />
             <com.google.android.material.chip.Chip android:id="@+id/chip_f_size" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="크기" />
             <com.google.android.material.chip.Chip android:id="@+id/chip_f_thumb" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="섬네일" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_fav" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="즐겨찾기" />
         </com.google.android.material.chip.ChipGroup>
 
         <LinearLayout

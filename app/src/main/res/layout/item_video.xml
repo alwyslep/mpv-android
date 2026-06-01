@@ -45,6 +45,20 @@
             android:progressTint="#FFB300"
             android:progressBackgroundTint="#33FFFFFF"
             android:visibility="gone" />
+        <TextView
+            android:id="@+id/badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="top|start"
+            android:layout_margin="4dp"
+            android:background="#99000000"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:visibility="gone" />
     </FrameLayout>
 
     <LinearLayout

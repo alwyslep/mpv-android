@@ -69,6 +69,7 @@ class VideoAdapter(
         val code: TextView = v.findViewById(R.id.code)
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
+        val badge: TextView = v.findViewById(R.id.badge)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -101,8 +102,25 @@ class VideoAdapter(
         } else {
             h.progress.visibility = View.GONE
         }
+        // ♥/평점 뱃지
+        val us = v.uri.toString()
+        if (LibPrefs.showFav(ctx)) {
+            val fav = Favorites.has(ctx, us)
+            val rt = Ratings.get(ctx, us)
+            val txt = buildString {
+                if (fav) append("♥")
+                if (rt > 0) { if (isNotEmpty()) append(" "); append("★").append(rt) }
+            }
+            h.badge.visibility = if (txt.isEmpty()) View.GONE else View.VISIBLE
+            h.badge.text = txt
+        } else {
+            h.badge.visibility = View.GONE
+        }
         ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
         h.itemView.setOnClickListener { onClick(v) }
-        h.itemView.setOnLongClickListener { VideoDetailActivity.open(ctx, v.uri.toString(), v.name); true }
+        h.itemView.setOnLongClickListener {
+            VideoActions.longPress(it, us, v.name) { notifyItemChanged(h.bindingAdapterPosition) }
+            true
+        }
     }
 }
