@@ -10,6 +10,7 @@ import org.json.JSONObject
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 
 // P2 (media library home): NextPlayer식 폴더/비디오 홈을 위한 MediaStore 라이브 쿼리.
 //   Room/sync 인프라 없이 매 진입 시 MediaStore 를 직접 읽어 폴더(bucket)별로 묶는다.
@@ -472,6 +473,32 @@ object ReviewSync {
             } catch (_: Throwable) {
                 // 오프라인/허브 다운 — 로컬 저장은 이미 완료, 다음 상호작용에 재시도됨.
             }
+        }.start()
+    }
+}
+
+// B-56 pull-display: 통합 허브(receiver GET /library)에서 품번 단건 레코드를 당김.
+//   상세화면이 임베드 메타와 겹치지 않는 cross-system 상태(cat_status·dl_status)를 표시.
+//   백그라운드 스레드에서 콜백(콜백 내 UI 접근은 호출측이 runOnUiThread). 실패=null.
+object Library {
+    fun fetch(ctx: Context, code: String, cb: (JSONObject?) -> Unit) {
+        val app = ctx.applicationContext
+        Thread {
+            var rec: JSONObject? = null
+            try {
+                val url = URL(LibPrefs.hubUrl(app).trimEnd('/') +
+                    "/library?limit=1&code=" + URLEncoder.encode(code, "UTF-8"))
+                val con = url.openConnection() as HttpURLConnection
+                con.connectTimeout = 1500
+                con.readTimeout = 1500
+                val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                con.disconnect()
+                val rows = JSONObject(text).optJSONArray("rows")
+                if (rows != null && rows.length() > 0) rec = rows.getJSONObject(0)
+            } catch (_: Throwable) {
+                // 허브 오프라인 — 조용히 null
+            }
+            cb(rec)
         }.start()
     }
 }

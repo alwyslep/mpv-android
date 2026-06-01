@@ -148,6 +148,7 @@ class VideoDetailActivity : AppCompatActivity() {
             titleView.text = t
             titleView.visibility = if (t.isEmpty()) View.GONE else View.VISIBLE
             findViewById<MaterialToolbar>(R.id.toolbar).title = code
+            fetchHub(code)  // B-56 pull-display: 허브 통합 상태 비동기 추가
         } else {
             codeView.text = fallbackName
             titleView.visibility = View.GONE
@@ -164,6 +165,47 @@ class VideoDetailActivity : AppCompatActivity() {
         addRow(box, "해상도", if (w > 0 && h > 0) "${w}×${h}" else null)
         addRow(box, "경로", if (uriStr.startsWith("content://")) null else uriStr)
         if (!desc.isNullOrEmpty()) addParagraph(box, "줄거리", desc)
+    }
+
+    // B-56 pull-display: 허브 GET /library → 임베드와 겹치지 않는 cross-system 상태 섹션.
+    //   카탈로그(브라우저가 봄/요청함)·다운로드 생애주기. 허브 오프라인/미기록이면 조용히 생략.
+    private fun fetchHub(code: String) {
+        Library.fetch(this, code) { rec ->
+            rec ?: return@fetch
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                val cat = hubCatLabel(rec.optString("cat_status"))
+                val dl = hubDlLabel(rec.optString("dl_status"))
+                if (cat == null && dl == null) return@runOnUiThread
+                val box = findViewById<LinearLayout>(R.id.meta_container)
+                box.addView(TextView(this).apply {
+                    text = "통합 (허브)"
+                    setTextColor(0xFF80CBC4.toInt())   // 청록 — 임베드 메타와 구분
+                    textSize = 13f
+                    setPadding(0, dp(16), 0, dp(4))
+                })
+                addRow(box, "카탈로그", cat)
+                addRow(box, "다운로드", dl)
+            }
+        }
+    }
+
+    private fun hubCatLabel(s: String?): String? = when (s) {
+        "visited" -> "방문"
+        "requested" -> "요청(다운 보냄)"
+        "hasAds" -> "광고 감지"
+        "failed" -> "실패 표시"
+        "uncatalogued", "", null -> null   // 브라우저 기록 없음 → 굳이 표시 안 함
+        else -> s
+    }
+
+    private fun hubDlLabel(s: String?): String? = when (s) {
+        "done" -> "완료"
+        "inbox" -> "큐 대기"
+        "processing" -> "처리중"
+        "stale" -> "격리"
+        "unqueued", "", null -> null
+        else -> if (s.startsWith("failed")) "실패($s)" else s   // failed-download 등
     }
 
     private fun addParagraph(box: LinearLayout, label: String, text: String) {
