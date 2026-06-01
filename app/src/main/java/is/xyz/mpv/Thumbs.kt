@@ -41,6 +41,24 @@ object ThumbLoader {
     // 검색용 — 이미 MMR 캐시된 [code, title] 노출(null = 아직 미확인).
     fun cachedMeta(key: String): Array<String>? = metaCache[key]
 
+    // B-56: uri → 품번(code). 캐시 우선, 없으면 MMR 타이틀 1회 추출+캐시.
+    //   임베드 타이틀 없으면(=code 빈값) null → review 허브 push 대상 아님(파일명 키 사절).
+    fun codeOf(ctx: Context, uri: String): String? {
+        metaCache[uri]?.let { return it[0].ifEmpty { null } }
+        val mmr = MediaMetadataRetriever()
+        return try {
+            mmr.setDataSource(ctx, Uri.parse(uri))
+            val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
+            val meta = if (raw.isNotEmpty()) parseTitle(raw) else arrayOf("", "")
+            metaCache[uri] = meta
+            meta[0].ifEmpty { null }
+        } catch (_: Throwable) {
+            null
+        } finally {
+            try { mmr.release() } catch (_: Throwable) {}
+        }
+    }
+
     // 전체 스캔용 — 커버 없이 메타(품번/제목/길이/배우/스튜디오/시리즈)만 MMR→디스크 캐시.
     //   이미 .txt 있으면 skip. 커버는 타일 볼 때 지연 로드.
     fun indexMeta(ctx: Context, uri: Uri, fallbackName: String) {

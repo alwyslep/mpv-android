@@ -8,6 +8,8 @@ import android.provider.MediaStore
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
 
 // P2 (media library home): NextPlayer식 폴더/비디오 홈을 위한 MediaStore 라이브 쿼리.
 //   Room/sync 인프라 없이 매 진입 시 MediaStore 를 직접 읽어 폴더(bucket)별로 묶는다.
@@ -233,6 +235,11 @@ object LibPrefs {
 
     fun showFav(ctx: Context) = p(ctx).getBoolean("show_fav", true)  // ♥/평점 뱃지
 
+    // B-56: 통합 허브(receiver) 주소 — 같은 폰 Termux 의 127.0.0.1:8765.
+    fun hubUrl(ctx: Context): String =
+        p(ctx).getString("hub_url", "http://127.0.0.1:8765") ?: "http://127.0.0.1:8765"
+    fun setHubUrl(ctx: Context, v: String) = p(ctx).edit().putString("hub_url", v).apply()
+
     // 0 안 봄 · 1 보는 중 · 2 다 봄 (Progress 위치 기준)
     fun watchStatus(ctx: Context, uri: String): Int {
         val pr = Progress.get(ctx, uri) ?: return 0
@@ -367,6 +374,15 @@ object Playback {
         val aid = data.getStringExtra("saved_aid")
         val sid = data.getStringExtra("saved_sid")
         if (aid != null || sid != null) Tracks.save(ctx, uri, aid ?: "", sid ?: "")
+        // B-56: 통합 허브 push (code 키). 위치/시청상태 + 트랙 한 번에.
+        val f = HashMap<String, Any?>()
+        if (pos >= 0 && dur > 0) {
+            f["pos_ms"] = pos; f["dur_ms"] = dur
+            f["watch"] = ReviewSync.watchOf(pos.toLong(), dur.toLong())
+        }
+        aid?.toIntOrNull()?.let { f["aid"] = it }
+        sid?.toIntOrNull()?.let { f["sid"] = it }
+        if (f.isNotEmpty()) ReviewSync.push(ctx, uri, f)
     }
 }
 
@@ -403,6 +419,7 @@ object Favorites {
         val cur = LinkedHashSet(p.getStringSet(KEY, emptySet()) ?: emptySet())
         val now = if (cur.contains(uri)) { cur.remove(uri); false } else { cur.add(uri); true }
         p.edit().putStringSet(KEY, cur).apply()
+        ReviewSync.push(ctx, uri, mapOf("fav" to if (now) 1 else 0))  // B-56
         return now
     }
 }
@@ -422,5 +439,39 @@ object Ratings {
         val o = JSONObject(p.getString(KEY, "{}"))
         if (stars <= 0) o.remove(uri) else o.put(uri, stars.coerceIn(1, 5))
         p.edit().putString(KEY, o.toString()).apply()
+        ReviewSync.push(ctx, uri, mapOf("rating" to stars.coerceIn(0, 5)))  // B-56
+    }
+}
+
+// B-56(통합 라이브러리 2단계): 시청/평가(review)를 통합 허브(receiver /review)로 push.
+//   로컬 저장은 uri 키 유지(동작 중 UI 무손상), 허브엔 품번(code) 키로 전송(경계 변환).
+//   code 못 구하면 skip. 백그라운드 스레드 fire-and-forget — 오프라인/허브다운 무시
+//   (로컬엔 이미 저장됨). SSOT: docs/context_unified_library.md.
+object ReviewSync {
+    // 시청상태 0/1/2 — Progress/LibPrefs.watchStatus 와 동일 규칙.
+    fun watchOf(posMs: Long, durMs: Long): Int =
+        if (durMs > 0 && posMs >= durMs - 3000) 2 else if (posMs > 3000) 1 else 0
+
+    fun push(ctx: Context, uri: String, fields: Map<String, Any?>) {
+        val app = ctx.applicationContext
+        Thread {
+            try {
+                val code = Thumbs.codeOf(app, uri) ?: return@Thread
+                val body = JSONObject().put("code", code)
+                for ((k, v) in fields) if (v != null) body.put(k, v)
+                val url = URL(LibPrefs.hubUrl(app).trimEnd('/') + "/review")
+                val con = url.openConnection() as HttpURLConnection
+                con.connectTimeout = 1500
+                con.readTimeout = 1500
+                con.requestMethod = "POST"
+                con.doOutput = true
+                con.setRequestProperty("Content-Type", "application/json")
+                con.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
+                con.responseCode  // 전송 트리거 — 응답 본문은 무시
+                con.disconnect()
+            } catch (_: Throwable) {
+                // 오프라인/허브 다운 — 로컬 저장은 이미 완료, 다음 상호작용에 재시도됨.
+            }
+        }.start()
     }
 }
