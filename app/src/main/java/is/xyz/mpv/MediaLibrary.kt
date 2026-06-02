@@ -302,6 +302,7 @@ object LibPrefs {
     fun setFavOnly(ctx: Context, v: Boolean) = p(ctx).edit().putBoolean("fav_only", v).apply()
 
     fun showFav(ctx: Context) = p(ctx).getBoolean("show_fav", true)  // ♥/평점 뱃지
+    fun embedFilter(ctx: Context) = p(ctx).getBoolean("embed_filter", false)  // jembed: 임베드없음만 표시
 
     // B-57 v3: 커버 타일 크기 — cover_scale(%) 클수록 큰 타일(열 적게). 50~200%.
     fun coverScale(ctx: Context): Float =

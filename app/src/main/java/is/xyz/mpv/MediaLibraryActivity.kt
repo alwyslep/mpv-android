@@ -171,7 +171,8 @@ class MediaLibraryActivity : AppCompatActivity() {
         Thread {
             val allVids = MediaLibrary.queryVideos(this)
             if (mode == "videos") {
-                val vids = LibPrefs.sortVids(this, allVids).filter { LibPrefs.passWatch(this, it.uri.toString()) }
+                var vids = LibPrefs.sortVids(this, allVids).filter { LibPrefs.passWatch(this, it.uri.toString()) }
+                if (LibPrefs.embedFilter(this)) vids = vids.filter { JEmbed.isUnembedded(this, it.uri, it.path) }
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     homeVids = vids.map { it.uri.toString() to it.name }

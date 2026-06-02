@@ -325,6 +325,20 @@ object JEmbed {
         finally { ex.release() }
     }
 
+    // 임베드없음 판정(필터용): TS(첫바이트 0x47)=확실, ftyp 는 ThumbLoader 캐시 메타의 품번이 빈 것.
+    //   (미캐시 ftyp 는 false=표시 — 추가 MMR 없이 가벼움. 썸네일 로딩 후 재진입 시 정확해짐.)
+    fun isUnembedded(ctx: Context, uri: Uri, path: String?): Boolean {
+        val fb = try {
+            if (path != null && File(path).canRead()) RandomAccessFile(path, "r").use { it.read() }
+            else ctx.contentResolver.openFileDescriptor(uri, "r")?.use {
+                val b = ByteArray(1); Os.read(it.fileDescriptor, b, 0, 1); b[0].toInt() and 0xFF
+            } ?: -1
+        } catch (_: Throwable) { -1 }
+        if (fb == 0x47) return true
+        val cm = ThumbLoader.cachedMeta(uri.toString())
+        return cm != null && cm.isNotEmpty() && cm[0].isBlank()
+    }
+
     private fun pathFromMediaStore(ctx: Context, uri: Uri): String? = try {
         ctx.contentResolver.query(uri, arrayOf(MediaStore.Video.Media.DATA), null, null, null)?.use {
             if (it.moveToFirst()) it.getString(0) else null

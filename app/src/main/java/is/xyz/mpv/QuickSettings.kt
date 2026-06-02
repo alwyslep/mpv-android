@@ -37,6 +37,7 @@ object QuickSettings {
         var pSize = LibPrefs.showSize(ctx)
         var pThumb = LibPrefs.showThumb(ctx)
         var pCoverScale = (LibPrefs.coverScale(ctx) * 100).toInt()  // 50~200(%)
+        var pEmbedFilter = LibPrefs.embedFilter(ctx)
 
         // 보기 모드
         val grpMode = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_mode)
@@ -66,6 +67,7 @@ object QuickSettings {
 
         // 즐겨찾기만
         bindChip(v.findViewById(R.id.chip_fav_only), pFavOnly) { pFavOnly = it }
+        bindChip(v.findViewById(R.id.chip_embed_filter), pEmbedFilter) { pEmbedFilter = it }
 
         // 레이아웃
         val grpLayout = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_layout)
@@ -151,6 +153,7 @@ object QuickSettings {
             LibPrefs.setField(ctx, "show_size", pSize)
             LibPrefs.setField(ctx, "show_thumb", pThumb)
             LibPrefs.setCoverScale(ctx, pCoverScale)
+            LibPrefs.setField(ctx, "embed_filter", pEmbedFilter)
             dlg.dismiss()
             onApply()
         }

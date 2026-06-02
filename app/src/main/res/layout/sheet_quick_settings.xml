@@ -63,6 +63,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
             <com.google.android.material.chip.Chip android:id="@+id/chip_fav_only" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_fav_only" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_embed_filter" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="임베드없음" />
         </com.google.android.material.chip.ChipGroup>
 
         <TextView style="@style/QsLabel" android:text="@string/qs_layout" />
