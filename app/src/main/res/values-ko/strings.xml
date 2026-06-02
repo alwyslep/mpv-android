@@ -126,7 +126,7 @@
     <string name="qs_path">경로</string>
     <string name="qs_progress">재생 진행률</string>
     <string name="qs_resolution">해상도</string>
-    <string name="qs_thumbnail">섬네일</string>
+    <string name="qs_thumbnail">썸네일</string>
     <string name="qs_done">완료</string>
     <string name="lbl_network_stream">네트워크 스트림</string>
     <string name="lbl_local_videos">로컬 동영상</string>

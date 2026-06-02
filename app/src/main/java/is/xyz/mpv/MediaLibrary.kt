@@ -290,7 +290,7 @@ object LibPrefs {
     fun showProgress(ctx: Context) = p(ctx).getBoolean("show_progress", true) // 재생진행률(placeholder)
     fun showRes(ctx: Context) = p(ctx).getBoolean("show_res", true)        // 해상도
     fun showSize(ctx: Context) = p(ctx).getBoolean("show_size", true)      // 크기
-    fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 섬네일
+    fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 썸네일
     fun setField(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 
     // 시청 상태 필터: all | unwatched | watching | watched
@@ -400,6 +400,32 @@ object SafTrees {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()
         MediaLibrary.clearSafCache()
         SearchIndex.clear()
+    }
+}
+
+// B-57 v6: 길이 불일치 표시용 — receiver GET /durations(code→duration_sec) 1회 fetch 캐시.
+object DurationHub {
+    @Volatile private var map: Map<String, Long>? = null
+    fun get(code: String): Long? = map?.get(code.uppercase())
+    fun clear() { map = null }
+    fun fetchAsync(ctx: Context) {
+        if (map != null) return
+        val app = ctx.applicationContext
+        Thread {
+            try {
+                val url = URL(LibPrefs.hubUrl(app).trimEnd('/') + "/durations")
+                val con = url.openConnection() as HttpURLConnection
+                con.connectTimeout = 2000
+                con.readTimeout = 4000
+                val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                con.disconnect()
+                val d = JSONObject(text).optJSONObject("durations") ?: JSONObject()
+                val m = HashMap<String, Long>(d.length())
+                val keys = d.keys()
+                while (keys.hasNext()) { val k = keys.next(); m[k.uppercase()] = d.optLong(k) }
+                map = m
+            } catch (_: Throwable) {}
+        }.start()
     }
 }
 

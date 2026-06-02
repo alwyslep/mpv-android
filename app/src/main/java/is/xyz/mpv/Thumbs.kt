@@ -88,6 +88,21 @@ object ThumbLoader {
         try { cacheDir(ctx).deleteRecursively() } catch (_: Throwable) {}
     }
 
+    // v6: 로컬 파일 길이 vs hub(queue.sqlite) duration_sec 불일치 → cb(true).
+    //   품번은 codeOf(캐시 우선, 없으면 MMR 1회). hub 맵 없으면(오프라인) 조용히 무시.
+    fun checkDurMismatch(ctx: Context, uri: Uri, localDurMs: Long, cb: (Boolean) -> Unit) {
+        if (localDurMs <= 0L) return
+        val app = ctx.applicationContext
+        exec.execute {
+            val code = codeOf(app, uri) ?: return@execute
+            val hubSec = DurationHub.get(code) ?: return@execute
+            val localSec = localDurMs / 1000
+            val tol = maxOf(10L, hubSec / 50)   // 10초 또는 2% 중 큰 값(인코딩 오차 허용)
+            val mismatch = kotlin.math.abs(localSec - hubSec) > tol
+            android.os.Handler(android.os.Looper.getMainLooper()).post { cb(mismatch) }
+        }
+    }
+
     fun load(
         thumb: ImageView,
         codeView: TextView?,

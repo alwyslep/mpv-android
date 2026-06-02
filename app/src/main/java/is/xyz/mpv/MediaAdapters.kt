@@ -104,6 +104,16 @@ class VideoAdapter(
         if (LibPrefs.showDur(ctx) && v.durationMs > 0) {
             h.dur.visibility = View.VISIBLE
             h.dur.text = MediaLibrary.fmtDur(v.durationMs)
+            h.dur.setTextColor(0xFFFFFFFF.toInt())   // 기본 흰색(재활용 복원)
+            // v6: hub 길이와 불일치 시 마커(빨강+⚠). 품번 비동기 확정 후, tag 가드로 재활용 안전.
+            val durKey = v.uri.toString()
+            h.dur.tag = durKey
+            ThumbLoader.checkDurMismatch(ctx, v.uri, v.durationMs) { mismatch ->
+                if (mismatch && h.dur.tag == durKey) {
+                    h.dur.setTextColor(0xFFFF5252.toInt())
+                    h.dur.text = MediaLibrary.fmtDur(v.durationMs) + " ⚠"
+                }
+            }
         } else {
             h.dur.visibility = View.GONE
         }
