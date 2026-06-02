@@ -320,28 +320,37 @@ class MediaLibraryActivity : AppCompatActivity() {
         val a = videoAdapter ?: return
         val items = a.selected.toList().mapNotNull { u -> homeVids.find { it.first == u }?.let { Uri.parse(u) to it.second } }
         if (items.isEmpty()) { Toast.makeText(this, "선택 없음", Toast.LENGTH_SHORT).show(); return }
-        pickFolder { destDir ->
-            val ll = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
-            val tv = TextView(this)
-            val pb = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = items.size }
-            ll.addView(tv); ll.addView(pb)
-            val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
-                .setTitle("이동 중 (${items.size}개)").setView(ll).setCancelable(false).create()
-            dlg.show()
-            JMove.move(this, items, destDir,
-                onProgress = { idx, total, name -> tv.text = "${idx + 1}/$total   $name"; pb.progress = idx },
-                onDone = { ok, fail, fails ->
-                    dlg.dismiss(); exitSelection(); load()
-                    val msg = "이동 완료: 성공 $ok, 실패 $fail" +
-                        if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
-                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-                })
-        }
+        pickFolder(
+            onInternal = { dir -> runMoveProgress(items) { onP, onD -> JMove.move(this, items, dir, onP, onD) } },
+            onSaf = { doc -> runMoveProgress(items) { onP, onD -> JMove.moveToSaf(this, items, doc, onP, onD) } }
+        )
     }
 
-    // 반화면 폴더트리(BottomSheet) — 내부저장소 디렉토리 탐색 후 '여기로 이동'.
-    private fun pickFolder(onPick: (String) -> Unit) {
-        var cur = Environment.getExternalStorageDirectory()
+    private fun runMoveProgress(
+        items: List<Pair<Uri, String>>,
+        mover: ((Int, Int, String) -> Unit, (Int, Int, List<String>) -> Unit) -> Unit
+    ) {
+        val ll = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
+        val tv = TextView(this)
+        val pb = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = items.size }
+        ll.addView(tv); ll.addView(pb)
+        val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("이동 중 (${items.size}개)").setView(ll).setCancelable(false).create()
+        dlg.show()
+        mover({ idx, _, name -> tv.text = "${idx + 1}/${items.size}   $name"; pb.progress = idx },
+            { ok, fail, fails ->
+                dlg.dismiss(); exitSelection(); load()
+                val msg = "이동 완료: 성공 $ok, 실패 $fail" +
+                    if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            })
+    }
+
+    // 반화면 폴더트리(BottomSheet) — 내부저장소(File) + 외부저장소(SAF 트리) 탐색 후 '여기로 이동'.
+    private fun pickFolder(
+        onInternal: (String) -> Unit,
+        onSaf: (androidx.documentfile.provider.DocumentFile) -> Unit
+    ) {
         val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
         val outer = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(24, 24, 24, 24) }
         val pathTv = TextView(this).apply { setPadding(8, 8, 8, 16); textSize = 13f }
@@ -349,20 +358,45 @@ class MediaLibraryActivity : AppCompatActivity() {
         val listLl = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL }
         scroll.addView(listLl)
         val moveBtn = com.google.android.material.button.MaterialButton(this).apply { text = "여기로 이동" }
+        var mode = 0
+        var curFile: java.io.File? = null
+        var curDoc: androidx.documentfile.provider.DocumentFile? = null
         fun addRow(text: String, onClick: () -> Unit) {
             listLl.addView(TextView(this@MediaLibraryActivity).apply {
                 this.text = text; textSize = 15f; setPadding(8, 28, 8, 28); setOnClickListener { onClick() }
             })
         }
         fun render() {
-            pathTv.text = cur.absolutePath
             listLl.removeAllViews()
-            cur.parentFile?.let { p -> addRow("⬆  ..") { cur = p; render() } }
-            cur.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() }?.forEach { d ->
-                addRow("📁  ${d.name}") { cur = d; render() }
+            when (mode) {
+                0 -> {
+                    pathTv.text = "대상 저장소 선택"; moveBtn.visibility = View.GONE
+                    addRow("📁  내부저장소") { mode = 1; curFile = Environment.getExternalStorageDirectory(); render() }
+                    for (t in SafTrees.all(this@MediaLibraryActivity)) {
+                        val doc = androidx.documentfile.provider.DocumentFile.fromTreeUri(this@MediaLibraryActivity, Uri.parse(t))
+                        if (doc != null) addRow("💾  ${doc.name ?: "외부저장소"}") { mode = 2; curDoc = doc; render() }
+                    }
+                }
+                1 -> {
+                    val cur = curFile!!; pathTv.text = cur.absolutePath; moveBtn.visibility = View.VISIBLE
+                    addRow("⬆  ..") { val p = cur.parentFile; if (p != null) curFile = p else mode = 0; render() }
+                    cur.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() }?.forEach { d ->
+                        addRow("📁  ${d.name}") { curFile = d; render() }
+                    }
+                }
+                2 -> {
+                    val cur = curDoc!!; pathTv.text = cur.name ?: "외부저장소"; moveBtn.visibility = View.VISIBLE
+                    addRow("⬆  ..") { val p = cur.parentFile; if (p != null) curDoc = p else mode = 0; render() }
+                    cur.listFiles().filter { it.isDirectory }.sortedBy { (it.name ?: "").lowercase() }.forEach { d ->
+                        addRow("📁  ${d.name}") { curDoc = d; render() }
+                    }
+                }
             }
         }
-        moveBtn.setOnClickListener { sheet.dismiss(); onPick(cur.absolutePath) }
+        moveBtn.setOnClickListener {
+            sheet.dismiss()
+            when (mode) { 1 -> onInternal(curFile!!.absolutePath); 2 -> onSaf(curDoc!!) }
+        }
         outer.addView(pathTv)
         outer.addView(scroll, android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         outer.addView(moveBtn)

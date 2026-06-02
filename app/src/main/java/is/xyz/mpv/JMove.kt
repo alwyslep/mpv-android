@@ -7,6 +7,7 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import androidx.documentfile.provider.DocumentFile
 import java.io.File
 
 /**
@@ -57,6 +58,41 @@ object JMove {
                         scan.add(dst.absolutePath)
                         if (deleted) ok++ else fails.add("$name: 복사됨·원본 SAF 삭제 실패(수동 삭제 필요)")
                     }
+                } catch (e: Throwable) { fails.add("$name: ${e.javaClass.simpleName}: ${e.message}") }
+            }
+            if (scan.isNotEmpty()) runCatching { MediaScannerConnection.scanFile(app, scan.toTypedArray(), null, null) }
+            ui { onDone(ok, fails.size, fails) }
+        }.start()
+    }
+
+    // 대상이 외부저장소(SAF) 폴더인 경우 — 내부/외부 src 를 SAF 폴더로 복사 + 원본 삭제.
+    fun moveToSaf(
+        ctx: Context, items: List<Pair<Uri, String>>, destDir: DocumentFile,
+        onProgress: (idx: Int, total: Int, name: String) -> Unit,
+        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit
+    ) {
+        val app = ctx.applicationContext
+        Thread {
+            var ok = 0
+            val fails = ArrayList<String>()
+            if (!destDir.canWrite()) { ui { onDone(0, items.size, listOf("대상 폴더 쓰기 불가")) }; return@Thread }
+            val scan = ArrayList<String>()
+            for ((i, pair) in items.withIndex()) {
+                val (uri, name) = pair
+                ui { onProgress(i, items.size, name) }
+                try {
+                    val src = pathFromMediaStore(app, uri)
+                    val dname = if (src != null) File(src).name else safDisplayName(app, uri)
+                    if (destDir.findFile(dname) != null) { fails.add("$name: 대상에 동일 파일 존재"); continue }
+                    val outDoc = destDir.createFile("video/mp4", dname) ?: run { fails.add("$name: 대상 생성 실패"); continue }
+                    val copied = try {
+                        val ins = if (src != null) File(src).inputStream() else app.contentResolver.openInputStream(uri)
+                        ins?.use { i2 -> app.contentResolver.openOutputStream(outDoc.uri)?.use { o -> i2.copyTo(o) }; true } ?: false
+                    } catch (e: Throwable) { false }
+                    if (!copied) { runCatching { outDoc.delete() }; fails.add("$name: 복사 실패"); continue }
+                    if (src != null) { File(src).delete(); scan.add(src) }
+                    else runCatching { DocumentsContract.deleteDocument(app.contentResolver, uri) }
+                    ok++
                 } catch (e: Throwable) { fails.add("$name: ${e.javaClass.simpleName}: ${e.message}") }
             }
             if (scan.isNotEmpty()) runCatching { MediaScannerConnection.scanFile(app, scan.toTypedArray(), null, null) }

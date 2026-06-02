@@ -71,5 +71,6 @@ dependencies {
     implementation 'androidx.media:media:1.7.1'
     implementation 'androidx.preference:preference-ktx:1.2.1'
     implementation 'com.google.android.material:material:1.13.0'
+    implementation 'androidx.documentfile:documentfile:1.0.1'   // 파일이동 SAF 대상
     // jembed: 외부 라이브러리 없이 직접 atom patch + Android 내장 MediaExtractor/MediaMuxer remux
 }
