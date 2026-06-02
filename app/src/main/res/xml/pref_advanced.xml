@@ -20,4 +20,10 @@
         android:title="@string/pref_edit_input_conf"
         app:dialogMessage="@string/pref_edit_input_conf_message" />
 
+    <Preference
+        app:iconSpaceReserved="false"
+        app:key="manage_scripts"
+        android:title="스크립트 (.lua/.js) 관리"
+        android:summary="유저스크립트 추가/켜기/삭제 (/sdcard/mpv/scripts)" />
+
 </PreferenceScreen>

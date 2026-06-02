@@ -241,6 +241,12 @@
             android:exported="false" />
 
         <activity
+            android:name=".ScriptsActivity"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/MediaLibraryTheme"
+            android:exported="false" />
+
+        <activity
             android:name=".SearchActivity"
             android:configChanges="orientation|screenSize"
             android:theme="@style/MediaLibraryTheme"

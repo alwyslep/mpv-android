@@ -242,6 +242,10 @@ class PreferenceActivity : AppCompatActivity(),
     class AdvancePreference : PreferenceFragmentCompat() {
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.pref_advanced, rootKey)
+            findPreference<Preference>("manage_scripts")?.setOnPreferenceClickListener {
+                startActivity(android.content.Intent(requireContext(), `is`.xyz.mpv.ScriptsActivity::class.java))
+                true
+            }
         }
     }
 
