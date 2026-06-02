@@ -112,6 +112,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         selCount = findViewById(R.id.sel_count)
         findViewById<View>(R.id.sel_cancel).setOnClickListener { exitSelection() }
         findViewById<View>(R.id.sel_embed).setOnClickListener { doEmbedBatch() }
+        findViewById<View>(R.id.sel_move).setOnClickListener { doMoveBatch() }
 
         setupFab()
         ensurePermissionThenLoad()
@@ -313,6 +314,59 @@ class MediaLibraryActivity : AppCompatActivity() {
                     if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
                 Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
             })
+    }
+
+    private fun doMoveBatch() {
+        val a = videoAdapter ?: return
+        val items = a.selected.toList().mapNotNull { u -> homeVids.find { it.first == u }?.let { Uri.parse(u) to it.second } }
+        if (items.isEmpty()) { Toast.makeText(this, "선택 없음", Toast.LENGTH_SHORT).show(); return }
+        pickFolder { destDir ->
+            val ll = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
+            val tv = TextView(this)
+            val pb = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = items.size }
+            ll.addView(tv); ll.addView(pb)
+            val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle("이동 중 (${items.size}개)").setView(ll).setCancelable(false).create()
+            dlg.show()
+            JMove.move(this, items, destDir,
+                onProgress = { idx, total, name -> tv.text = "${idx + 1}/$total   $name"; pb.progress = idx },
+                onDone = { ok, fail, fails ->
+                    dlg.dismiss(); exitSelection(); load()
+                    val msg = "이동 완료: 성공 $ok, 실패 $fail" +
+                        if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
+                    Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                })
+        }
+    }
+
+    // 반화면 폴더트리(BottomSheet) — 내부저장소 디렉토리 탐색 후 '여기로 이동'.
+    private fun pickFolder(onPick: (String) -> Unit) {
+        var cur = Environment.getExternalStorageDirectory()
+        val sheet = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val outer = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL; setPadding(24, 24, 24, 24) }
+        val pathTv = TextView(this).apply { setPadding(8, 8, 8, 16); textSize = 13f }
+        val scroll = android.widget.ScrollView(this)
+        val listLl = android.widget.LinearLayout(this).apply { orientation = android.widget.LinearLayout.VERTICAL }
+        scroll.addView(listLl)
+        val moveBtn = com.google.android.material.button.MaterialButton(this).apply { text = "여기로 이동" }
+        fun addRow(text: String, onClick: () -> Unit) {
+            listLl.addView(TextView(this@MediaLibraryActivity).apply {
+                this.text = text; textSize = 15f; setPadding(8, 28, 8, 28); setOnClickListener { onClick() }
+            })
+        }
+        fun render() {
+            pathTv.text = cur.absolutePath
+            listLl.removeAllViews()
+            cur.parentFile?.let { p -> addRow("⬆  ..") { cur = p; render() } }
+            cur.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() }?.forEach { d ->
+                addRow("📁  ${d.name}") { cur = d; render() }
+            }
+        }
+        moveBtn.setOnClickListener { sheet.dismiss(); onPick(cur.absolutePath) }
+        outer.addView(pathTv)
+        outer.addView(scroll, android.widget.LinearLayout.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        outer.addView(moveBtn)
+        render(); sheet.setContentView(outer); sheet.show()
     }
 
     @Suppress("DEPRECATION")
