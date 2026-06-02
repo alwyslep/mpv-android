@@ -226,15 +226,15 @@ class SearchActivity : AppCompatActivity() {
 
     private fun ensureIndex() {
         if (SearchIndex.cached() != null) {
-            status.text = "검색어를 입력하세요"
+            status.text = getString(R.string.search_prompt)
             return
         }
-        status.text = "인덱싱 중…"
+        status.text = getString(R.string.search_indexing)
         Thread {
             val list = SearchIndex.build(this)
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
-                status.text = "색인 ${list.size}개 · 검색어를 입력하세요"
+                status.text = getString(R.string.search_index_prompt, list.size)
                 runQuery()
             }
         }.start()
@@ -245,7 +245,7 @@ class SearchActivity : AppCompatActivity() {
         val q = input.text.toString().trim().lowercase()
         if (q.isEmpty()) {
             adapter.update(emptyList())
-            status.text = "색인 ${index.size}개 · 검색어를 입력하세요"
+            status.text = getString(R.string.search_index_prompt, index.size)
             return
         }
         val res = index.asSequence().filter { item ->
@@ -256,7 +256,7 @@ class SearchActivity : AppCompatActivity() {
         }.take(500).toList()
         results = res
         adapter.update(res)
-        status.text = "‘${input.text}’ — ${res.size}개"
+        status.text = getString(R.string.search_results, input.text, res.size)
     }
 
     private fun play(item: SearchItem) {

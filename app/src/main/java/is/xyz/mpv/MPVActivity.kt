@@ -260,7 +260,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         // JAV Soul Edition: config/scripts live in /sdcard/mpv, which needs "all files access" on Android 11+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-            showToast("mpv 설정(/sdcard/mpv) 사용을 위해 '모든 파일 접근'을 허용하고 다시 실행하세요")
+            showToast(getString(R.string.toast_all_files_access))
             try {
                 startActivity(Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
                     Uri.parse("package:$packageName")))

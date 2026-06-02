@@ -37,7 +37,7 @@ class VideoDetailActivity : AppCompatActivity() {
         fallbackName = intent.getStringExtra("name") ?: ""
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        toolbar.title = "정보"
+        toolbar.title = getString(R.string.detail_info)
         toolbar.setNavigationOnClickListener { finish() }
 
         setupFavRating()
@@ -97,7 +97,7 @@ class VideoDetailActivity : AppCompatActivity() {
         val pr = Progress.get(this, uriStr)
         if (pr != null && pr.first > 3000 && pr.first < pr.second - 3000) {
             btn.visibility = View.VISIBLE
-            btn.text = "이어보기 (${MediaLibrary.fmtDur(pr.first)})"
+            btn.text = getString(R.string.detail_resume_at, MediaLibrary.fmtDur(pr.first))
         } else {
             btn.visibility = View.GONE
         }
@@ -159,15 +159,15 @@ class VideoDetailActivity : AppCompatActivity() {
         val box = findViewById<LinearLayout>(R.id.meta_container)
         box.removeAllViews()
         // 이모지 표지(context_core.md §1 사용자 표시 규약) — 라벨 빠른 식별.
-        addRow(box, "🎭 배우", m["artist"])
-        addRow(box, "📚 시리즈", m["album"])
-        addRow(box, "🏢 스튜디오", m["albumartist"])
-        addRow(box, "🏷️ 장르", m["genre"])
-        addRow(box, "📅 날짜", m["date"])
-        addRow(box, "⏱️ 길이", if (durMs > 0) MediaLibrary.fmtDur(durMs) else null)
-        addRow(box, "🖥️ 해상도", if (w > 0 && h > 0) "${w}×${h}" else null)
-        addRow(box, "📁 경로", if (uriStr.startsWith("content://")) null else uriStr)
-        if (!desc.isNullOrEmpty()) addParagraph(box, "📝 줄거리", desc)
+        addRow(box, getString(R.string.detail_actress), m["artist"])
+        addRow(box, getString(R.string.detail_series), m["album"])
+        addRow(box, getString(R.string.detail_studio), m["albumartist"])
+        addRow(box, getString(R.string.detail_genre), m["genre"])
+        addRow(box, getString(R.string.detail_date), m["date"])
+        addRow(box, getString(R.string.detail_duration), if (durMs > 0) MediaLibrary.fmtDur(durMs) else null)
+        addRow(box, getString(R.string.detail_resolution), if (w > 0 && h > 0) "${w}×${h}" else null)
+        addRow(box, getString(R.string.detail_path), if (uriStr.startsWith("content://")) null else uriStr)
+        if (!desc.isNullOrEmpty()) addParagraph(box, getString(R.string.detail_desc), desc)
     }
 
     // B-56 pull-display: 허브 GET /library → 임베드와 겹치지 않는 cross-system 상태 섹션.
@@ -182,33 +182,33 @@ class VideoDetailActivity : AppCompatActivity() {
                 if (cat == null && dl == null) return@runOnUiThread
                 val box = findViewById<LinearLayout>(R.id.meta_container)
                 box.addView(TextView(this).apply {
-                    text = "🔗 통합 (허브)"
+                    text = getString(R.string.detail_hub)
                     setTextColor(0xFF80CBC4.toInt())   // 청록 — 임베드 메타와 구분
                     textSize = 13f
                     setPadding(0, dp(16), 0, dp(4))
                 })
-                addRow(box, "📖 카탈로그", cat)
-                addRow(box, "⬇️ 다운로드", dl)
+                addRow(box, getString(R.string.detail_catalog), cat)
+                addRow(box, getString(R.string.detail_download), dl)
             }
         }
     }
 
     private fun hubCatLabel(s: String?): String? = when (s) {
-        "visited" -> "방문"
-        "requested" -> "요청(다운 보냄)"
-        "hasAds" -> "광고 감지"
-        "failed" -> "실패 표시"
+        "visited" -> getString(R.string.cat_visited)
+        "requested" -> getString(R.string.cat_requested)
+        "hasAds" -> getString(R.string.cat_hasads)
+        "failed" -> getString(R.string.cat_failed)
         "uncatalogued", "", null -> null   // 브라우저 기록 없음 → 굳이 표시 안 함
         else -> s
     }
 
     private fun hubDlLabel(s: String?): String? = when (s) {
-        "done" -> "완료"
-        "inbox" -> "큐 대기"
-        "processing" -> "처리중"
-        "stale" -> "격리"
+        "done" -> getString(R.string.dl_done)
+        "inbox" -> getString(R.string.dl_inbox)
+        "processing" -> getString(R.string.dl_processing)
+        "stale" -> getString(R.string.dl_stale)
         "unqueued", "", null -> null
-        else -> if (s.startsWith("failed")) "실패($s)" else s   // failed-download 등
+        else -> if (s.startsWith("failed")) getString(R.string.dl_failed, s) else s   // failed-download 등
     }
 
     private fun addParagraph(box: LinearLayout, label: String, text: String) {

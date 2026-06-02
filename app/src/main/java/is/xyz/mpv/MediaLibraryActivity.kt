@@ -39,7 +39,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 } catch (_: Exception) {
                 }
                 SafTrees.add(this, it.toString())  // 통합 검색 인덱싱 대상에 등록
-                val title = (it.lastPathSegment ?: "폴더").substringAfterLast(":").substringAfterLast("/")
+                val title = (it.lastPathSegment ?: getString(R.string.qs_folder)).substringAfterLast(":").substringAfterLast("/")
                 startActivity(
                     Intent(this, SafBrowserActivity::class.java)
                         .putExtra("tree", it.toString())
@@ -71,19 +71,19 @@ class MediaLibraryActivity : AppCompatActivity() {
         AuroraDrawable.apply(this)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        toolbar.menu.add(0, 2, 0, "검색").apply {
+        toolbar.menu.add(0, 2, 0, getString(R.string.lbl_search)).apply {
             setIcon(R.drawable.ic_search_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 4, 1, "분류(배우/스튜디오)").apply {
+        toolbar.menu.add(0, 4, 1, getString(R.string.menu_classify)).apply {
             setIcon(R.drawable.ic_people_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 3, 2, "빠른 설정").apply {
+        toolbar.menu.add(0, 3, 2, getString(R.string.qs_title)).apply {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 1, 2, "설정").apply {
+        toolbar.menu.add(0, 1, 2, getString(R.string.lbl_settings)).apply {
             setIcon(R.drawable.ic_settings_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
@@ -124,7 +124,7 @@ class MediaLibraryActivity : AppCompatActivity() {
             try {
                 openTree.launch(null)
             } catch (e: Exception) {
-                Toast.makeText(this, "폴더 선택기를 열 수 없습니다", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.toast_no_folder_picker), Toast.LENGTH_SHORT).show()
             }
         }
         findViewById<ExtendedFloatingActionButton>(R.id.fab_recent).setOnClickListener {
@@ -223,27 +223,27 @@ class MediaLibraryActivity : AppCompatActivity() {
 
     private fun showUrlDialog() {
         val input = EditText(this)
-        input.hint = "http(s):// 또는 rtmp:// ..."
+        input.hint = getString(R.string.hint_stream_url)
         AlertDialog.Builder(this)
-            .setTitle("네트워크 스트림 열기")
+            .setTitle(getString(R.string.lbl_open_network_stream))
             .setView(input)
-            .setPositiveButton("재생") { _, _ ->
+            .setPositiveButton(getString(R.string.btn_play)) { _, _ ->
                 val u = input.text.toString().trim()
                 if (u.isNotEmpty()) play(u, u)
             }
-            .setNegativeButton("취소", null)
+            .setNegativeButton(getString(R.string.dialog_cancel), null)
             .show()
     }
 
     private fun showRecents() {
         val recents = Recents.list(this)
         if (recents.isEmpty()) {
-            Toast.makeText(this, "최근 재생 기록이 없습니다", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, getString(R.string.toast_no_recent), Toast.LENGTH_SHORT).show()
             return
         }
         val titles = recents.map { it.second }.toTypedArray()
         AlertDialog.Builder(this)
-            .setTitle("최근 재생")
+            .setTitle(getString(R.string.lbl_recent))
             .setItems(titles) { _, which ->
                 val (uri, title) = recents[which]
                 play(uri, title)

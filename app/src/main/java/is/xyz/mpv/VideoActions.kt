@@ -12,9 +12,9 @@ object VideoActions {
         val ctx = anchor.context
         val pm = PopupMenu(ctx, anchor)
         val faved = Favorites.has(ctx, uri)
-        pm.menu.add(0, 1, 0, "상세 보기")
-        pm.menu.add(0, 2, 1, if (faved) "찜 해제" else "찜 하기")
-        pm.menu.add(0, 3, 2, "평점 매기기")
+        pm.menu.add(0, 1, 0, ctx.getString(R.string.action_details))
+        pm.menu.add(0, 2, 1, if (faved) ctx.getString(R.string.action_unfav) else ctx.getString(R.string.action_fav))
+        pm.menu.add(0, 3, 2, ctx.getString(R.string.action_rate))
         pm.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> VideoDetailActivity.open(ctx, uri, name)
@@ -27,17 +27,17 @@ object VideoActions {
     }
 
     fun ratingDialog(ctx: Context, uri: String, onChanged: () -> Unit) {
-        val labels = arrayOf("★", "★★", "★★★", "★★★★", "★★★★★", "평점 없음")
+        val labels = arrayOf("★", "★★", "★★★", "★★★★", "★★★★★", ctx.getString(R.string.rating_none))
         val cur = Ratings.get(ctx, uri)
         val checked = if (cur in 1..5) cur - 1 else 5
         MaterialAlertDialogBuilder(ctx)
-            .setTitle("평점")
+            .setTitle(ctx.getString(R.string.qs_rating))
             .setSingleChoiceItems(labels, checked) { dlg, which ->
                 Ratings.set(ctx, uri, if (which == 5) 0 else which + 1)
                 onChanged()
                 dlg.dismiss()
             }
-            .setNegativeButton("취소", null)
+            .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
             .show()
     }
 }

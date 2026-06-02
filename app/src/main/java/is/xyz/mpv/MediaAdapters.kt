@@ -37,7 +37,7 @@ class FolderAdapter(
         h.name.text = f.name
         h.path.text = f.path
         h.path.visibility = if (LibPrefs.showPath(ctx)) View.VISIBLE else View.GONE
-        h.count.text = "${f.count} 동영상"
+        h.count.text = ctx.getString(R.string.n_videos, f.count)
         val d = f.rep?.durationMs ?: 0L
         if (LibPrefs.showDur(ctx) && d > 0) {
             h.dur.visibility = View.VISIBLE

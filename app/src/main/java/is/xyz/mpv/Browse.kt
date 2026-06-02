@@ -51,7 +51,7 @@ class BrowseActivity : AppCompatActivity() {
         status = findViewById(R.id.status)
         toolbar = findViewById(R.id.toolbar)
         toolbar.setNavigationOnClickListener { onBack() }
-        toolbar.menu.add(0, 1, 0, "전체 스캔").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        toolbar.menu.add(0, 1, 0, getString(R.string.scan_all)).setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         toolbar.setOnMenuItemClickListener { if (it.itemId == 1) fullScan(); true }
         onBackPressedDispatcher.addCallback(this, object : androidx.activity.OnBackPressedCallback(true) {
             override fun handleOnBackPressed() = onBack()
@@ -87,12 +87,12 @@ class BrowseActivity : AppCompatActivity() {
     private fun fullScan() {
         if (scanning) return
         scanning = true
-        status.text = "전체 스캔 준비…"
+        status.text = getString(R.string.scan_preparing)
         Thread {
             val items = SearchIndex.cached() ?: SearchIndex.build(this)
             val total = items.size
             if (total == 0) {
-                runOnUiThread { if (!isFinishing) { status.text = "스캔할 영상 없음"; scanning = false } }
+                runOnUiThread { if (!isFinishing) { status.text = getString(R.string.scan_none); scanning = false } }
                 return@Thread
             }
             val done = AtomicInteger(0)
@@ -102,7 +102,7 @@ class BrowseActivity : AppCompatActivity() {
                     if (!dead) try { ThumbLoader.indexMeta(this, it.uri, it.name) } catch (_: Throwable) {}
                     val d = done.incrementAndGet()
                     if (d % 25 == 0 || d == total)
-                        runOnUiThread { if (!isFinishing) status.text = "전체 스캔 $d/$total" }
+                        runOnUiThread { if (!isFinishing) status.text = getString(R.string.scan_progress, d, total) }
                     latch.countDown()
                 }
             }
@@ -121,7 +121,7 @@ class BrowseActivity : AppCompatActivity() {
 
     private fun showNames() {
         inVideos = false
-        toolbar.title = when (dim) { "studio" -> "스튜디오"; "series" -> "시리즈"; else -> "배우" }
+        toolbar.title = when (dim) { "studio" -> getString(R.string.lbl_studio); "series" -> getString(R.string.lbl_series); else -> getString(R.string.lbl_actress) }
         val groups = LinkedHashMap<String, Int>()
         for (c in all) {
             val k = keyOf(c).trim()
@@ -131,8 +131,8 @@ class BrowseActivity : AppCompatActivity() {
         val names = groups.entries.sortedByDescending { it.value }
             .map { it.key to it.value }
         status.text = if (all.isEmpty())
-            "아직 캐시된 메타 없음 — 영상을 둘러보면 채워집니다"
-        else "${names.size}개 · 본 작품 ${all.size}개 기준"
+            getString(R.string.browse_empty)
+        else getString(R.string.browse_count, names.size, all.size)
         recycler.layoutManager = LinearLayoutManager(this)
         recycler.adapter = NameAdapter(names) { name -> showVideos(name) }
     }
@@ -144,7 +144,7 @@ class BrowseActivity : AppCompatActivity() {
             SearchItem(it.code.ifEmpty { it.title }, Uri.parse(it.uri), "", it.dur ?: 0L, 0L)
         }
         browseItems = items
-        status.text = "${items.size}개"
+        status.text = getString(R.string.count_items, items.size)
         val grid = LibPrefs.grid(this)
         recycler.layoutManager =
             if (grid) GridLayoutManager(this, maxOf(2, resources.configuration.screenWidthDp / 170))

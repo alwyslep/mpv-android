@@ -43,12 +43,12 @@ class TreeActivity : AppCompatActivity() {
         grid = prefs.getBoolean("video_grid", true)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
-        toolbar.title = intent.getStringExtra("title") ?: "트리"
+        toolbar.title = intent.getStringExtra("title") ?: getString(R.string.qs_tree)
         toolbar.setNavigationOnClickListener { finish() }
-        toggleItem = toolbar.menu.add(0, 1, 0, "보기 전환").apply {
+        toggleItem = toolbar.menu.add(0, 1, 0, getString(R.string.toggle_view)).apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 2, 1, "빠른 설정").apply {
+        toolbar.menu.add(0, 2, 1, getString(R.string.qs_title)).apply {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
