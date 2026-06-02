@@ -238,4 +238,33 @@
     <!-- File picker -->
     <string name="nnf_name">Name</string>
     <string name="nnf_permission_external_write_denied">Permission to access file system denied</string>
+    <string name="qs_title">Quick settings</string>
+    <string name="qs_view_mode">View mode</string>
+    <string name="qs_tree">Tree</string>
+    <string name="qs_folder">Folder</string>
+    <string name="qs_videos">Videos</string>
+    <string name="qs_watch_status">Watch status</string>
+    <string name="qs_all">All</string>
+    <string name="qs_unwatched">Unwatched</string>
+    <string name="qs_watching">Watching</string>
+    <string name="qs_watched">Watched</string>
+    <string name="qs_favorites">Favorites</string>
+    <string name="qs_fav_only">Favorites only</string>
+    <string name="qs_layout">Layout</string>
+    <string name="qs_list">List</string>
+    <string name="qs_grid">Grid</string>
+    <string name="qs_sort">Sort</string>
+    <string name="qs_sort_title">Title</string>
+    <string name="qs_duration">Length</string>
+    <string name="qs_date">Date</string>
+    <string name="qs_size">Size</string>
+    <string name="qs_position">Position</string>
+    <string name="qs_rating">Rating</string>
+    <string name="qs_fields">Fields</string>
+    <string name="qs_ext">File type</string>
+    <string name="qs_path">Path</string>
+    <string name="qs_progress">Progress</string>
+    <string name="qs_resolution">Resolution</string>
+    <string name="qs_thumbnail">Thumbnail</string>
+    <string name="qs_done">Done</string>
 </resources>

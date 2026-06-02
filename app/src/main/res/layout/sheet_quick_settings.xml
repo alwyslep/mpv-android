@@ -13,13 +13,13 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="빠른 설정"
+            android:text="@string/qs_title"
             android:textColor="?attr/colorOnSurface"
             android:textSize="20sp"
             android:textStyle="bold"
             android:layout_marginBottom="8dp" />
 
-        <TextView style="@style/QsLabel" android:text="미디어 보기 모드" />
+        <TextView style="@style/QsLabel" android:text="@string/qs_view_mode" />
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/grp_mode"
             android:layout_width="match_parent"
@@ -28,16 +28,16 @@
             app:selectionRequired="true">
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_mode_tree"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="트리" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_tree" />
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_mode_folder"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="폴더" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_folder" />
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_mode_videos"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="동영상" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_videos" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
-        <TextView style="@style/QsLabel" android:text="시청 상태" />
+        <TextView style="@style/QsLabel" android:text="@string/qs_watch_status" />
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/grp_watch"
             android:layout_width="match_parent"
@@ -46,26 +46,26 @@
             app:selectionRequired="true">
             <com.google.android.material.button.MaterialButton android:id="@+id/w_all"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="전체" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_all" />
             <com.google.android.material.button.MaterialButton android:id="@+id/w_unwatched"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="안 봄" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_unwatched" />
             <com.google.android.material.button.MaterialButton android:id="@+id/w_watching"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="보는 중" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_watching" />
             <com.google.android.material.button.MaterialButton android:id="@+id/w_watched"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="다 봄" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_watched" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
-        <TextView style="@style/QsLabel" android:text="즐겨찾기" />
+        <TextView style="@style/QsLabel" android:text="@string/qs_favorites" />
         <com.google.android.material.chip.ChipGroup
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-            <com.google.android.material.chip.Chip android:id="@+id/chip_fav_only" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="즐겨찾기만" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_fav_only" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_fav_only" />
         </com.google.android.material.chip.ChipGroup>
 
-        <TextView style="@style/QsLabel" android:text="미디어 레이아웃" />
+        <TextView style="@style/QsLabel" android:text="@string/qs_layout" />
         <com.google.android.material.button.MaterialButtonToggleGroup
             android:id="@+id/grp_layout"
             android:layout_width="match_parent"
@@ -74,13 +74,13 @@
             app:selectionRequired="true">
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_list"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="목록" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_list" />
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_grid"
                 style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp"
-                android:layout_weight="1" android:layout_height="wrap_content" android:text="그리드" />
+                android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_grid" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
-        <TextView style="@style/QsLabel" android:text="정렬" />
+        <TextView style="@style/QsLabel" android:text="@string/qs_sort" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -88,27 +88,27 @@
             android:baselineAligned="false">
             <LinearLayout android:id="@+id/sc_name" style="@style/SortCell">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_title" android:contentDescription="제목" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="제목" android:textSize="11sp" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_sort_title" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_length" style="@style/SortCell">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_length" android:contentDescription="길이" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="길이" android:textSize="11sp" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_duration" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_date" style="@style/SortCell">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_date" android:contentDescription="날짜" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="날짜" android:textSize="11sp" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_date" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_size" style="@style/SortCell">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_size" android:contentDescription="크기" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="크기" android:textSize="11sp" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_size" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_path" style="@style/SortCell">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_loc" android:contentDescription="위치" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="위치" android:textSize="11sp" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_position" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_rating" style="@style/SortCell">
                 <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_rating" android:contentDescription="평점" />
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="평점" android:textSize="11sp" android:layout_marginTop="4dp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_rating" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
         </LinearLayout>
         <com.google.android.material.button.MaterialButtonToggleGroup
@@ -126,19 +126,19 @@
                 android:layout_weight="1" android:layout_height="wrap_content" android:text="↓ Z-A" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
-        <TextView style="@style/QsLabel" android:text="필드" />
+        <TextView style="@style/QsLabel" android:text="@string/qs_fields" />
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/grp_fields"
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_dur" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="길이" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_ext" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="파일 형식" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_path" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="경로" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_progress" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="재생 진행률" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_res" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="해상도" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_size" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="크기" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_thumb" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="섬네일" />
-            <com.google.android.material.chip.Chip android:id="@+id/chip_f_fav" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="즐겨찾기" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_dur" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_duration" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_ext" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_ext" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_path" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_path" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_progress" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_progress" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_res" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_resolution" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_size" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_size" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_thumb" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_thumbnail" />
+            <com.google.android.material.chip.Chip android:id="@+id/chip_f_fav" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_favorites" />
         </com.google.android.material.chip.ChipGroup>
 
         <LinearLayout
@@ -149,10 +149,10 @@
             android:layout_marginTop="12dp">
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_cancel"
                 style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="취소" />
+                android:layout_height="wrap_content" android:text="@string/dialog_cancel" />
             <com.google.android.material.button.MaterialButton android:id="@+id/btn_done"
                 style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="완료" />
+                android:layout_height="wrap_content" android:text="@string/qs_done" />
         </LinearLayout>
 
     </LinearLayout>

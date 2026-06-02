@@ -139,7 +139,7 @@ object QuickSettings {
         dlg.show()
         // NextPlayer처럼 좁고 균형있는 중앙 카드 — 넓은 화면(폴드/DeX)에서 과폭 방지
         val dm = act.resources.displayMetrics
-        val target = (420 * dm.density).toInt()
+        val target = (520 * dm.density).toInt()
         val maxW = (dm.widthPixels * 0.95f).toInt()
         dlg.window?.setLayout(minOf(target, maxW), android.view.ViewGroup.LayoutParams.WRAP_CONTENT)
     }
