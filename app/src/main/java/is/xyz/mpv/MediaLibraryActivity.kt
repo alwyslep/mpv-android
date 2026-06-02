@@ -35,7 +35,8 @@ class MediaLibraryActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             uri?.let {
                 try {
-                    contentResolver.takePersistableUriPermission(it, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    contentResolver.takePersistableUriPermission(it,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
                 } catch (_: Exception) {
                 }
                 SafTrees.add(this, it.toString())  // 통합 검색 인덱싱 대상에 등록
