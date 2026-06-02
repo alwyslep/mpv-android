@@ -2,12 +2,21 @@ package `is`.xyz.mpv.preferences
 
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
+import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.FrameLayout
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentManager
@@ -52,6 +61,56 @@ class PreferenceActivity : AppCompatActivity(),
             supportFragmentManager.beginTransaction()
                 .replace(R.id.main, SettingsFragment())
                 .commit()
+        }
+    }
+
+    // ── 설정 제목 옆 EN/한글 언어 토글 (B-57) ──────────────────────
+    //   AppCompat per-app locale 로 전환 → 설정(및 앱) 전체 문자열이 영어↔한글로.
+    //   locales_config.xml(Android13+) + values-ko 완역 기반. 탭 시 액티비티 재생성.
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        val item = menu.add(Menu.NONE, 1001, Menu.NONE, "Language")
+        item.setShowAsActionFlags(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        item.actionView = buildLangToggle()
+        return true
+    }
+
+    private fun buildLangToggle(): View {
+        val dm = resources.displayMetrics
+        fun dp(v: Int) = (v * dm.density).toInt()
+        val tags = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+        val isKo = tags.startsWith("ko")
+        val accent = 0xFF8E3A99.toInt()
+        val inactive = 0xFFB7BDC4.toInt()
+
+        fun seg(label: String, active: Boolean, tag: String) = TextView(this).apply {
+            text = label
+            textSize = 13f
+            setPadding(dp(12), dp(5), dp(12), dp(5))
+            setTextColor(if (active) Color.WHITE else inactive)
+            setTypeface(typeface, if (active) Typeface.BOLD else Typeface.NORMAL)
+            if (active) background = GradientDrawable().apply {
+                cornerRadius = dp(14).toFloat(); setColor(accent)
+            }
+            setOnClickListener {
+                if (!active) {
+                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+                }
+            }
+        }
+
+        return LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(dp(2), dp(2), dp(2), dp(2))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(16).toFloat(); setColor(0x33FFFFFF)
+            }
+            addView(seg("EN", !isKo, "en"))
+            addView(seg("한글", isKo, "ko"))
+            // 툴바 우측 여백
+            val lp = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { marginEnd = dp(8) }
+            layoutParams = lp
         }
     }
 
