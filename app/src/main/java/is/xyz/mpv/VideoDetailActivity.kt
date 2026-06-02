@@ -7,9 +7,11 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Bundle
 import android.view.Gravity
+import android.view.MenuItem
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
@@ -39,6 +41,11 @@ class VideoDetailActivity : AppCompatActivity() {
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         toolbar.title = getString(R.string.detail_info)
         toolbar.setNavigationOnClickListener { finish() }
+        // jembed PoC: 메타 임베드 트리거(내부저장소 한정)
+        toolbar.menu.add(0, 99, 0, "임베드(PoC)").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        toolbar.setOnMenuItemClickListener { mi ->
+            if (mi.itemId == 99) { doEmbedPoc(); true } else false
+        }
 
         setupFavRating()
 
@@ -61,6 +68,17 @@ class VideoDetailActivity : AppCompatActivity() {
     private val stars by lazy {
         listOf(R.id.star_1, R.id.star_2, R.id.star_3, R.id.star_4, R.id.star_5)
             .map { findViewById<android.widget.ImageView>(it) }
+    }
+
+    private fun doEmbedPoc() {
+        val cv = findViewById<TextView>(R.id.code).text?.toString()?.trim().orEmpty()
+        val code = if (cv.isNotBlank()) cv
+                   else Regex("([A-Za-z]{2,7}-\\d{2,5})").find(fallbackName)?.value?.uppercase().orEmpty()
+        Toast.makeText(this, "임베드 시도: ${code.ifBlank { "?" }}", Toast.LENGTH_SHORT).show()
+        JEmbed.embed(this, Uri.parse(uriStr), code) { ok, msg ->
+            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            if (ok) load()
+        }
     }
 
     private fun setupFavRating() {
