@@ -3,6 +3,7 @@ package `is`.xyz.mpv
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
@@ -67,6 +68,11 @@ class VideoAdapter(
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>() {
 
+    // jembed 선택모드 — 체크박스 다중선택
+    var selectionMode = false
+    val selected = LinkedHashSet<String>()
+    var onSelectionChanged: (() -> Unit)? = null
+
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val thumbBox: View = v.findViewById(R.id.thumb_box)
         val thumb: ImageView = v.findViewById(R.id.thumb)
@@ -76,6 +82,7 @@ class VideoAdapter(
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
         val badge: TextView = v.findViewById(R.id.badge)
+        val check: CheckBox? = v.findViewById(R.id.check)
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
@@ -139,7 +146,15 @@ class VideoAdapter(
             h.badge.visibility = View.GONE
         }
         ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
-        h.itemView.setOnClickListener { onClick(v) }
+        h.check?.visibility = if (selectionMode) View.VISIBLE else View.GONE
+        h.check?.isChecked = selected.contains(us)
+        h.itemView.setOnClickListener {
+            if (selectionMode) {
+                if (!selected.remove(us)) selected.add(us)
+                notifyItemChanged(h.bindingAdapterPosition)
+                onSelectionChanged?.invoke()
+            } else onClick(v)
+        }
         h.itemView.setOnLongClickListener {
             VideoActions.longPress(it, us, v.name) { notifyItemChanged(h.bindingAdapterPosition) }
             true

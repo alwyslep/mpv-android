@@ -29,6 +29,9 @@ class MediaLibraryActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private lateinit var empty: TextView
     private lateinit var fabMenu: View
+    private var videoAdapter: VideoAdapter? = null   // jembed 선택모드
+    private lateinit var selBar: View
+    private lateinit var selCount: TextView
 
     // 로컬/USB 폴더 1개 선택 → 내 SAF 타일 브라우저로 진입(OS 선택기 대신).
     private val openTree =
@@ -88,12 +91,16 @@ class MediaLibraryActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_settings_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        toolbar.menu.add(0, 5, 3, "선택(임베드)").apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
                 4 -> startActivity(Intent(this, BrowseActivity::class.java))
                 3 -> QuickSettings.show(this) { load() }
                 1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
+                5 -> enterSelection()
             }
             true
         }
@@ -101,6 +108,10 @@ class MediaLibraryActivity : AppCompatActivity() {
         recycler = findViewById(R.id.recycler)
         recycler.layoutManager = LinearLayoutManager(this)
         empty = findViewById(R.id.empty)
+        selBar = findViewById(R.id.sel_bar)
+        selCount = findViewById(R.id.sel_count)
+        findViewById<View>(R.id.sel_cancel).setOnClickListener { exitSelection() }
+        findViewById<View>(R.id.sel_embed).setOnClickListener { doEmbedBatch() }
 
         setupFab()
         ensurePermissionThenLoad()
@@ -167,7 +178,10 @@ class MediaLibraryActivity : AppCompatActivity() {
                     empty.visibility = if (vids.isEmpty()) View.VISIBLE else View.GONE
                     recycler.layoutManager =
                         if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
-                    recycler.adapter = VideoAdapter(vids, grid) { v -> play(v.uri.toString(), v.name) }
+                    val va = VideoAdapter(vids, grid) { v -> play(v.uri.toString(), v.name) }
+                    va.onSelectionChanged = { updateSelBar() }
+                    videoAdapter = va
+                    recycler.adapter = va
                 }
             } else if (mode == "tree") {
                 val root = MediaLibrary.treeRoot(allVids)
@@ -251,5 +265,57 @@ class MediaLibraryActivity : AppCompatActivity() {
                 play(uri, title)
             }
             .show()
+    }
+
+    // ─── jembed 선택모드/배치 임베드 ───
+    private fun enterSelection() {
+        val a = videoAdapter
+        if (a == null) {
+            Toast.makeText(this, "'영상' 보기 모드에서 선택하세요 (빠른설정 → 영상)", Toast.LENGTH_SHORT).show(); return
+        }
+        a.selectionMode = true; a.notifyDataSetChanged()
+        selBar.visibility = View.VISIBLE; updateSelBar()
+    }
+
+    private fun exitSelection() {
+        videoAdapter?.let { it.selectionMode = false; it.selected.clear(); it.notifyDataSetChanged() }
+        selBar.visibility = View.GONE
+    }
+
+    private fun updateSelBar() { selCount.text = "${videoAdapter?.selected?.size ?: 0}개 선택" }
+
+    private fun doEmbedBatch() {
+        val a = videoAdapter ?: return
+        val items = a.selected.toList().mapNotNull { u ->
+            val name = homeVids.find { it.first == u }?.second ?: return@mapNotNull null
+            val code = Regex("([A-Za-z]{2,7}-\\d{2,5})").find(name)?.value?.uppercase() ?: return@mapNotNull null
+            Uri.parse(u) to code
+        }
+        if (items.isEmpty()) { Toast.makeText(this, "선택 없음 / 품번 추출 실패", Toast.LENGTH_SHORT).show(); return }
+        val ll = android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL; setPadding(48, 32, 48, 16)
+        }
+        val tv = TextView(this)
+        val pb = android.widget.ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
+        ll.addView(tv); ll.addView(pb)
+        val dlg = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle("임베드 중 (${items.size}개)").setView(ll).setCancelable(false).create()
+        dlg.show()
+        JEmbed.embedBatch(this, items,
+            onProgress = { idx, total, code, stage, pct ->
+                tv.text = "${idx + 1}/$total   $code   $stage   $pct%"
+                pb.progress = if (stage == "remux") pct else if (stage == "embed") 100 else 0
+            },
+            onDone = { ok, fail, fails ->
+                dlg.dismiss(); exitSelection(); load()
+                val msg = "완료: 성공 $ok, 실패 $fail" +
+                    if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+            })
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (videoAdapter?.selectionMode == true) exitSelection() else super.onBackPressed()
     }
 }
