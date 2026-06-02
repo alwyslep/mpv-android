@@ -90,10 +90,7 @@ class FolderVideosActivity : AppCompatActivity() {
         toggleItem?.setIcon(if (grid) R.drawable.ic_list_24 else R.drawable.ic_grid_24)
     }
 
-    private fun spanCount(): Int {
-        val dp = resources.configuration.screenWidthDp
-        return maxOf(2, dp / 170)
-    }
+    private fun spanCount(): Int = LibPrefs.spanCount(this)
 
     private fun rebuild() {
         recycler.layoutManager =

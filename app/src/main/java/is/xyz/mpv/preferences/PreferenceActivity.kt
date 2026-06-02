@@ -20,9 +20,11 @@ import androidx.core.os.LocaleListCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.FragmentManager
+import androidx.preference.ListPreference
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import androidx.preference.PreferenceManager
+import androidx.preference.SeekBarPreference
 import com.google.android.material.color.DynamicColors
 import `is`.xyz.mpv.R
 
@@ -205,6 +207,18 @@ class PreferenceActivity : AppCompatActivity(),
             val packageManager = requireContext().packageManager
             if (!packageManager.hasSystemFeature(PackageManager.FEATURE_SCREEN_PORTRAIT))
                 findPreference<Preference>("auto_rotation")?.isEnabled = false
+
+            // B-57 v3: 오로라 효과 프리셋 entries/values 를 AuroraPresets(SSOT)에서 주입.
+            //   현재 앱 언어로 라벨 선택. summary 는 선택값 자동 표시.
+            val ko = java.util.Locale.getDefault().language == "ko"
+            findPreference<ListPreference>(`is`.xyz.mpv.AuroraDrawable.KEY_PRESET)?.apply {
+                entries = `is`.xyz.mpv.AuroraPresets.labels(ko)
+                entryValues = `is`.xyz.mpv.AuroraPresets.ids()
+                if (value == null) value = `is`.xyz.mpv.AuroraPresets.DEFAULT_ID
+                summaryProvider = ListPreference.SimpleSummaryProvider.getInstance()
+            }
+            // 속도 배율 슬라이더 하한(25%) — androidx SeekBarPreference 는 xml min 미지원.
+            findPreference<SeekBarPreference>(`is`.xyz.mpv.AuroraDrawable.KEY_SPEED)?.min = 25
         }
     }
 
@@ -236,6 +250,8 @@ class PreferenceActivity : AppCompatActivity(),
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             preferenceManager.sharedPreferencesName = "media_library"
             setPreferencesFromResource(R.xml.pref_media_library, rootKey)
+            // B-57 v3: 커버 크기 슬라이더 하한 50%(androidx SeekBarPreference xml min 미지원).
+            findPreference<SeekBarPreference>("cover_scale")?.min = 50
             findPreference<Preference>("action_rebuild_index")?.setOnPreferenceClickListener {
                 `is`.xyz.mpv.SearchIndex.clear()
                 android.widget.Toast.makeText(requireContext(), "검색 인덱스를 비웠습니다 (다음 검색 시 재인덱싱)", android.widget.Toast.LENGTH_SHORT).show()

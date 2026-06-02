@@ -236,6 +236,22 @@ object LibPrefs {
 
     fun showFav(ctx: Context) = p(ctx).getBoolean("show_fav", true)  // ♥/평점 뱃지
 
+    // B-57 v3: 커버 타일 크기 — cover_scale(%) 클수록 큰 타일(열 적게). 50~200%.
+    fun coverScale(ctx: Context): Float =
+        p(ctx).getInt("cover_scale", 100).coerceIn(50, 200) / 100f
+
+    /** grid 열 개수 — 화면폭 / (170dp × scale). scale 클수록 열 적음 = 타일 큼. */
+    fun spanCount(ctx: Context): Int {
+        val w = ctx.resources.configuration.screenWidthDp
+        return maxOf(1, (w / (170f * coverScale(ctx))).toInt())
+    }
+
+    /** grid 커버 컨테이너 높이(px) — 셀 폭 × 비율(열+높이 비례, 포스터 느낌 유지). */
+    fun gridCoverHeightPx(ctx: Context): Int {
+        val cellW = ctx.resources.displayMetrics.widthPixels.toFloat() / spanCount(ctx)
+        return (cellW * 1.05f).toInt().coerceAtLeast(1)
+    }
+
     // B-56: 통합 허브(receiver) 주소 — 같은 폰 Termux 의 127.0.0.1:8765.
     fun hubUrl(ctx: Context): String =
         p(ctx).getString("hub_url", "http://127.0.0.1:8765") ?: "http://127.0.0.1:8765"

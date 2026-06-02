@@ -107,7 +107,7 @@ class SafBrowserActivity : AppCompatActivity() {
         toggleItem?.setIcon(if (grid) R.drawable.ic_list_24 else R.drawable.ic_grid_24)
     }
 
-    private fun spanCount(): Int = maxOf(2, resources.configuration.screenWidthDp / 170)
+    private fun spanCount(): Int = LibPrefs.spanCount(this)
 
     private fun queryChildren(): List<SafEntry> {
         val out = ArrayList<SafEntry>()

@@ -147,7 +147,7 @@ class BrowseActivity : AppCompatActivity() {
         status.text = getString(R.string.count_items, items.size)
         val grid = LibPrefs.grid(this)
         recycler.layoutManager =
-            if (grid) GridLayoutManager(this, maxOf(2, resources.configuration.screenWidthDp / 170))
+            if (grid) GridLayoutManager(this, LibPrefs.spanCount(this))
             else LinearLayoutManager(this)
         recycler.adapter = SearchAdapter(items, grid) { item -> playBrowse(item) }
     }

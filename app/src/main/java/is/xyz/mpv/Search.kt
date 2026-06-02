@@ -219,7 +219,7 @@ class SearchActivity : AppCompatActivity() {
     }
 
     private fun setupRecycler() {
-        recycler.layoutManager = GridLayoutManager(this, maxOf(2, resources.configuration.screenWidthDp / 170))
+        recycler.layoutManager = GridLayoutManager(this, LibPrefs.spanCount(this))
         adapter = SearchAdapter(emptyList(), grid) { play(it) }
         recycler.adapter = adapter
     }

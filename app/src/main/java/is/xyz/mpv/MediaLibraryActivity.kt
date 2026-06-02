@@ -150,7 +150,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         reqPerm.launch(perm)
     }
 
-    private fun spanCount(): Int = maxOf(2, resources.configuration.screenWidthDp / 170)
+    private fun spanCount(): Int = LibPrefs.spanCount(this)
 
     private fun load() {
         val mode = LibPrefs.viewMode(this)

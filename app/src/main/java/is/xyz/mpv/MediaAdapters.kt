@@ -34,6 +34,12 @@ class FolderAdapter(
     override fun onBindViewHolder(h: VH, position: Int) {
         val f = items[position]
         val ctx = h.itemView.context
+        // B-57 v3: grid 폴더 커버 높이도 셀 폭에 비례.
+        if (grid) {
+            val lp = h.thumb.layoutParams
+            lp.height = LibPrefs.gridCoverHeightPx(ctx)
+            h.thumb.layoutParams = lp
+        }
         h.name.text = f.name
         h.path.text = f.path
         h.path.visibility = if (LibPrefs.showPath(ctx)) View.VISIBLE else View.GONE
@@ -84,6 +90,12 @@ class VideoAdapter(
         val v = items[position]
         val ctx = h.itemView.context
         h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
+        // B-57 v3: grid 커버 높이를 셀 폭에 비례(열+높이 동시 스케일). 목록 모드는 xml 고정.
+        if (grid) {
+            val lp = h.thumbBox.layoutParams
+            lp.height = LibPrefs.gridCoverHeightPx(ctx)
+            h.thumbBox.layoutParams = lp
+        }
         val res = if (v.height > 0 && LibPrefs.showRes(ctx)) "${v.height}p" else ""
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""

@@ -267,4 +267,14 @@
     <string name="interpolation_video_sync">영상 동기화</string>
     <string name="nnf_name">이름</string>
     <string name="nnf_permission_external_write_denied">파일 시스템 접근 권한이 거부되었습니다</string>
+    <!-- B-57 v3: 오로라 동적 배경 -->
+    <string name="pref_aurora_category">동적 배경</string>
+    <string name="pref_aurora_enabled_title">오로라 배경</string>
+    <string name="pref_aurora_enabled_summary">색이 살아 움직이는 앰비언트 배경</string>
+    <string name="pref_aurora_preset_title">효과</string>
+    <string name="pref_aurora_speed_title">속도</string>
+    <string name="pref_aurora_speed_summary">애니메이션 속도 (%, 100 = 기본)</string>
+    <string name="pref_aurora_pulse_depth_title">검정 맥동 깊이</string>
+    <string name="pref_aurora_pulse_depth_summary">호흡 시 어두워지는 정도 (%)</string>
+    <string name="pref_ml_cover_scale">커버 크기 (%)</string>
 </resources>

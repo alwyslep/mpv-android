@@ -1,37 +1,93 @@
 package `is`.xyz.mpv
 
 import android.app.Activity
+import android.content.SharedPreferences
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.ColorFilter
 import android.graphics.Paint
 import android.graphics.PixelFormat
-import android.graphics.RadialGradient
 import android.graphics.Rect
-import android.graphics.Shader
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
 import android.view.Choreographer
+import androidx.preference.PreferenceManager
 import kotlin.math.cos
-import kotlin.math.max
-import kotlin.math.sin
 
 /**
- * B-57(UI): 제미나이 모바일 스타일 오로라/메시 그라데이션 — *동적 다색 순환* 앰비언트 배경.
+ * B-57(UI) v3: 동적 앰비언트 배경 *엔진*. 단일 오로라 → 다중 효과(plug-in)로 일반화.
  *
- * 여러 글로우 블롭의 색조(hue)가 색상환을 따라 아주 천천히 회전하며, 블롭마다 hue 가
- * 균등 오프셋돼 *항상 서로 다른 색 계열*(빨강·노랑·초록·청록·파랑·보라 …)을 동시에 띤다.
- * 위치도 sin/cos 로 부드럽게 표류 → 실시간으로 색·형태가 살아 움직인다.
- * 아래로 갈수록 near-black 으로 사라진다.
+ * 구조:
+ *  - [AuroraEffect]      : 한 가지 패턴(mesh/wave/spiral/…)의 draw 구현. [AuroraEffects] 레지스트리.
+ *  - [AuroraConfig]      : 설정에서 읽은 런타임 스냅샷(효과 id·색회전/맥동 주기·맥동 깊이·채도 등).
+ *  - [AuroraScratch]     : 프레임마다 재사용하는 Paint/버퍼(GC 절약).
+ *  - [AuroraDrawable]    : Choreographer 로 구동하는 window 배경. 선택된 효과에 위임.
+ *  - [AuroraMath]        : hue 회전·은은한 검정 맥동·HSV 공통 수식.
  *
- * 윈도우 배경으로 깔면 UI·영상이 불투명하게 칠하는 곳을 제외한 모든 빈/검은 영역에 비친다.
- * Choreographer 로 구동, [setVisible] false(액티비티 비가시) 시 정지해 배터리 보호.
+ * 설정값은 [apply] 시점(액티비티 생성/재진입)에 스냅샷 → 설정 변경은 다음 화면부터 반영.
+ * [setVisible] false(비가시) 시 정지해 배터리 보호.
  */
-class AuroraDrawable : Drawable() {
 
-    private val basePaint = Paint().apply { color = BASE }
-    private val blobPaint = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val hsv = FloatArray(3)
+/** 설정에서 읽은 오로라 런타임 스냅샷. */
+data class AuroraConfig(
+    val effectId: String,
+    val huePeriodMs: Long,   // 색상환 한 바퀴(색 변화 속도)
+    val pulsePeriodMs: Long, // 은은한 검정 맥동(호흡) 한 번
+    val pulseDepth: Float,   // 0 = 맥동 없음 … 1 = 거의 검정까지
+    val sat: Float,          // 채도
+    val value: Float,        // 명도
+    val baseAlpha: Int,      // 글로우 기본 불투명도
+)
+
+/** 효과들이 공유하는 재사용 버퍼 — 프레임마다 새 객체 생성 방지. */
+class AuroraScratch {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { isDither = true }
+    val basePaint = Paint().apply { color = AuroraDrawable.BASE }
+    val hsv = FloatArray(3)
+}
+
+/** 한 가지 동적 배경 패턴. */
+interface AuroraEffect {
+    val id: String
+    fun draw(canvas: Canvas, b: Rect, tMs: Long, cfg: AuroraConfig, s: AuroraScratch)
+}
+
+/** hue 회전·맥동·HSV 공통 수식 — 모든 효과가 공유. */
+object AuroraMath {
+    fun hueBase(tMs: Long, periodMs: Long): Float =
+        if (periodMs <= 0L) 0f else (tMs % periodMs) / periodMs.toFloat() * 360f
+
+    /** 0..1..0 부드러운 맥동. depth 0 = 항상 1(맥동 없음). */
+    fun pulse(tMs: Long, periodMs: Long, depth: Float): Float {
+        if (depth <= 0f || periodMs <= 0L) return 1f
+        val ph = (tMs % periodMs) / periodMs.toFloat()
+        val min = (1f - depth).coerceIn(0f, 1f)
+        val s = (0.5 - 0.5 * cos(ph * 2.0 * Math.PI)).toFloat()
+        return min + (1f - min) * s
+    }
+
+    /** 글로우 기본 불투명도에 맥동을 곱한 현재 alpha(0..255). */
+    fun alpha(cfg: AuroraConfig, tMs: Long): Int =
+        (cfg.baseAlpha * pulse(tMs, cfg.pulsePeriodMs, cfg.pulseDepth)).toInt().coerceIn(0, 255)
+
+    /** ARGB. h 는 자동 정규화. */
+    fun hsv(s: AuroraScratch, h: Float, sat: Float, v: Float, a: Int): Int {
+        s.hsv[0] = ((h % 360f) + 360f) % 360f
+        s.hsv[1] = sat.coerceIn(0f, 1f)
+        s.hsv[2] = v.coerceIn(0f, 1f)
+        return Color.HSVToColor(a.coerceIn(0, 255), s.hsv)
+    }
+
+    /** rgb(하위 24bit)에 alpha 배율 f 를 입힌 ARGB. */
+    fun withAlpha(rgb: Int, baseA: Int, f: Float): Int =
+        ((baseA * f).toInt().coerceIn(0, 255) shl 24) or (rgb and 0x00FFFFFF)
+}
+
+class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
+
+    private val scratch = AuroraScratch()
+    private val effect: AuroraEffect = AuroraEffects.byId(cfg.effectId)
 
     private var running = false
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -58,37 +114,8 @@ class AuroraDrawable : Drawable() {
         if (b.isEmpty) return
         if (!running && isVisible) start()   // lazy 시작
 
-        canvas.drawRect(b, basePaint)
-        val span = max(b.width(), b.height()).toFloat()
-        val t = SystemClock.uptimeMillis()
-
-        // 색조 회전 위상(0~360): HUE_PERIOD_MS 마다 한 바퀴.
-        val hueBase = (t % HUE_PERIOD_MS) / HUE_PERIOD_MS.toFloat() * 360f
-        // 위치 표류 위상.
-        val posT = t / 1000f
-
-        for (i in 0 until NBLOBS) {
-            hsv[0] = (hueBase + i * (360f / NBLOBS)) % 360f
-            hsv[1] = SAT
-            hsv[2] = VAL
-            val argb = Color.HSVToColor(ALPHA, hsv)
-
-            val drift = 0.07f
-            val fx = BASE_FX[i] + drift * sin(posT * SPEED_X[i] + i * 1.7f)
-            val fy = BASE_FY[i] + (drift * 0.7f) * cos(posT * SPEED_Y[i] + i * 2.3f)
-            val cx = b.left + fx * b.width()
-            val cy = b.top + fy * b.height()
-            val r = FR[i] * span
-            if (r <= 0f) continue
-
-            blobPaint.shader = RadialGradient(
-                cx, cy, r,
-                intArrayOf(argb, argb and 0x00FFFFFF), // 같은 색, alpha 0 으로 페이드
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-            canvas.drawRect(b, blobPaint)
-        }
+        canvas.drawRect(b, scratch.basePaint)
+        effect.draw(canvas, b, SystemClock.uptimeMillis(), cfg, scratch)
     }
 
     override fun setVisible(visible: Boolean, restart: Boolean): Boolean {
@@ -104,30 +131,51 @@ class AuroraDrawable : Drawable() {
 
     companion object {
         // 바탕(거의 검정, 살짝 푸른 기).
-        private val BASE = Color.parseColor("#0A0B10")
+        val BASE = Color.parseColor("#0A0B10")
 
-        private const val NBLOBS = 5
-
-        // 한 바퀴(전 색상 순환) 주기 — 길수록 느긋. 90초.
-        private const val HUE_PERIOD_MS = 90_000L
-        // 프레임 간격(ms) — 느린 앰비언트라 ~22fps 로 충분(배터리·GC 절약).
         private const val FRAME_DELAY_MS = 45L
 
-        private const val SAT = 0.62f   // 채도(부드럽게)
-        private const val VAL = 0.98f   // 명도
-        private const val ALPHA = 0x60  // 글로우 불투명도(바탕 위 은은하게)
+        // ── SharedPreferences 키 ──
+        const val KEY_ENABLED = "aurora_enabled"
+        const val KEY_PRESET = "aurora_preset"          // AuroraPresets.id (효과+분위기 60종)
+        const val KEY_SPEED = "aurora_speed"            // 25~400 (%) 전역 속도 배율
+        const val KEY_PULSE_DEPTH = "aurora_pulse_depth" // 0~100(%) 검정 맥동 깊이 override
 
-        // 블롭 기준 위치(0~1, fy 음수=화면 위) · 반지름(큰변 비율) · 표류 속도.
-        private val BASE_FX = floatArrayOf(0.12f, 0.42f, 0.78f, 0.95f, 0.55f)
-        private val BASE_FY = floatArrayOf(-0.06f, -0.14f, -0.08f, 0.05f, 0.34f)
-        private val FR = floatArrayOf(0.92f, 1.02f, 0.96f, 0.88f, 0.80f)
-        private val SPEED_X = floatArrayOf(0.13f, 0.17f, 0.11f, 0.19f, 0.15f)
-        private val SPEED_Y = floatArrayOf(0.10f, 0.14f, 0.16f, 0.12f, 0.18f)
+        // ── 기본값 ──
+        const val DEF_PRESET = AuroraPresets.DEFAULT_ID
+        const val DEF_SPEED = 100
 
-        /** 액티비티 윈도우 배경을 동적 오로라로. */
+        fun configFromPrefs(prefs: SharedPreferences): AuroraConfig {
+            // SeekBarPreference 는 Int 저장. 옛 String 저장분 호환 위해 안전 변환.
+            fun intPref(key: String, def: Int): Int = try {
+                prefs.getInt(key, def)
+            } catch (_: ClassCastException) {
+                prefs.getString(key, def.toString())?.toIntOrNull() ?: def
+            }
+            val preset = AuroraPresets.byId(prefs.getString(KEY_PRESET, DEF_PRESET))
+            val scale = intPref(KEY_SPEED, DEF_SPEED).coerceIn(25, 400) / 100f
+            // 맥동 깊이: 슬라이더가 설정돼 있으면 우선, 없으면 프리셋 기본값.
+            val depthPct = intPref(KEY_PULSE_DEPTH, preset.depth).coerceIn(0, 100)
+            return AuroraConfig(
+                effectId = preset.effect,
+                huePeriodMs = (preset.hueSec * 1000f / scale).toLong().coerceAtLeast(500L),
+                pulsePeriodMs = (preset.pulseSec * 1000f / scale).toLong().coerceAtLeast(300L),
+                pulseDepth = depthPct / 100f,
+                sat = preset.sat,
+                value = preset.value,
+                baseAlpha = 0x60,
+            )
+        }
+
+        /** 액티비티 윈도우 배경을 동적 오로라로. (off 시 단색 바탕) */
         fun apply(activity: Activity) {
             try {
-                activity.window.setBackgroundDrawable(AuroraDrawable())
+                val prefs = PreferenceManager.getDefaultSharedPreferences(activity)
+                if (!prefs.getBoolean(KEY_ENABLED, true)) {
+                    activity.window.setBackgroundDrawable(ColorDrawable(BASE))
+                    return
+                }
+                activity.window.setBackgroundDrawable(AuroraDrawable(configFromPrefs(prefs)))
             } catch (_: Throwable) {
             }
         }

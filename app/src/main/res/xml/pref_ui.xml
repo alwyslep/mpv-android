@@ -40,4 +40,45 @@
         android:summary="@string/pref_playlist_exit_warning_summary"
         android:title="@string/pref_playlist_exit_warning_title" />
 
+    <!-- B-57 v3: 동적 오로라 배경. entries 는 AuroraPresets(SSOT)에서 코드 주입(UIPreference). -->
+    <PreferenceCategory
+        app:iconSpaceReserved="false"
+        android:title="@string/pref_aurora_category">
+
+        <SwitchPreferenceCompat
+            app:iconSpaceReserved="false"
+            android:defaultValue="true"
+            android:key="aurora_enabled"
+            android:title="@string/pref_aurora_enabled_title"
+            android:summary="@string/pref_aurora_enabled_summary" />
+
+        <ListPreference
+            app:iconSpaceReserved="false"
+            android:key="aurora_preset"
+            android:defaultValue="mesh_soft"
+            android:dependency="aurora_enabled"
+            android:title="@string/pref_aurora_preset_title" />
+
+        <SeekBarPreference
+            app:iconSpaceReserved="false"
+            app:showSeekBarValue="true"
+            android:key="aurora_speed"
+            android:defaultValue="100"
+            android:max="400"
+            android:dependency="aurora_enabled"
+            android:title="@string/pref_aurora_speed_title"
+            android:summary="@string/pref_aurora_speed_summary" />
+
+        <SeekBarPreference
+            app:iconSpaceReserved="false"
+            app:showSeekBarValue="true"
+            android:key="aurora_pulse_depth"
+            android:defaultValue="50"
+            android:max="100"
+            android:dependency="aurora_enabled"
+            android:title="@string/pref_aurora_pulse_depth_title"
+            android:summary="@string/pref_aurora_pulse_depth_summary" />
+
+    </PreferenceCategory>
+
 </PreferenceScreen>

@@ -336,4 +336,14 @@
     <string name="rating_none">No rating</string>
     <string name="toast_all_files_access">Allow \'All files access\' to use mpv config (/sdcard/mpv), then relaunch</string>
     <string name="lbl_settings">Settings</string>
+    <!-- B-57 v3: Aurora dynamic background -->
+    <string name="pref_aurora_category">Dynamic background</string>
+    <string name="pref_aurora_enabled_title">Aurora background</string>
+    <string name="pref_aurora_enabled_summary">Animated color ambient background</string>
+    <string name="pref_aurora_preset_title">Effect</string>
+    <string name="pref_aurora_speed_title">Speed</string>
+    <string name="pref_aurora_speed_summary">Animation speed (%, 100 = default)</string>
+    <string name="pref_aurora_pulse_depth_title">Black pulse depth</string>
+    <string name="pref_aurora_pulse_depth_summary">How dark the breathing dips (%)</string>
+    <string name="pref_ml_cover_scale">Cover size (%)</string>
 </resources>
