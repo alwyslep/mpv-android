@@ -87,27 +87,27 @@
             android:orientation="horizontal"
             android:baselineAligned="false">
             <LinearLayout android:id="@+id/sc_name" style="@style/SortCell">
-                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_title" android:contentDescription="제목" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_title" android:contentDescription="@string/qs_sort_title" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_sort_title" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_length" style="@style/SortCell">
-                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_length" android:contentDescription="길이" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_length" android:contentDescription="@string/qs_duration" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_duration" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_date" style="@style/SortCell">
-                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_date" android:contentDescription="날짜" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_date" android:contentDescription="@string/qs_date" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_date" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_size" style="@style/SortCell">
-                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_size" android:contentDescription="크기" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_size" android:contentDescription="@string/qs_size" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_size" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_path" style="@style/SortCell">
-                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_loc" android:contentDescription="위치" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_loc" android:contentDescription="@string/qs_position" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_position" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
             <LinearLayout android:id="@+id/sc_rating" style="@style/SortCell">
-                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_rating" android:contentDescription="평점" />
+                <ImageView android:layout_width="40dp" android:layout_height="40dp" android:padding="8dp" android:scaleType="fitCenter" android:src="@drawable/ic_s_rating" android:contentDescription="@string/qs_rating" />
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_rating" android:textSize="11sp" android:layout_marginTop="4dp" />
             </LinearLayout>
         </LinearLayout>

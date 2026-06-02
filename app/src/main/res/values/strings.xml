@@ -267,4 +267,25 @@
     <string name="qs_resolution">Resolution</string>
     <string name="qs_thumbnail">Thumbnail</string>
     <string name="qs_done">Done</string>
+    <string name="lbl_network_stream">Network stream</string>
+    <string name="lbl_local_videos">Local videos</string>
+    <string name="lbl_menu">Menu</string>
+    <string name="lbl_no_videos">No videos.\nCheck that storage permission is granted.</string>
+    <string name="lbl_open_network_stream">Open network stream</string>
+    <string name="lbl_open_folder">Open folder (USB/Internal)</string>
+    <string name="lbl_recent">Recently played</string>
+    <string name="lbl_thumbnail">Thumbnail</string>
+    <string name="lbl_cover">Cover</string>
+    <string name="lbl_actress">Actress</string>
+    <string name="lbl_studio">Studio</string>
+    <string name="lbl_series">Series</string>
+    <string name="lbl_search_hint">Search videos/folders (code/title)</string>
+    <string name="lbl_back">Back</string>
+    <string name="lbl_play_from_start">Play from start</string>
+    <string name="lbl_resume">Resume</string>
+    <string name="rating_1">1 star</string>
+    <string name="rating_2">2 stars</string>
+    <string name="rating_3">3 stars</string>
+    <string name="rating_4">4 stars</string>
+    <string name="rating_5">5 stars</string>
 </resources>

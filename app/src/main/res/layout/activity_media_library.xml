@@ -35,7 +35,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="동영상이 없습니다.\n저장소 권한을 허용했는지 확인하세요."
+                android:text="@string/lbl_no_videos"
                 android:gravity="center"
                 android:textColor="?attr/colorOnSurfaceVariant"
                 android:visibility="gone" />
@@ -60,7 +60,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginBottom="12dp"
-            android:text="네트워크 스트림 열기"
+            android:text="@string/lbl_open_network_stream"
             app:icon="@drawable/ic_link_48dp" />
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
@@ -69,7 +69,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="end"
             android:layout_marginBottom="12dp"
-            android:text="폴더 열기 (USB/내부)"
+            android:text="@string/lbl_open_folder"
             app:icon="@drawable/ic_file_open_48dp" />
 
         <com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
@@ -77,7 +77,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="end"
-            android:text="최근 재생"
+            android:text="@string/lbl_recent"
             app:icon="@drawable/round_play_arrow_24" />
     </LinearLayout>
 
@@ -87,7 +87,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="메뉴"
+        android:contentDescription="@string/lbl_menu"
         app:srcCompat="@android:drawable/ic_input_add" />
 
 </FrameLayout>

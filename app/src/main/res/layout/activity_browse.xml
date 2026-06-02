@@ -12,13 +12,13 @@
         android:padding="8dp" app:singleSelection="true" app:selectionRequired="true">
         <com.google.android.material.button.MaterialButton android:id="@+id/dim_actor"
             style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content" android:text="배우" />
+            android:layout_height="wrap_content" android:text="@string/lbl_actress" />
         <com.google.android.material.button.MaterialButton android:id="@+id/dim_studio"
             style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content" android:text="스튜디오" />
+            android:layout_height="wrap_content" android:text="@string/lbl_studio" />
         <com.google.android.material.button.MaterialButton android:id="@+id/dim_series"
             style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content" android:text="시리즈" />
+            android:layout_height="wrap_content" android:text="@string/lbl_series" />
     </com.google.android.material.button.MaterialButtonToggleGroup>
     <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingBottom="4dp"

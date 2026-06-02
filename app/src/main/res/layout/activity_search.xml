@@ -19,7 +19,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_arrow_back"
-            android:contentDescription="뒤로" />
+            android:contentDescription="@string/lbl_back" />
 
         <EditText
             android:id="@+id/input"
@@ -28,7 +28,7 @@
             android:layout_weight="1"
             android:layout_marginStart="6dp"
             android:background="@null"
-            android:hint="동영상·폴더 검색 (품번/제목)"
+            android:hint="@string/lbl_search_hint"
             android:textColor="?attr/colorOnSurface"
             android:textColorHint="?attr/colorOnSurfaceVariant"
             android:textSize="16sp"
@@ -43,7 +43,7 @@
             android:layout_height="48dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_tune_24"
-            android:contentDescription="빠른 설정" />
+            android:contentDescription="@string/qs_title" />
     </LinearLayout>
 
     <TextView

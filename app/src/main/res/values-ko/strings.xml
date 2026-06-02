@@ -128,4 +128,25 @@
     <string name="qs_resolution">해상도</string>
     <string name="qs_thumbnail">섬네일</string>
     <string name="qs_done">완료</string>
+    <string name="lbl_network_stream">네트워크 스트림</string>
+    <string name="lbl_local_videos">로컬 동영상</string>
+    <string name="lbl_menu">메뉴</string>
+    <string name="lbl_no_videos">동영상이 없습니다.\n저장소 권한을 허용했는지 확인하세요.</string>
+    <string name="lbl_open_network_stream">네트워크 스트림 열기</string>
+    <string name="lbl_open_folder">폴더 열기 (USB/내부)</string>
+    <string name="lbl_recent">최근 재생</string>
+    <string name="lbl_thumbnail">썸네일</string>
+    <string name="lbl_cover">커버</string>
+    <string name="lbl_actress">배우</string>
+    <string name="lbl_studio">스튜디오</string>
+    <string name="lbl_series">시리즈</string>
+    <string name="lbl_search_hint">동영상·폴더 검색 (품번/제목)</string>
+    <string name="lbl_back">뒤로</string>
+    <string name="lbl_play_from_start">처음부터 재생</string>
+    <string name="lbl_resume">이어보기</string>
+    <string name="rating_1">1점</string>
+    <string name="rating_2">2점</string>
+    <string name="rating_3">3점</string>
+    <string name="rating_4">4점</string>
+    <string name="rating_5">5점</string>
 </resources>

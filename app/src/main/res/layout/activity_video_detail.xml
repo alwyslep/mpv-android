@@ -32,7 +32,7 @@
                 android:scaleType="fitCenter"
                 android:adjustViewBounds="true"
                 android:background="#11000000"
-                android:contentDescription="커버" />
+                android:contentDescription="@string/lbl_cover" />
 
             <TextView
                 android:id="@+id/code"
@@ -64,12 +64,12 @@
                     android:layout_height="32dp"
                     android:layout_marginEnd="16dp"
                     android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="즐겨찾기" />
-                <ImageView android:id="@+id/star_1" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="1점" />
-                <ImageView android:id="@+id/star_2" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="2점" />
-                <ImageView android:id="@+id/star_3" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="3점" />
-                <ImageView android:id="@+id/star_4" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="4점" />
-                <ImageView android:id="@+id/star_5" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="5점" />
+                    android:contentDescription="@string/qs_favorites" />
+                <ImageView android:id="@+id/star_1" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="@string/rating_1" />
+                <ImageView android:id="@+id/star_2" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="@string/rating_2" />
+                <ImageView android:id="@+id/star_3" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="@string/rating_3" />
+                <ImageView android:id="@+id/star_4" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="@string/rating_4" />
+                <ImageView android:id="@+id/star_5" android:layout_width="30dp" android:layout_height="30dp" android:background="?attr/selectableItemBackgroundBorderless" android:contentDescription="@string/rating_5" />
             </LinearLayout>
 
             <LinearLayout
@@ -90,7 +90,7 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
-                    android:text="처음부터 재생" />
+                    android:text="@string/lbl_play_from_start" />
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btn_resume"
                     style="?attr/materialButtonOutlinedStyle"
@@ -98,7 +98,7 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
-                    android:text="이어보기" />
+                    android:text="@string/lbl_resume" />
             </LinearLayout>
 
         </LinearLayout>
