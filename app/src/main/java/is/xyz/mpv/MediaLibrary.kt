@@ -617,4 +617,15 @@ object Library {
             cb(rec)
         }.start()
     }
+
+    // 배치(jembed) 용 동기 조회 — 이미 백그라운드 스레드에서 호출 가정.
+    fun fetchSync(ctx: Context, code: String): JSONObject? = try {
+        val url = URL(LibPrefs.hubUrl(ctx).trimEnd('/') +
+            "/library?limit=1&code=" + URLEncoder.encode(code, "UTF-8"))
+        val con = url.openConnection() as HttpURLConnection
+        con.connectTimeout = 1500; con.readTimeout = 1500
+        val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+        con.disconnect()
+        JSONObject(text).optJSONArray("rows")?.let { if (it.length() > 0) it.getJSONObject(0) else null }
+    } catch (_: Throwable) { null }
 }

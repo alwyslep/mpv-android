@@ -60,19 +60,53 @@ object JEmbed {
         }
     }
 
-    private fun processOne(ctx: Context, uri: Uri, code: String, rec: JSONObject): String {
+    // 배치 임베드 — 선택된 영상들을 순차 처리. onProgress(현재idx, 총, 품번, 단계, %), onDone(성공,실패,실패목록).
+    fun embedBatch(
+        ctx: Context,
+        items: List<Pair<Uri, String>>,
+        onProgress: (idx: Int, total: Int, name: String, stage: String, pct: Int) -> Unit,
+        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit
+    ) {
+        val app = ctx.applicationContext
+        Thread {
+            var ok = 0
+            val fails = ArrayList<String>()
+            for ((i, pair) in items.withIndex()) {
+                val (uri, code) = pair
+                ui { onProgress(i, items.size, code, "준비", 0) }
+                if (code.isBlank()) { fails.add("$code: 품번 없음"); continue }
+                val rec = Library.fetchSync(app, code)
+                if (rec == null) { fails.add("$code: hub 메타 없음"); continue }
+                val msg = try {
+                    processOne(app, uri, code, rec) { stage, pct -> ui { onProgress(i, items.size, code, stage, pct) } }
+                } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
+                if (msg.contains("✓")) {
+                    ok++
+                    ThumbLoader.invalidate(app, uri)
+                    val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
+                    if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
+                } else fails.add("$code: $msg")
+            }
+            ui { onDone(ok, fails.size, fails) }
+        }.start()
+    }
+
+    private fun processOne(ctx: Context, uri: Uri, code: String, rec: JSONObject,
+                           onProgress: ((String, Int) -> Unit)? = null): String {
         // ── 내부저장소(File path, 쓰기 가능) ──
         val path = if (uri.scheme == "file") uri.path else pathFromMediaStore(ctx, uri)
         if (path != null && File(path).canWrite()) {
             var pre = ""
             if (isTs(path)) {
+                onProgress?.invoke("remux", 0)
                 val tmp = "$path.remux.mp4"
-                val r = remuxToMp4(path, tmp)
+                val r = remuxToMp4(path, tmp) { pct -> onProgress?.invoke("remux", pct) }
                 if (!r.startsWith("✓")) { runCatching { File(tmp).delete() }; return r }
                 if (!File(path).delete()) return "원본 TS 삭제 실패"
                 if (!File(tmp).renameTo(File(path))) { File(tmp).copyTo(File(path), true); File(tmp).delete() }
                 pre = "TS→mp4 remux + "
             }
+            onProgress?.invoke("embed", 0)
             RandomAccessFile(path, "rw").use { return pre + embedAtomRw(RafRw(it), code, rec) }
         }
         // ── 외부저장소(SAF content uri) ──
@@ -81,15 +115,17 @@ object JEmbed {
         } ?: return "SAF fd 열기 실패(권한?)"
         if (ts) {
             if (Build.VERSION.SDK_INT < 26) return "외부 TS remux 는 Android 8+ 필요"
-            return remuxSaf(ctx, uri, code, rec)
+            return remuxSaf(ctx, uri, code, rec, onProgress)
         }
+        onProgress?.invoke("embed", 0)
         ctx.contentResolver.openFileDescriptor(uri, "rw")?.use { return embedAtomRw(OsRw(it.fileDescriptor), code, rec) }
         return "SAF fd 쓰기 열기 실패(권한?)"
     }
 
     // 외부 TS → mp4 remux (SAF): 같은 폴더에 새 mp4 문서 생성→remux(fd)→원본 삭제→원본명 rename→embed.
     @RequiresApi(26)
-    private fun remuxSaf(ctx: Context, uri: Uri, code: String, rec: JSONObject): String {
+    private fun remuxSaf(ctx: Context, uri: Uri, code: String, rec: JSONObject,
+                         onProgress: ((String, Int) -> Unit)? = null): String {
         val resolver = ctx.contentResolver
         val docId = DocumentsContract.getDocumentId(uri)
         val treeId = DocumentsContract.getTreeDocumentId(uri)
@@ -104,13 +140,14 @@ object JEmbed {
         try {
             resolver.openFileDescriptor(uri, "r")!!.use { inP ->
                 resolver.openFileDescriptor(newDoc, "rw")!!.use { outP ->
-                    rmsg = remuxFromFd(inP.fileDescriptor, outP.fileDescriptor)
+                    rmsg = remuxFromFd(inP.fileDescriptor, outP.fileDescriptor) { pct -> onProgress?.invoke("remux", pct) }
                 }
             }
         } catch (e: Throwable) { rmsg = "remux 예외: ${e.message}" }
         if (!rmsg.startsWith("✓")) { runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; return "remux 실패: $rmsg" }
         runCatching { DocumentsContract.deleteDocument(resolver, uri) }
         val finalDoc = runCatching { DocumentsContract.renameDocument(resolver, newDoc, origName) }.getOrNull() ?: newDoc
+        onProgress?.invoke("embed", 0)
         resolver.openFileDescriptor(finalDoc, "rw")?.use {
             return "TS→mp4 remux(SAF) + " + embedAtomRw(OsRw(it.fileDescriptor), code, rec)
         }
@@ -236,19 +273,22 @@ object JEmbed {
         try { RandomAccessFile(path, "r").use { it.read() == 0x47 } } catch (_: Throwable) { false }
 
     // remux 코어: MediaExtractor → MediaMuxer 샘플 복사(재인코딩 없음). release 는 caller.
-    private fun remuxFrom(ex: MediaExtractor, mux: MediaMuxer): String {
+    private fun remuxFrom(ex: MediaExtractor, mux: MediaMuxer, onPct: ((Int) -> Unit)? = null): String {
         val map = HashMap<Int, Int>()
         var maxInput = 1 shl 20
+        var durUs = 1L
         for (i in 0 until ex.trackCount) {
             val fmt = ex.getTrackFormat(i)
             val mime = fmt.getString(MediaFormat.KEY_MIME) ?: ""
             if (!(mime.startsWith("video/") || mime.startsWith("audio/"))) continue
             if (fmt.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) maxInput = maxOf(maxInput, fmt.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE))
+            if (fmt.containsKey(MediaFormat.KEY_DURATION)) durUs = maxOf(durUs, fmt.getLong(MediaFormat.KEY_DURATION))
             map[i] = mux.addTrack(fmt); ex.selectTrack(i)
         }
         if (map.isEmpty()) return "remux 실패: 트랙 없음"
         mux.start()
         val buf = ByteBuffer.allocate(maxInput); val info = MediaCodec.BufferInfo()
+        var lastPct = -1
         while (true) {
             val sz = ex.readSampleData(buf, 0); if (sz < 0) break
             val tr = map[ex.sampleTrackIndex]; val t = ex.sampleTime
@@ -256,6 +296,7 @@ object JEmbed {
                 info.offset = 0; info.size = sz; info.presentationTimeUs = t
                 info.flags = if (ex.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
                 mux.writeSampleData(tr, buf, info)
+                if (onPct != null) { val p = ((t * 100) / durUs).toInt().coerceIn(0, 100); if (p != lastPct) { lastPct = p; onPct(p) } }
             }
             ex.advance()
         }
@@ -263,23 +304,23 @@ object JEmbed {
         return "✓remux"
     }
 
-    private fun remuxToMp4(srcPath: String, dstPath: String): String {
+    private fun remuxToMp4(srcPath: String, dstPath: String, onPct: ((Int) -> Unit)? = null): String {
         val ex = MediaExtractor()
         try {
             ex.setDataSource(srcPath)
             val mux = MediaMuxer(dstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            try { return remuxFrom(ex, mux) } finally { mux.release() }
+            try { return remuxFrom(ex, mux, onPct) } finally { mux.release() }
         } catch (e: Throwable) { return "remux 실패: ${e.javaClass.simpleName}: ${e.message}" }
         finally { ex.release() }
     }
 
     @RequiresApi(26)
-    private fun remuxFromFd(inFd: FileDescriptor, outFd: FileDescriptor): String {
+    private fun remuxFromFd(inFd: FileDescriptor, outFd: FileDescriptor, onPct: ((Int) -> Unit)? = null): String {
         val ex = MediaExtractor()
         try {
             ex.setDataSource(inFd)
             val mux = MediaMuxer(outFd, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            try { return remuxFrom(ex, mux) } finally { mux.release() }
+            try { return remuxFrom(ex, mux, onPct) } finally { mux.release() }
         } catch (e: Throwable) { return "remux 실패: ${e.javaClass.simpleName}: ${e.message}" }
         finally { ex.release() }
     }
