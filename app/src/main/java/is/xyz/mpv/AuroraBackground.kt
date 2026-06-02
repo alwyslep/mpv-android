@@ -10,43 +10,91 @@ import android.graphics.RadialGradient
 import android.graphics.Rect
 import android.graphics.Shader
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
+import android.view.Choreographer
+import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.sin
 
 /**
- * B-57(UI): 제미나이 모바일 신규 배경을 본뜬 오로라/메시 그라데이션 앰비언트 배경.
+ * B-57(UI): 제미나이 모바일 스타일 오로라/메시 그라데이션 — *동적 다색 순환* 앰비언트 배경.
  *
- * 상단에 초록→틸(청록)→파랑 소프트 글로우가 번지고 아래로 갈수록 near-black 으로
- * 사라진다. 윈도우 배경(window.setBackgroundDrawable)으로 깔면 UI·영상이 불투명하게
- * 칠하는 곳을 제외한 모든 빈/검은 영역(목록 여백·플레이어 레터박스 등)에 자동으로 비친다.
+ * 여러 글로우 블롭의 색조(hue)가 색상환을 따라 아주 천천히 회전하며, 블롭마다 hue 가
+ * 균등 오프셋돼 *항상 서로 다른 색 계열*(빨강·노랑·초록·청록·파랑·보라 …)을 동시에 띤다.
+ * 위치도 sin/cos 로 부드럽게 표류 → 실시간으로 색·형태가 살아 움직인다.
+ * 아래로 갈수록 near-black 으로 사라진다.
  *
- * 팔레트는 [BLOBS] 한 곳에서 교체 가능(예: JAV 보라 계열).
+ * 윈도우 배경으로 깔면 UI·영상이 불투명하게 칠하는 곳을 제외한 모든 빈/검은 영역에 비친다.
+ * Choreographer 로 구동, [setVisible] false(액티비티 비가시) 시 정지해 배터리 보호.
  */
 class AuroraDrawable : Drawable() {
 
-    private data class Blob(val fx: Float, val fy: Float, val fr: Float, val argb: Int)
-
     private val basePaint = Paint().apply { color = BASE }
     private val blobPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val hsv = FloatArray(3)
+
+    private var running = false
+    private val frameCallback = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!running) return
+            invalidateSelf()
+            Choreographer.getInstance().postFrameCallbackDelayed(this, FRAME_DELAY_MS)
+        }
+    }
+
+    private fun start() {
+        if (running) return
+        running = true
+        try { Choreographer.getInstance().postFrameCallback(frameCallback) } catch (_: Throwable) {}
+    }
+
+    private fun stop() {
+        running = false
+        try { Choreographer.getInstance().removeFrameCallback(frameCallback) } catch (_: Throwable) {}
+    }
 
     override fun draw(canvas: Canvas) {
         val b: Rect = bounds
         if (b.isEmpty) return
+        if (!running && isVisible) start()   // lazy 시작
+
         canvas.drawRect(b, basePaint)
-        // 큰 변 기준 반지름 — 가로/세로 어느 쪽이든 부드럽게 덮이도록.
         val span = max(b.width(), b.height()).toFloat()
-        for (blob in BLOBS) {
-            val cx = b.left + blob.fx * b.width()
-            val cy = b.top + blob.fy * b.height()
-            val r = blob.fr * span
+        val t = SystemClock.uptimeMillis()
+
+        // 색조 회전 위상(0~360): HUE_PERIOD_MS 마다 한 바퀴.
+        val hueBase = (t % HUE_PERIOD_MS) / HUE_PERIOD_MS.toFloat() * 360f
+        // 위치 표류 위상.
+        val posT = t / 1000f
+
+        for (i in 0 until NBLOBS) {
+            hsv[0] = (hueBase + i * (360f / NBLOBS)) % 360f
+            hsv[1] = SAT
+            hsv[2] = VAL
+            val argb = Color.HSVToColor(ALPHA, hsv)
+
+            val drift = 0.07f
+            val fx = BASE_FX[i] + drift * sin(posT * SPEED_X[i] + i * 1.7f)
+            val fy = BASE_FY[i] + (drift * 0.7f) * cos(posT * SPEED_Y[i] + i * 2.3f)
+            val cx = b.left + fx * b.width()
+            val cy = b.top + fy * b.height()
+            val r = FR[i] * span
             if (r <= 0f) continue
+
             blobPaint.shader = RadialGradient(
                 cx, cy, r,
-                intArrayOf(blob.argb, blob.argb and 0x00FFFFFF), // 같은 RGB, alpha 0 → 투명으로 페이드
+                intArrayOf(argb, argb and 0x00FFFFFF), // 같은 색, alpha 0 으로 페이드
                 floatArrayOf(0f, 1f),
                 Shader.TileMode.CLAMP,
             )
             canvas.drawRect(b, blobPaint)
         }
+    }
+
+    override fun setVisible(visible: Boolean, restart: Boolean): Boolean {
+        val changed = super.setVisible(visible, restart)
+        if (visible) start() else stop()
+        return changed
     }
 
     override fun setAlpha(alpha: Int) {}
@@ -55,19 +103,28 @@ class AuroraDrawable : Drawable() {
     override fun getOpacity(): Int = PixelFormat.OPAQUE
 
     companion object {
-        // 바탕(거의 검정, 살짝 푸른 기) — 영상 외 모든 영역의 기본색.
+        // 바탕(거의 검정, 살짝 푸른 기).
         private val BASE = Color.parseColor("#0A0B10")
 
-        // 오로라 글로우 블롭 — fx/fy=중심 위치(0~1, fy 음수=화면 위쪽), fr=반지름(큰변 비율), argb=색(상단 alpha).
-        //   제미나이 팔레트: 초록(좌)·틸(중)·파랑(우). 색만 바꾸면 톤 전환.
-        private val BLOBS = listOf(
-            Blob(0.10f, -0.08f, 0.95f, Color.parseColor("#6630D27E")), // green  top-left
-            Blob(0.48f, -0.14f, 1.05f, Color.parseColor("#5E22C2B4")), // teal   top-center
-            Blob(0.92f, -0.02f, 1.00f, Color.parseColor("#5E2E7CF6")), // blue   top-right
-            Blob(0.70f, 0.30f, 0.80f, Color.parseColor("#3A1E66C8")), // 은은한 중단 파랑 보강
-        )
+        private const val NBLOBS = 5
 
-        /** 액티비티 윈도우 배경을 오로라로. onCreate(super 이후, setContentView 전후 무관)에서 1회 호출. */
+        // 한 바퀴(전 색상 순환) 주기 — 길수록 느긋. 90초.
+        private const val HUE_PERIOD_MS = 90_000L
+        // 프레임 간격(ms) — 느린 앰비언트라 ~22fps 로 충분(배터리·GC 절약).
+        private const val FRAME_DELAY_MS = 45L
+
+        private const val SAT = 0.62f   // 채도(부드럽게)
+        private const val VAL = 0.98f   // 명도
+        private const val ALPHA = 0x60  // 글로우 불투명도(바탕 위 은은하게)
+
+        // 블롭 기준 위치(0~1, fy 음수=화면 위) · 반지름(큰변 비율) · 표류 속도.
+        private val BASE_FX = floatArrayOf(0.12f, 0.42f, 0.78f, 0.95f, 0.55f)
+        private val BASE_FY = floatArrayOf(-0.06f, -0.14f, -0.08f, 0.05f, 0.34f)
+        private val FR = floatArrayOf(0.92f, 1.02f, 0.96f, 0.88f, 0.80f)
+        private val SPEED_X = floatArrayOf(0.13f, 0.17f, 0.11f, 0.19f, 0.15f)
+        private val SPEED_Y = floatArrayOf(0.10f, 0.14f, 0.16f, 0.12f, 0.18f)
+
+        /** 액티비티 윈도우 배경을 동적 오로라로. */
         fun apply(activity: Activity) {
             try {
                 activity.window.setBackgroundDrawable(AuroraDrawable())
