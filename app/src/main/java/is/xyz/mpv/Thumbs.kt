@@ -94,7 +94,7 @@ object ThumbLoader {
         if (localDurMs <= 0L) return
         val app = ctx.applicationContext
         exec.execute {
-            val code = codeOf(app, uri) ?: return@execute
+            val code = codeOf(app, uri.toString()) ?: return@execute
             val hubSec = DurationHub.get(code) ?: return@execute
             val localSec = localDurMs / 1000
             val tol = maxOf(10L, hubSec / 50)   // 10초 또는 2% 중 큰 값(인코딩 오차 허용)
