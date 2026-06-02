@@ -277,4 +277,5 @@
     <string name="pref_aurora_pulse_depth_title">검정 맥동 깊이</string>
     <string name="pref_aurora_pulse_depth_summary">호흡 시 어두워지는 정도 (%)</string>
     <string name="pref_ml_cover_scale">커버 크기 (%)</string>
+    <string name="qs_cover_size">커버 크기</string>
 </resources>

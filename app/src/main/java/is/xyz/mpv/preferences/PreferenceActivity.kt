@@ -250,8 +250,6 @@ class PreferenceActivity : AppCompatActivity(),
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             preferenceManager.sharedPreferencesName = "media_library"
             setPreferencesFromResource(R.xml.pref_media_library, rootKey)
-            // B-57 v3: 커버 크기 슬라이더 하한 50%(androidx SeekBarPreference xml min 미지원).
-            findPreference<SeekBarPreference>("cover_scale")?.min = 50
             findPreference<Preference>("action_rebuild_index")?.setOnPreferenceClickListener {
                 `is`.xyz.mpv.SearchIndex.clear()
                 android.widget.Toast.makeText(requireContext(), "검색 인덱스를 비웠습니다 (다음 검색 시 재인덱싱)", android.widget.Toast.LENGTH_SHORT).show()

@@ -346,4 +346,5 @@
     <string name="pref_aurora_pulse_depth_title">Black pulse depth</string>
     <string name="pref_aurora_pulse_depth_summary">How dark the breathing dips (%)</string>
     <string name="pref_ml_cover_scale">Cover size (%)</string>
+    <string name="qs_cover_size">Cover size</string>
 </resources>

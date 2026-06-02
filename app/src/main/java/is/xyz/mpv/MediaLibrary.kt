@@ -239,6 +239,8 @@ object LibPrefs {
     // B-57 v3: 커버 타일 크기 — cover_scale(%) 클수록 큰 타일(열 적게). 50~200%.
     fun coverScale(ctx: Context): Float =
         p(ctx).getInt("cover_scale", 100).coerceIn(50, 200) / 100f
+    fun setCoverScale(ctx: Context, v: Int) =
+        p(ctx).edit().putInt("cover_scale", v.coerceIn(50, 200)).apply()
 
     /** grid 열 개수 — 화면폭 / (170dp × scale). scale 클수록 열 적음 = 타일 큼. */
     fun spanCount(ctx: Context): Int {

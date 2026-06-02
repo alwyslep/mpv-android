@@ -6,6 +6,7 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.SeekBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.button.MaterialButton
@@ -35,6 +36,7 @@ object QuickSettings {
         var pRes = LibPrefs.showRes(ctx)
         var pSize = LibPrefs.showSize(ctx)
         var pThumb = LibPrefs.showThumb(ctx)
+        var pCoverScale = (LibPrefs.coverScale(ctx) * 100).toInt()  // 50~200(%)
 
         // 보기 모드
         val grpMode = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_mode)
@@ -69,6 +71,21 @@ object QuickSettings {
         val grpLayout = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_layout)
         grpLayout.check(if (pGrid) R.id.btn_grid else R.id.btn_list)
         grpLayout.addOnButtonCheckedListener { _, id, on -> if (on) pGrid = id == R.id.btn_grid }
+
+        // 커버 크기 슬라이더(50~200%) — grid 타일 크기. 완료 시 load()로 즉시 반영.
+        val coverSb = v.findViewById<SeekBar>(R.id.qs_cover_scale)
+        val coverLbl = v.findViewById<TextView>(R.id.qs_cover_scale_label)
+        coverSb.max = 150
+        coverSb.progress = (pCoverScale - 50).coerceIn(0, 150)
+        coverLbl.text = "$pCoverScale%"
+        coverSb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: SeekBar, p: Int, fromUser: Boolean) {
+                pCoverScale = p + 50
+                coverLbl.text = "$pCoverScale%"
+            }
+            override fun onStartTrackingTouch(s: SeekBar) {}
+            override fun onStopTrackingTouch(s: SeekBar) {}
+        })
 
         // 정렬 아이콘 셀
         val primary = MaterialColors.getColor(v, androidx.appcompat.R.attr.colorPrimary, 0)
@@ -133,6 +150,7 @@ object QuickSettings {
             LibPrefs.setField(ctx, "show_res", pRes)
             LibPrefs.setField(ctx, "show_size", pSize)
             LibPrefs.setField(ctx, "show_thumb", pThumb)
+            LibPrefs.setCoverScale(ctx, pCoverScale)
             dlg.dismiss()
             onApply()
         }

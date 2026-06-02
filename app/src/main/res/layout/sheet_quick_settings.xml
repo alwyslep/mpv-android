@@ -80,6 +80,27 @@
                 android:layout_weight="1" android:layout_height="wrap_content" android:text="@string/qs_grid" />
         </com.google.android.material.button.MaterialButtonToggleGroup>
 
+        <TextView style="@style/QsLabel" android:text="@string/qs_cover_size" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+            <SeekBar
+                android:id="@+id/qs_cover_scale"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:max="150" />
+            <TextView
+                android:id="@+id/qs_cover_scale_label"
+                android:layout_width="52dp"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textSize="12sp" />
+        </LinearLayout>
+
         <TextView style="@style/QsLabel" android:text="@string/qs_sort" />
         <LinearLayout
             android:layout_width="match_parent"

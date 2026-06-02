@@ -6,13 +6,6 @@
         app:defaultValue="true"
         app:title="@string/pref_ml_grid" />
 
-    <SeekBarPreference
-        app:key="cover_scale"
-        app:defaultValue="100"
-        android:max="200"
-        app:showSeekBarValue="true"
-        app:title="@string/pref_ml_cover_scale" />
-
     <ListPreference
         app:key="view_mode"
         app:defaultValue="folder"
