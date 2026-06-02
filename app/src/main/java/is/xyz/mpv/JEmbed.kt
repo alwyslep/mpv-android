@@ -5,20 +5,29 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.images.ArtworkFactory
-import org.jaudiotagger.tag.mp4.Mp4FieldKey
-import org.jaudiotagger.tag.mp4.Mp4Tag
 import org.json.JSONObject
+import org.mp4parser.IsoFile
+import org.mp4parser.boxes.apple.AppleAlbumBox
+import org.mp4parser.boxes.apple.AppleArtistBox
+import org.mp4parser.boxes.apple.AppleCommentBox
+import org.mp4parser.boxes.apple.AppleCoverBox
+import org.mp4parser.boxes.apple.AppleItemListBox
+import org.mp4parser.boxes.apple.AppleNameBox
+import org.mp4parser.boxes.iso14496.part12.HandlerBox
+import org.mp4parser.boxes.iso14496.part12.MetaBox
+import org.mp4parser.boxes.iso14496.part12.UserDataBox
 import java.io.File
+import java.io.FileOutputStream
 import java.net.URL
 
 /**
- * jembed PoC — mutagen 방식(ilst atom in-place)을 Android(jaudiotagger Android fork)로 포팅.
- * hub(queue.sqlite) 메타 + 커버를 mp4 에 주입. jav_dl.embed_metadata 와 동일 atom 매핑이라
- * ThumbLoader(©nam/©ART/aART/©alb/©gen/covr)가 그대로 읽는다.
+ * jembed PoC v2 — mp4parser(비디오 mp4 box 파싱/쓰기)로 ilst atom 주입.
+ * jaudiotagger(audio m4a 전용 → CannotReadException) 대체. jav_dl.embed_metadata 와
+ * 동일 iTunes atom(©nam/©ART/©alb/©cmt/covr) → ThumbLoader 가 그대로 읽는다.
  *
- * PoC 한계: 내부저장소(MediaStore DATA path) 파일만. SAF/USB(content uri rw)는 다음 단계.
+ * PoC 한계: ① 내부저장소(MediaStore DATA) 파일만(SAF 다음) ② mp4parser writeContainer 는
+ * 전체 재작성(mdat 복사) — 대용량 시 느림, 동작 확인 후 in-place 최적화 판단. ③ aART/©gen 은
+ * 클래스 확정 후 추가(현재 name/artist/album/comment/cover).
  */
 object JEmbed {
     private fun ui(cb: () -> Unit) = Handler(Looper.getMainLooper()).post(cb)
@@ -39,40 +48,54 @@ object JEmbed {
     }
 
     private fun embedSync(app: Context, path: String, code: String, rec: JSONObject): String {
-        val f = File(path)
-        val af = AudioFileIO.read(f)
-        val tag = af.tagOrCreateAndSetDefault as Mp4Tag
-        fun set(key: Mp4FieldKey, v: String?) {
-            if (!v.isNullOrBlank()) tag.setField(tag.createField(key, v))
-        }
         val title = rec.optString("title")
-        set(Mp4FieldKey.TITLE, if (title.isNotBlank()) "$code $title" else code)   // ©nam
-        set(Mp4FieldKey.ARTIST, joinField(rec, "actress"))                          // ©ART
-        set(Mp4FieldKey.ALBUM_ARTIST, rec.optString("studio"))                      // aART
-        val series = rec.optString("series")
-        set(Mp4FieldKey.ALBUM, if (series.isNotBlank()) series else rec.optString("studio"))  // ©alb
-        set(Mp4FieldKey.GENRE_CUSTOM, joinField(rec, "genres"))                     // ©gen
-        set(Mp4FieldKey.COMMENT, code)                                              // ©cmt
-
-        var coverMsg = ""
-        val coverUrl = rec.optString("coverUrl")
-        if (coverUrl.isNotBlank()) {
-            try {
-                val bytes = URL(coverUrl).openStream().use { it.readBytes() }
-                if (bytes.size > 100) {
-                    val art = ArtworkFactory.getNew()
-                    art.binaryData = bytes
-                    art.mimeType = if (bytes[0] == 0x89.toByte()) "image/png" else "image/jpeg"
-                    tag.deleteArtworkField()
-                    tag.setField(art)                                              // covr
-                    coverMsg = " +커버(${bytes.size / 1024}KB)"
+        val isoFile = IsoFile(path)
+        try {
+            val moov = isoFile.movieBox ?: return "moov 없음 — mp4 아님"
+            val udta = moov.boxes.filterIsInstance<UserDataBox>().firstOrNull()
+                ?: UserDataBox().also { moov.addBox(it) }
+            val meta = udta.boxes.filterIsInstance<MetaBox>().firstOrNull()
+                ?: MetaBox().also {
+                    it.addBox(HandlerBox().apply { handlerType = "mdir" })
+                    udta.addBox(it)
                 }
-            } catch (e: Throwable) { coverMsg = " (커버실패:${e.message})" }
-        }
+            val ilst = meta.boxes.filterIsInstance<AppleItemListBox>().firstOrNull()
+                ?: AppleItemListBox().also { meta.addBox(it) }
 
-        af.commit()                  // in-place save (mutagen.save 대응)
-        ThumbLoader.clearCache(app)  // 재추출해 새 메타/커버 표시
-        return "✓ 임베드 성공: $code$coverMsg"
+            ilst.addBox(AppleNameBox().apply { value = if (title.isNotBlank()) "$code $title" else code })
+            joinField(rec, "actress").takeIf { it.isNotBlank() }
+                ?.let { ilst.addBox(AppleArtistBox().apply { value = it }) }
+            (rec.optString("series").ifBlank { rec.optString("studio") }).takeIf { it.isNotBlank() }
+                ?.let { ilst.addBox(AppleAlbumBox().apply { value = it }) }
+            ilst.addBox(AppleCommentBox().apply { value = code })
+
+            var coverMsg = ""
+            val coverUrl = rec.optString("coverUrl")
+            if (coverUrl.isNotBlank()) {
+                try {
+                    val bytes = URL(coverUrl).openStream().use { it.readBytes() }
+                    if (bytes.size > 100) {
+                        val cb = AppleCoverBox()
+                        if (bytes[0] == 0x89.toByte()) cb.setPng(bytes) else cb.setJpg(bytes)
+                        ilst.addBox(cb)
+                        coverMsg = " +커버(${bytes.size / 1024}KB)"
+                    }
+                } catch (e: Throwable) { coverMsg = " (커버실패:${e.message})" }
+            }
+
+            val tmp = File("$path.embed.tmp")
+            FileOutputStream(tmp).use { fos -> isoFile.writeContainer(fos.channel) }
+            isoFile.close()
+            val orig = File(path)
+            if (!tmp.renameTo(orig)) {
+                tmp.copyTo(orig, overwrite = true)
+                tmp.delete()
+            }
+            ThumbLoader.clearCache(app)
+            return "✓ 임베드 성공: $code$coverMsg"
+        } finally {
+            try { isoFile.close() } catch (_: Throwable) {}
+        }
     }
 
     private fun joinField(rec: JSONObject, key: String): String {

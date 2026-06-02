@@ -71,6 +71,6 @@ dependencies {
     implementation 'androidx.media:media:1.7.1'
     implementation 'androidx.preference:preference-ktx:1.2.1'
     implementation 'com.google.android.material:material:1.13.0'
-    // jembed PoC: mutagen 방식(ilst atom in-place) Android fork — javax.imageio 제거판.
-    implementation 'com.github.Adonai:jaudiotagger:2.3.15'
+    // jembed PoC: mp4parser — 비디오 mp4 box 파싱/쓰기(ilst atom). jaudiotagger(audio 전용) 대체.
+    implementation 'org.mp4parser:isoparser:1.9.56'
 }
