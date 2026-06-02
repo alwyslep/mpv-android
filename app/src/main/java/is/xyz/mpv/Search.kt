@@ -38,61 +38,13 @@ object SearchIndex {
     fun clear() { items = null }
 
     fun build(ctx: Context): List<SearchItem> {
+        // v5: queryVideos 가 내부(MediaStore) + 외부(SAF 트리)를 모두 포함 → 여기선 매핑만.
         val out = ArrayList<SearchItem>()
-        // 내부 MediaStore
         for (v in MediaLibrary.queryVideos(ctx)) {
             out.add(SearchItem(v.name, v.uri, v.folderName, v.durationMs, v.size))
         }
-        // 저장된 SAF 트리(USB 등) 재귀
-        for (t in SafTrees.all(ctx)) {
-            try {
-                walkTree(ctx, Uri.parse(t), out)
-            } catch (_: Throwable) {
-            }
-            if (out.size > 50000) break
-        }
         items = out
         return out
-    }
-
-    private fun walkTree(ctx: Context, treeUri: Uri, out: ArrayList<SearchItem>) {
-        val proj = arrayOf(
-            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
-            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
-            DocumentsContract.Document.COLUMN_MIME_TYPE,
-            DocumentsContract.Document.COLUMN_SIZE
-        )
-        val stack = ArrayDeque<Pair<String, String>>() // docId, 폴더명
-        stack.addLast(DocumentsContract.getTreeDocumentId(treeUri) to "")
-        while (stack.isNotEmpty()) {
-            if (out.size > 50000) return
-            val (doc, folderName) = stack.removeLast()
-            val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, doc)
-            try {
-                ctx.contentResolver.query(children, proj, null, null, null)?.use { c ->
-                    while (c.moveToNext()) {
-                        val id = c.getString(0) ?: continue
-                        val nm = c.getString(1) ?: ""
-                        val mime = c.getString(2) ?: ""
-                        val size = if (c.isNull(3)) 0L else c.getLong(3)
-                        if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
-                            stack.addLast(id to nm)
-                        } else if (mime.startsWith("video/") || SafBrowserActivity.isVideoName(nm)) {
-                            out.add(
-                                SearchItem(
-                                    nm.substringBeforeLast("."),
-                                    DocumentsContract.buildDocumentUriUsingTree(treeUri, id),
-                                    folderName,
-                                    0L,
-                                    size
-                                )
-                            )
-                        }
-                    }
-                }
-            } catch (_: Throwable) {
-            }
-        }
     }
 }
 

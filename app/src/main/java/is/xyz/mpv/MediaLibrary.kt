@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -113,7 +114,73 @@ object MediaLibrary {
                 )
             }
         }
+        // v5: 외부저장소(USB/SD) — SAF 등록 트리 영상 병합. MediaStore 는 내부(primary)만 인덱싱.
+        out.addAll(safVids(ctx))
         return out
+    }
+
+    // v5: SAF 트리 스캔은 무거우니 세션 캐시. SafTrees add/clear 시 무효화.
+    @Volatile private var safCache: List<Vid>? = null
+    fun clearSafCache() { safCache = null }
+
+    private fun safVids(ctx: Context): List<Vid> {
+        safCache?.let { return it }
+        val out = ArrayList<Vid>()
+        for (t in SafTrees.all(ctx)) {
+            try { walkSafVids(ctx, Uri.parse(t), out) } catch (_: Throwable) {}
+            if (out.size > 50000) break
+        }
+        safCache = out
+        return out
+    }
+
+    private fun walkSafVids(ctx: Context, treeUri: Uri, out: ArrayList<Vid>) {
+        val proj = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_SIZE,
+            DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+        )
+        val rootName = (treeUri.lastPathSegment ?: "USB").substringAfterLast(":").substringAfterLast("/")
+        val stack = ArrayDeque<Pair<String, String>>()  // docId, 가상 폴더경로(USB이름/하위…)
+        stack.addLast(DocumentsContract.getTreeDocumentId(treeUri) to rootName)
+        while (stack.isNotEmpty()) {
+            if (out.size > 50000) return
+            val (doc, dpath) = stack.removeLast()
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, doc)
+            try {
+                ctx.contentResolver.query(children, proj, null, null, null)?.use { c ->
+                    while (c.moveToNext()) {
+                        val id = c.getString(0) ?: continue
+                        val nm = c.getString(1) ?: ""
+                        val mime = c.getString(2) ?: ""
+                        val size = if (c.isNull(3)) 0L else c.getLong(3)
+                        val lm = if (c.isNull(4)) 0L else c.getLong(4)
+                        if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                            stack.addLast(id to "$dpath/$nm")
+                        } else if (mime.startsWith("video/") || SafBrowserActivity.isVideoName(nm)) {
+                            out.add(
+                                Vid(
+                                    id = 0L,
+                                    uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, id),
+                                    path = "",
+                                    name = nm.substringBeforeLast("."),
+                                    nameExt = nm,
+                                    durationMs = 0L,
+                                    size = size,
+                                    width = 0,
+                                    height = 0,
+                                    folderName = dpath.substringAfterLast("/"),
+                                    folderPath = dpath,
+                                    dateModified = lm / 1000,
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
     fun folders(vids: List<Vid>): List<Fold> {
@@ -322,13 +389,18 @@ object SafTrees {
         val cur = LinkedHashSet(p.getStringSet(KEY, emptySet()) ?: emptySet())
         cur.add(treeUri)
         p.edit().putStringSet(KEY, cur).apply()
+        MediaLibrary.clearSafCache()   // v5: 새 트리 등록 → 홈/검색 재스캔
+        SearchIndex.clear()
     }
 
     fun all(ctx: Context): Set<String> =
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY, emptySet()) ?: emptySet()
 
-    fun clear(ctx: Context) =
+    fun clear(ctx: Context) {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY).apply()
+        MediaLibrary.clearSafCache()
+        SearchIndex.clear()
+    }
 }
 
 // 재생 위치 저장 — 이어보기 + 타일 진행률. uri 별 {pos, dur} (ms).
