@@ -13,15 +13,18 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 
 /**
- * jembed PoC v3 — 외부 라이브러리 없이 직접 mp4 atom patch.
- * jav_dl.embed_metadata(mutagen)과 동일한 iTunes ilst atom(©nam/©ART/©alb/©cmt/covr)을
- * moov>udta>meta>ilst 에 바이트로 직접 작성 → ThumbLoader(MMR)가 그대로 읽는다.
+ * jembed PoC v4 — 외부 라이브러리 없이 직접 mp4 atom patch. **moov 이동 방식**.
+ * jav_dl.embed_metadata(mutagen)과 동일 iTunes ilst atom(©nam/©ART/©alb/©gen/©cmt/covr)을
+ * moov>udta>meta>ilst 에 직접 작성 → ThumbLoader(MMR)가 그대로 읽는다.
  *
- * PoC1 한계 — 가장 단순한 케이스만:
- *  ① 내부저장소(MediaStore DATA) 파일만 (SAF 다음 단계)
- *  ② moov 가 **파일 끝(mdat 뒤)** 일 때만. moov 가 앞(faststart)이면 stco 보정 필요 → 폴백 메시지.
- *  ③ moov 에 udta 가 이미 없을 때만(임베드 신규). 32bit box size 가정.
- * 검증되면 faststart(stco/co64 보정)·SAF·배치로 확장.
+ * 알고리즘(python 으로 ffprobe 검증 완료):
+ *  1. 기존 moov 읽기 → udta 추가한 새 moov 생성(size 갱신)
+ *  2. 기존 moov 자리의 type 4바이트를 'free' 로 덮어씀(무력화, 내용은 free payload 로 무시됨)
+ *  3. 새 moov 를 파일 끝에 append
+ *  → mdat(수 GB) 불변 → stco/co64 chunk offset 불변(보정 불필요). faststart/moov끝 무관 범용.
+ *
+ * PoC 한계: ① 내부저장소(MediaStore DATA) File "rw" 만(SAF 다음 단계) ② TS 파일은 remux 선행
+ * 필요(별도) ③ 32bit moov size·udta 신규(재임베드 아님) 가정.
  */
 object JEmbed {
     private val LATIN1: Charset = Charsets.ISO_8859_1
@@ -44,30 +47,21 @@ object JEmbed {
 
     // ─── 박스 바이트 빌더 ───
     private fun box(type: String, payload: ByteArray): ByteArray {
-        val t = type.toByteArray(LATIN1)            // '©'=0xA9 (ISO-8859-1)
+        val t = type.toByteArray(LATIN1)
         require(t.size == 4) { "box type 4바이트 아님: $type" }
-        return ByteBuffer.allocate(8 + payload.size)
-            .putInt(8 + payload.size).put(t).put(payload).array()
+        return ByteBuffer.allocate(8 + payload.size).putInt(8 + payload.size).put(t).put(payload).array()
     }
-
-    // data atom: [typeCode(4)][locale(4)=0][value]  — 1=UTF8, 13=JPEG, 14=PNG
     private fun dataAtom(typeCode: Int, value: ByteArray): ByteArray =
         box("data", ByteBuffer.allocate(8 + value.size).putInt(typeCode).putInt(0).put(value).array())
-
     private fun textItem(type: String, text: String): ByteArray =
         box(type, dataAtom(1, text.toByteArray(Charsets.UTF_8)))
-
     private fun coverItem(bytes: ByteArray, png: Boolean): ByteArray =
         box("covr", dataAtom(if (png) 14 else 13, bytes))
-
     private fun hdlrMeta(): ByteArray {
         val p = ByteArrayOutputStream()
-        p.write(byteArrayOf(0, 0, 0, 0))                 // version+flags
-        p.write(byteArrayOf(0, 0, 0, 0))                 // pre_defined
-        p.write("mdir".toByteArray(LATIN1))              // handler_type
-        p.write("appl".toByteArray(LATIN1))              // reserved[0] (iTunes 관례)
-        p.write(ByteArray(8))                            // reserved[1..2]
-        p.write(0)                                       // name "" + null
+        p.write(byteArrayOf(0, 0, 0, 0)); p.write(byteArrayOf(0, 0, 0, 0))
+        p.write("mdir".toByteArray(LATIN1)); p.write("appl".toByteArray(LATIN1))
+        p.write(ByteArray(8)); p.write(0)
         return box("hdlr", p.toByteArray())
     }
 
@@ -80,7 +74,6 @@ object JEmbed {
             ?.let { items.write(textItem("©alb", it)) }
         joinField(rec, "genres").takeIf { it.isNotBlank() }?.let { items.write(textItem("©gen", it)) }
         items.write(textItem("©cmt", code))
-
         var coverMsg = ""
         val coverUrl = rec.optString("coverUrl")
         if (coverUrl.isNotBlank()) {
@@ -92,12 +85,10 @@ object JEmbed {
                 }
             } catch (e: Throwable) { coverMsg = " (커버실패:${e.message})" }
         }
-        val ilst = box("ilst", items.toByteArray())
-        val meta = box("meta", byteArrayOf(0, 0, 0, 0) + hdlrMeta() + ilst)  // meta=FullBox
+        val meta = box("meta", byteArrayOf(0, 0, 0, 0) + hdlrMeta() + box("ilst", items.toByteArray()))
         return box("udta", meta) to coverMsg
     }
 
-    // ─── 박스 스캔 ───
     private fun readType(raf: RandomAccessFile): String {
         val b = ByteArray(4); raf.readFully(b); return String(b, LATIN1)
     }
@@ -106,46 +97,42 @@ object JEmbed {
         var coverMsg = ""
         RandomAccessFile(path, "rw").use { raf ->
             val len = raf.length()
-            var off = 0L
-            var moovOff = -1L; var moovSize = 0L; var moov64 = false
+            var off = 0L; var moovOff = -1L; var moovSize = 0L; var moov64 = false
             while (off + 8 <= len) {
                 raf.seek(off)
                 val sz32 = raf.readInt().toLong() and 0xFFFFFFFFL
                 val type = readType(raf)
                 var bs = sz32; var is64 = false
-                when (sz32) {
-                    1L -> { bs = raf.readLong(); is64 = true }
-                    0L -> bs = len - off
-                }
+                if (sz32 == 1L) { bs = raf.readLong(); is64 = true } else if (sz32 == 0L) bs = len - off
                 if (type == "moov") { moovOff = off; moovSize = bs; moov64 = is64 }
                 if (bs <= 0) break
                 off += bs
             }
-            if (moovOff < 0) return "moov 없음 — mp4 아님?"
+            if (moovOff < 0) return "moov 없음 — mp4 아님?(TS 면 remux 필요)"
             if (moov64) return "moov 64bit size — PoC 미지원(드묾)"
-            if (moovOff + moovSize < len) return "faststart mp4(moov 앞) — PoC 다음 단계(stco 보정 필요)"
+            if (moovSize > 64 * 1024 * 1024) return "moov 비정상(>64MB)"
             if (scanChild(raf, moovOff, moovSize, "udta")) return "이미 메타(udta) 존재 — PoC 는 신규만"
 
-            val (udta, cm) = buildUdta(code, rec)
-            coverMsg = cm
-
-            // 기존 moov 전체 읽기 → 끝에 udta 추가 → size 갱신 → 그 자리에 다시 쓰기
             raf.seek(moovOff)
             val moovBytes = ByteArray(moovSize.toInt())
             raf.readFully(moovBytes)
+            val (udta, cm) = buildUdta(code, rec); coverMsg = cm
+
+            // 새 moov = 기존 moov + udta(payload 끝), size 갱신
             val newSize = moovSize.toInt() + udta.size
-            val out = ByteBuffer.allocate(newSize).put(moovBytes).put(udta).array()
-            ByteBuffer.wrap(out).putInt(newSize)        // moov size 헤더 갱신
-            raf.seek(moovOff)
-            raf.write(out)
-            raf.setLength(moovOff + newSize.toLong())
+            val newMoov = ByteBuffer.allocate(newSize).put(moovBytes).put(udta).array()
+            ByteBuffer.wrap(newMoov).putInt(newSize)
+            // 기존 moov 자리 → 'free' 무력화 (type 4바이트만; mdat·stco 불변)
+            raf.seek(moovOff + 4); raf.write("free".toByteArray(LATIN1))
+            // 새 moov 파일 끝에 append
+            raf.seek(raf.length()); raf.write(newMoov)
         }
         ThumbLoader.clearCache(app)
         return "✓ 임베드 성공: $code$coverMsg"
     }
 
     private fun scanChild(raf: RandomAccessFile, parentOff: Long, parentSize: Long, target: String): Boolean {
-        var off = parentOff + 8                          // 32bit moov header
+        var off = parentOff + 8
         val end = parentOff + parentSize
         while (off + 8 <= end) {
             raf.seek(off)
