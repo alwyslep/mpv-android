@@ -31,6 +31,7 @@ class VideoDetailActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_video_detail)
+        AuroraDrawable.apply(this)
 
         uriStr = intent.getStringExtra("uri") ?: ""
         fallbackName = intent.getStringExtra("name") ?: ""

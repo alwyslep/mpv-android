@@ -68,6 +68,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media_library)
+        AuroraDrawable.apply(this)
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         toolbar.menu.add(0, 2, 0, "검색").apply {

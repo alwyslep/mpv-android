@@ -34,6 +34,7 @@ class FolderVideosActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
+        AuroraDrawable.apply(this)
 
         folderPath = intent.getStringExtra("path") ?: ""
         val name = intent.getStringExtra("name") ?: "폴더"
