@@ -6,10 +6,13 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.system.Os
+import androidx.annotation.RequiresApi
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -66,14 +69,46 @@ object JEmbed {
             }
             RandomAccessFile(path, "rw").use { return pre + embedAtomRw(RafRw(it), code, rec) }
         }
-        // ── 외부저장소(SAF content uri, Os fd) ──
-        val pfd = ctx.contentResolver.openFileDescriptor(uri, "rw") ?: return "SAF fd 열기 실패(쓰기 권한?)"
-        pfd.use {
-            val rw = OsRw(it.fileDescriptor)
-            val b1 = ByteArray(1); rw.readAt(0, b1, 1)
-            if (b1[0] == 0x47.toByte()) return "외부저장소 TS — SAF remux 다음 단계"
-            return embedAtomRw(rw, code, rec)
+        // ── 외부저장소(SAF content uri) ──
+        val ts = ctx.contentResolver.openFileDescriptor(uri, "r")?.use {
+            val b = ByteArray(1); Os.read(it.fileDescriptor, b, 0, 1); b[0] == 0x47.toByte()
+        } ?: return "SAF fd 열기 실패(권한?)"
+        if (ts) {
+            if (Build.VERSION.SDK_INT < 26) return "외부 TS remux 는 Android 8+ 필요"
+            return remuxSaf(ctx, uri, code, rec)
         }
+        ctx.contentResolver.openFileDescriptor(uri, "rw")?.use { return embedAtomRw(OsRw(it.fileDescriptor), code, rec) }
+        return "SAF fd 쓰기 열기 실패(권한?)"
+    }
+
+    // 외부 TS → mp4 remux (SAF): 같은 폴더에 새 mp4 문서 생성→remux(fd)→원본 삭제→원본명 rename→embed.
+    @RequiresApi(26)
+    private fun remuxSaf(ctx: Context, uri: Uri, code: String, rec: JSONObject): String {
+        val resolver = ctx.contentResolver
+        val docId = DocumentsContract.getDocumentId(uri)
+        val treeId = DocumentsContract.getTreeDocumentId(uri)
+        val treeUri = DocumentsContract.buildTreeDocumentUri(uri.authority, treeId)
+        val origName = docId.substringAfterLast('/').ifBlank { "video.mp4" }
+        val parentId = if (docId.contains('/')) docId.substringBeforeLast('/') else treeId
+        val parentDoc = DocumentsContract.buildDocumentUriUsingTree(treeUri, parentId)
+        val tmpName = origName.substringBeforeLast('.') + "__remux.mp4"
+        val newDoc = DocumentsContract.createDocument(resolver, parentDoc, "video/mp4", tmpName)
+            ?: return "SAF 새 문서 생성 실패(부모 권한?)"
+        var rmsg = "remux fd 실패"
+        try {
+            resolver.openFileDescriptor(uri, "r")!!.use { inP ->
+                resolver.openFileDescriptor(newDoc, "rw")!!.use { outP ->
+                    rmsg = remuxFromFd(inP.fileDescriptor, outP.fileDescriptor)
+                }
+            }
+        } catch (e: Throwable) { rmsg = "remux 예외: ${e.message}" }
+        if (!rmsg.startsWith("✓")) { runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; return "remux 실패: $rmsg" }
+        runCatching { DocumentsContract.deleteDocument(resolver, uri) }
+        val finalDoc = runCatching { DocumentsContract.renameDocument(resolver, newDoc, origName) }.getOrNull() ?: newDoc
+        resolver.openFileDescriptor(finalDoc, "rw")?.use {
+            return "TS→mp4 remux(SAF) + " + embedAtomRw(OsRw(it.fileDescriptor), code, rec)
+        }
+        return "TS→mp4 remux(SAF) 성공했으나 embed fd 실패"
     }
 
     // ── random read/write 추상 ──
@@ -192,37 +227,51 @@ object JEmbed {
     private fun isTs(path: String): Boolean =
         try { RandomAccessFile(path, "r").use { it.read() == 0x47 } } catch (_: Throwable) { false }
 
+    // remux 코어: MediaExtractor → MediaMuxer 샘플 복사(재인코딩 없음). release 는 caller.
+    private fun remuxFrom(ex: MediaExtractor, mux: MediaMuxer): String {
+        val map = HashMap<Int, Int>()
+        var maxInput = 1 shl 20
+        for (i in 0 until ex.trackCount) {
+            val fmt = ex.getTrackFormat(i)
+            val mime = fmt.getString(MediaFormat.KEY_MIME) ?: ""
+            if (!(mime.startsWith("video/") || mime.startsWith("audio/"))) continue
+            if (fmt.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) maxInput = maxOf(maxInput, fmt.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE))
+            map[i] = mux.addTrack(fmt); ex.selectTrack(i)
+        }
+        if (map.isEmpty()) return "remux 실패: 트랙 없음"
+        mux.start()
+        val buf = ByteBuffer.allocate(maxInput); val info = MediaCodec.BufferInfo()
+        while (true) {
+            val sz = ex.readSampleData(buf, 0); if (sz < 0) break
+            val tr = map[ex.sampleTrackIndex]; val t = ex.sampleTime
+            if (tr != null && t >= 0) {
+                info.offset = 0; info.size = sz; info.presentationTimeUs = t
+                info.flags = if (ex.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
+                mux.writeSampleData(tr, buf, info)
+            }
+            ex.advance()
+        }
+        mux.stop()
+        return "✓remux"
+    }
+
     private fun remuxToMp4(srcPath: String, dstPath: String): String {
         val ex = MediaExtractor()
         try {
             ex.setDataSource(srcPath)
             val mux = MediaMuxer(dstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
-            val map = HashMap<Int, Int>()
-            var maxInput = 1 shl 20
-            for (i in 0 until ex.trackCount) {
-                val fmt = ex.getTrackFormat(i)
-                val mime = fmt.getString(MediaFormat.KEY_MIME) ?: ""
-                if (!(mime.startsWith("video/") || mime.startsWith("audio/"))) continue
-                if (fmt.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) maxInput = maxOf(maxInput, fmt.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE))
-                map[i] = mux.addTrack(fmt); ex.selectTrack(i)
-            }
-            if (map.isEmpty()) { mux.release(); return "remux 실패: 트랙 없음" }
-            mux.start()
-            val buf = ByteBuffer.allocate(maxInput); val info = MediaCodec.BufferInfo()
-            try {
-                while (true) {
-                    val sz = ex.readSampleData(buf, 0); if (sz < 0) break
-                    val tr = map[ex.sampleTrackIndex]; val t = ex.sampleTime
-                    if (tr != null && t >= 0) {
-                        info.offset = 0; info.size = sz; info.presentationTimeUs = t
-                        info.flags = if (ex.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
-                        mux.writeSampleData(tr, buf, info)
-                    }
-                    ex.advance()
-                }
-                mux.stop()
-            } finally { mux.release() }
-            return "✓remux"
+            try { return remuxFrom(ex, mux) } finally { mux.release() }
+        } catch (e: Throwable) { return "remux 실패: ${e.javaClass.simpleName}: ${e.message}" }
+        finally { ex.release() }
+    }
+
+    @RequiresApi(26)
+    private fun remuxFromFd(inFd: FileDescriptor, outFd: FileDescriptor): String {
+        val ex = MediaExtractor()
+        try {
+            ex.setDataSource(inFd)
+            val mux = MediaMuxer(outFd, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            try { return remuxFrom(ex, mux) } finally { mux.release() }
         } catch (e: Throwable) { return "remux 실패: ${e.javaClass.simpleName}: ${e.message}" }
         finally { ex.release() }
     }
