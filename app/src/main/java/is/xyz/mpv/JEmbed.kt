@@ -5,6 +5,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Handler
@@ -46,7 +47,12 @@ object JEmbed {
             Thread {
                 val msg = try {
                     val m = processOne(app, uri, code, rec)
-                    if (m.contains("✓")) ThumbLoader.clearCache(app)
+                    if (m.contains("✓")) {
+                        ThumbLoader.invalidate(app, uri)   // 해당 영상만 캐시 무효화(전체 X)
+                        // 내부저장소: remux/embed 로 파일이 바뀌었으니 MediaStore 즉시 갱신(홈에서 사라짐 방지)
+                        val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
+                        if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
+                    }
                     m
                 } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
                 ui { done(msg.contains("✓"), msg) }

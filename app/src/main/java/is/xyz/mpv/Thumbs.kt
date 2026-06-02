@@ -88,6 +88,15 @@ object ThumbLoader {
         try { cacheDir(ctx).deleteRecursively() } catch (_: Throwable) {}
     }
 
+    // v6: 단일 영상 캐시만 무효화 — embed 후 전체 clearCache 의 썸네일 전멸 부작용 방지.
+    fun invalidate(ctx: Context, uri: Uri) {
+        val key = uri.toString()
+        bmpCache.remove(key); metaCache.remove(key); durCache.remove(key)
+        val hk = hashKey(key); val d = cacheDir(ctx)
+        runCatching { File(d, "$hk.jpg").delete() }
+        runCatching { File(d, "$hk.txt").delete() }
+    }
+
     // v6: 로컬 파일 길이 vs hub(queue.sqlite) duration_sec 불일치 → cb(true).
     //   품번은 codeOf(캐시 우선, 없으면 MMR 1회). hub 맵 없으면(오프라인) 조용히 무시.
     fun checkDurMismatch(ctx: Context, uri: Uri, localDurMs: Long, cb: (Boolean) -> Unit) {
