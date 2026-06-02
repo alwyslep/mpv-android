@@ -169,7 +169,9 @@ object JEmbed {
         }
         if (moovOff < 0) return "moov 없음 — mp4 아님?"
         if (moovSize > 64L * 1024 * 1024) return "moov 비정상(>64MB)"
-        if (hasChild(rw, moovOff, moovSize, "udta")) return "이미 메타(udta) 존재 — 신규만"
+        // 주의: MediaMuxer 가 remux 시 자체 udta(SDLN/smrd/smta) 를 만들므로 udta 유무로 skip 하면
+        //   우리 메타가 안 들어간다(오판). 항상 우리 udta>meta>ilst 를 추가 — ffprobe/MMR 는 끝 moov 것 읽음.
+        //   (재임베드 시 udta 중복 누적은 실사용 '임베드없음 선별 UI' 로 방지 예정.)
 
         val moovBytes = ByteArray(moovSize.toInt())
         rw.readAt(moovOff, moovBytes, moovSize.toInt())
