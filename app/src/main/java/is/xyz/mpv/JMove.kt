@@ -5,6 +5,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import java.io.File
 
@@ -35,19 +36,41 @@ object JMove {
                 ui { onProgress(i, items.size, name) }
                 try {
                     val src = pathFromMediaStore(app, uri)
-                    if (src == null) { fails.add("$name: 내부저장소만 (SAF 이동 다음 단계)"); continue }
-                    val sf = File(src)
-                    val dst = File(dir, sf.name)
-                    if (dst.absolutePath == sf.absolutePath) { fails.add("$name: 같은 위치"); continue }
-                    if (dst.exists()) { fails.add("$name: 대상에 동일 파일 존재"); continue }
-                    val moved = sf.renameTo(dst) || run { sf.copyTo(dst, overwrite = false); sf.delete() }
-                    if (moved) { ok++; scan.add(src); scan.add(dst.absolutePath) }
-                    else fails.add("$name: 이동 실패")
+                    if (src != null) {
+                        // 내부저장소 File 이동 (같은 볼륨 renameTo / 다른 볼륨 copy+delete)
+                        val sf = File(src)
+                        val dst = File(dir, sf.name)
+                        if (dst.absolutePath == sf.absolutePath) { fails.add("$name: 같은 위치"); continue }
+                        if (dst.exists()) { fails.add("$name: 대상에 동일 파일 존재"); continue }
+                        val moved = sf.renameTo(dst) || run { sf.copyTo(dst, overwrite = false); sf.delete() }
+                        if (moved) { ok++; scan.add(src); scan.add(dst.absolutePath) }
+                        else fails.add("$name: 이동 실패")
+                    } else {
+                        // 외부저장소(SAF) → 내부 대상: 스트림 복사 + 원본 SAF 삭제
+                        val dst = File(dir, safDisplayName(app, uri))
+                        if (dst.exists()) { fails.add("$name: 대상에 동일 파일 존재"); continue }
+                        val copied = try {
+                            app.contentResolver.openInputStream(uri)?.use { ins -> dst.outputStream().use { ins.copyTo(it) }; true } ?: false
+                        } catch (e: Throwable) { false }
+                        if (!copied) { runCatching { dst.delete() }; fails.add("$name: SAF 복사 실패"); continue }
+                        val deleted = try { DocumentsContract.deleteDocument(app.contentResolver, uri) } catch (e: Throwable) { false }
+                        scan.add(dst.absolutePath)
+                        if (deleted) ok++ else fails.add("$name: 복사됨·원본 SAF 삭제 실패(수동 삭제 필요)")
+                    }
                 } catch (e: Throwable) { fails.add("$name: ${e.javaClass.simpleName}: ${e.message}") }
             }
             if (scan.isNotEmpty()) runCatching { MediaScannerConnection.scanFile(app, scan.toTypedArray(), null, null) }
             ui { onDone(ok, fails.size, fails) }
         }.start()
+    }
+
+    private fun safDisplayName(ctx: Context, uri: Uri): String {
+        try {
+            ctx.contentResolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_DISPLAY_NAME), null, null, null)?.use {
+                if (it.moveToFirst()) { val n = it.getString(0); if (!n.isNullOrBlank()) return n }
+            }
+        } catch (_: Throwable) {}
+        return uri.lastPathSegment?.substringAfterLast('/')?.ifBlank { null } ?: "video.mp4"
     }
 
     private fun pathFromMediaStore(ctx: Context, uri: Uri): String? {
