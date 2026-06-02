@@ -16,7 +16,7 @@ import com.google.android.material.button.MaterialButton
 import java.io.File
 
 /**
- * 유저스크립트(.lua/.js) 관리 — mpv 는 config-dir(/sdcard/mpv)/scripts/*.lua,*.js 를 자동 로드.
+ * 유저스크립트(.lua/.js) 관리 — mpv 는 config-dir(/sdcard/mpv) 의 scripts 폴더 스크립트를 자동 로드.
  * 목록 + 추가(SAF import→복사) + 켜기/끄기(.off rename, mpv 무시) + 삭제. (mpv 재시작/재생 시 적용)
  * .conf 편집은 별도(설정>고급 ConfigEditDialogPreference).
  */
