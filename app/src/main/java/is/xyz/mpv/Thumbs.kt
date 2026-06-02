@@ -112,6 +112,22 @@ object ThumbLoader {
         }
     }
 
+    // 4 해상도: 실제 파일 height(MediaStore v.height) vs hub 기대 height. 의미있게 낮으면 cb(기대height).
+    //   품번은 codeOf(캐시 우선). hub 맵 없거나(오프라인)·기대값 없거나·낮지 않으면 조용히 무시. MMR 불필요.
+    fun checkResMismatch(ctx: Context, uri: Uri, localHeight: Int, cb: (Int) -> Unit) {
+        if (localHeight <= 0) return
+        val app = ctx.applicationContext
+        exec.execute {
+            val code = codeOf(app, uri.toString()) ?: return@execute
+            val hubH = ResolutionHub.get(code) ?: return@execute
+            if (hubH <= 0) return@execute
+            // 실제가 기대의 90% 미만이면 저화질/부분(인코딩 리사이즈 오차 10% 허용). 높을 땐 마커 안 함.
+            if (localHeight < hubH - maxOf(0, hubH / 10)) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post { cb(hubH) }
+            }
+        }
+    }
+
     fun load(
         thumb: ImageView,
         codeView: TextView?,

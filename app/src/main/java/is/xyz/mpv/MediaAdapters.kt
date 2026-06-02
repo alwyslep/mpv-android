@@ -107,6 +107,19 @@ class VideoAdapter(
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
         h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
+        // 4: 실제 height(MediaStore v.height) < hub 기대 → 빨강+⚠ (저화질/부분 다운, SAF height=0 은 skip)
+        if (v.height > 0 && res.isNotEmpty()) {
+            val resKey = v.uri.toString()
+            h.meta.tag = resKey
+            ThumbLoader.checkResMismatch(ctx, v.uri, v.height) { hubH ->
+                if (h.meta.tag == resKey) {
+                    h.meta.setTextColor(0xFFFF5252.toInt())
+                    val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                    h.meta.text = "${v.height}p→${hubH}p ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+                }
+            }
+        }
         // MediaStore 는 길이를 알고 있으니 직접 설정(durView 미사용)
         if (LibPrefs.showDur(ctx) && v.durationMs > 0) {
             h.dur.visibility = View.VISIBLE

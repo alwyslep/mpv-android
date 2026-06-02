@@ -169,6 +169,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         val mode = LibPrefs.viewMode(this)
         val grid = LibPrefs.grid(this)
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
+        ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
         Thread {
             val allVids = MediaLibrary.queryVideos(this)
             if (mode == "videos") {

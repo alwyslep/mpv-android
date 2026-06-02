@@ -430,6 +430,33 @@ object DurationHub {
     }
 }
 
+// 4 해상도: receiver GET /resolutions(code→resolution_h, jav_dl 가 m3u8 최고 variant 적재) 1회 캐시.
+// 실제 파일 height(v.height, MediaStore)가 기대보다 낮으면 저화질/부분 마커. SAF(height=0)는 비교 안 함.
+object ResolutionHub {
+    @Volatile private var map: Map<String, Int>? = null
+    fun get(code: String): Int? = map?.get(code.uppercase())
+    fun clear() { map = null }
+    fun fetchAsync(ctx: Context) {
+        if (map != null) return
+        val app = ctx.applicationContext
+        Thread {
+            try {
+                val url = URL(LibPrefs.hubUrl(app).trimEnd('/') + "/resolutions")
+                val con = url.openConnection() as HttpURLConnection
+                con.connectTimeout = 2000
+                con.readTimeout = 4000
+                val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                con.disconnect()
+                val d = JSONObject(text).optJSONObject("resolutions") ?: JSONObject()
+                val m = HashMap<String, Int>(d.length())
+                val keys = d.keys()
+                while (keys.hasNext()) { val k = keys.next(); m[k.uppercase()] = d.optInt(k) }
+                map = m
+            } catch (_: Throwable) {}
+        }.start()
+    }
+}
+
 // 재생 위치 저장 — 이어보기 + 타일 진행률. uri 별 {pos, dur} (ms).
 object Progress {
     private const val PREFS = "media_library"
