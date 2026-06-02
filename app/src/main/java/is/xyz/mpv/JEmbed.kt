@@ -1,12 +1,18 @@
 package `is`.xyz.mpv
 
 import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.IOException
 import java.io.RandomAccessFile
 import java.net.URL
 import java.nio.ByteBuffer
@@ -38,9 +44,20 @@ object JEmbed {
         Library.fetch(app, code) { rec ->
             if (rec == null) { ui { done(false, "hub 메타 없음: $code") }; return@fetch }
             Thread {
-                val msg = try { embedAtom(app, path, code, rec) }
-                          catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
-                ui { done(msg.startsWith("✓"), msg) }
+                val msg = try {
+                    var pre = ""
+                    if (isTs(path)) {
+                        // TS(.mp4 확장자) → mp4 remux 선행 (Android MediaExtractor/MediaMuxer, 재인코딩 없음)
+                        val tmp = "$path.remux.mp4"
+                        val r = remuxToMp4(path, tmp)
+                        if (!r.startsWith("✓")) { runCatching { File(tmp).delete() }; throw IOException(r) }
+                        if (!File(path).delete()) throw IOException("원본 TS 삭제 실패")
+                        if (!File(tmp).renameTo(File(path))) { File(tmp).copyTo(File(path), true); File(tmp).delete() }
+                        pre = "TS→mp4 remux + "
+                    }
+                    pre + embedAtom(app, path, code, rec)
+                } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
+                ui { done(msg.contains("✓"), msg) }
             }.start()
         }
     }
@@ -150,6 +167,59 @@ object JEmbed {
     private fun joinField(rec: JSONObject, key: String): String {
         rec.optJSONArray(key)?.let { a -> return (0 until a.length()).joinToString(", ") { a.optString(it) } }
         return rec.optString(key)
+    }
+
+    // 첫바이트 0x47 = MPEG-TS sync (확장자만 .mp4 인 레거시 TS 감지)
+    private fun isTs(path: String): Boolean =
+        try { RandomAccessFile(path, "r").use { it.read() == 0x47 } } catch (_: Throwable) { false }
+
+    // TS → mp4 remux. Android MediaExtractor/MediaMuxer, 샘플 복사(재인코딩 없음=빠름).
+    private fun remuxToMp4(srcPath: String, dstPath: String): String {
+        val ex = MediaExtractor()
+        try {
+            ex.setDataSource(srcPath)
+            val mux = MediaMuxer(dstPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
+            val map = HashMap<Int, Int>()
+            var maxInput = 1 shl 20
+            for (i in 0 until ex.trackCount) {
+                val fmt = ex.getTrackFormat(i)
+                val mime = fmt.getString(MediaFormat.KEY_MIME) ?: ""
+                if (!(mime.startsWith("video/") || mime.startsWith("audio/"))) continue
+                if (fmt.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE))
+                    maxInput = maxOf(maxInput, fmt.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE))
+                map[i] = mux.addTrack(fmt)
+                ex.selectTrack(i)
+            }
+            if (map.isEmpty()) { mux.release(); return "remux 실패: 트랙 없음" }
+            mux.start()
+            val buf = ByteBuffer.allocate(maxInput)
+            val info = MediaCodec.BufferInfo()
+            try {
+                while (true) {
+                    val sz = ex.readSampleData(buf, 0)
+                    if (sz < 0) break
+                    val tr = map[ex.sampleTrackIndex]
+                    val t = ex.sampleTime
+                    if (tr != null && t >= 0) {
+                        info.offset = 0
+                        info.size = sz
+                        info.presentationTimeUs = t
+                        info.flags = if (ex.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0)
+                            MediaCodec.BUFFER_FLAG_KEY_FRAME else 0
+                        mux.writeSampleData(tr, buf, info)
+                    }
+                    ex.advance()
+                }
+                mux.stop()
+            } finally {
+                mux.release()
+            }
+            return "✓remux"
+        } catch (e: Throwable) {
+            return "remux 실패: ${e.javaClass.simpleName}: ${e.message}"
+        } finally {
+            ex.release()
+        }
     }
 
     private fun pathFromUri(ctx: Context, uri: Uri): String? {
