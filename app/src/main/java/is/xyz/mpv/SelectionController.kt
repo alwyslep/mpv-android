@@ -44,10 +44,13 @@ class SelectionController(
 
     val isActive: Boolean get() = sel?.selectionMode == true
 
-    fun enter() {
+    // 임베드/이동 독립 진입 — 액션에 맞는 버튼만 노출(임베드 진입=임베드만, 이동 진입=이동만).
+    fun enter(showEmbed: Boolean = true, showMove: Boolean = true) {
         val a = sel
         if (a == null) { toast("'영상' 보기 모드 또는 폴더 안에서 선택하세요"); return }
         a.selectionMode = true; a.refreshSelection()
+        selBar.findViewById<View>(R.id.sel_embed)?.visibility = if (showEmbed) View.VISIBLE else View.GONE
+        selBar.findViewById<View>(R.id.sel_move)?.visibility = if (showMove) View.VISIBLE else View.GONE
         selBar.visibility = View.VISIBLE; update()
     }
 

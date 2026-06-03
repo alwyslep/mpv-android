@@ -57,6 +57,7 @@ class TreeActivity : AppCompatActivity() {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
         toolbar.menu.add(0, 4, 3, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        toolbar.menu.add(0, 5, 4, "이동").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
         MetaHub.fetchAsync(this)
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
@@ -70,8 +71,9 @@ class TreeActivity : AppCompatActivity() {
                 2 -> QuickSettings.show(this) {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
-                3 -> selCtl.enter()
+                3 -> selCtl.enter(showEmbed = true, showMove = false)
                 4 -> FilterSheet.show(this) { reload() }
+                5 -> selCtl.enter(showEmbed = false, showMove = true)
             }
             true
         }

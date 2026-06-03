@@ -31,6 +31,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     private lateinit var fabMenu: View
     private lateinit var selCtl: SelectionController   // jembed/이동 선택모드 (공통 컨트롤러)
     private var selMenuItem: MenuItem? = null
+    private var moveMenuItem: MenuItem? = null
     private var seeded = false   // 번들 스크립트/conf 시드 1회 플래그
 
     // 로컬/USB 폴더 1개 선택 → 내 SAF 타일 브라우저로 진입(OS 선택기 대신).
@@ -95,14 +96,16 @@ class MediaLibraryActivity : AppCompatActivity() {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
         toolbar.menu.add(0, 6, 4, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
                 4 -> startActivity(Intent(this, BrowseActivity::class.java))
                 3 -> QuickSettings.show(this) { load() }
                 1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
-                5 -> selCtl.enter()
+                5 -> selCtl.enter(showEmbed = true, showMove = false)
                 6 -> FilterSheet.show(this) { load() }
+                7 -> selCtl.enter(showEmbed = false, showMove = true)
             }
             true
         }
@@ -170,7 +173,9 @@ class MediaLibraryActivity : AppCompatActivity() {
     private fun load() {
         val mode = LibPrefs.viewMode(this)
         val grid = LibPrefs.grid(this)
-        selMenuItem?.isVisible = mode == "videos"   // 선택(임베드)은 영상 평면 모드만 (폴더/트리는 폴더 진입 후 선택)
+        val showSel = mode == "videos"   // 선택/이동은 영상 평면 모드만 (폴더/트리는 폴더 진입 후)
+        selMenuItem?.isVisible = showSel
+        moveMenuItem?.isVisible = showSel
         if (mode != "videos") { selCtl.exit(); selCtl.unbind() }
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
         ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
