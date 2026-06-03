@@ -2,6 +2,8 @@ package `is`.xyz.mpv
 
 import android.os.Bundle
 import android.view.MenuItem
+import android.view.View
+import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.GridLayoutManager
@@ -17,6 +19,7 @@ class FolderVideosActivity : AppCompatActivity() {
     private var grid = true
     private var toggleItem: MenuItem? = null
     private var folderPath = ""
+    private lateinit var selCtl: SelectionController
 
     private var pendingUri: String? = null
     private var playIndex = -1
@@ -52,6 +55,9 @@ class FolderVideosActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        toolbar.menu.add(0, 3, 2, "선택(임베드)").apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -64,11 +70,16 @@ class FolderVideosActivity : AppCompatActivity() {
                 2 -> QuickSettings.show(this) {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
+                3 -> selCtl.enter()
             }
             true
         }
 
         recycler = findViewById(R.id.recycler)
+        selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
+        findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
+        findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
+        findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }
         rebuild()
         reload()
     }
@@ -95,12 +106,19 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun rebuild() {
         recycler.layoutManager =
             if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
-        recycler.adapter = VideoAdapter(vids, grid) { v -> play(v) }
+        val va = VideoAdapter(vids, grid) { v -> play(v) }
+        selCtl.bind(va)
+        recycler.adapter = va
     }
 
     private fun play(v: Vid) {
         playIndex = vids.indexOfFirst { it.uri == v.uri }
         pendingUri = v.uri.toString()
         playLauncher.launch(Playback.intentFor(this, v.uri.toString(), v.name))
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (selCtl.isActive) selCtl.exit() else super.onBackPressed()
     }
 }

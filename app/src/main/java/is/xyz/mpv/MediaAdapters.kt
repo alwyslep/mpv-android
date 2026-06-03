@@ -63,7 +63,7 @@ class FolderAdapter(
 
 // P2: 비디오 카드 — 임베드 커버 + 길이 + 라벨(품번/한글제목 분리, 없으면 파일명) + 해상도·크기.
 class VideoAdapter(
-    private val items: List<Vid>,
+    val items: List<Vid>,
     private val grid: Boolean,
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>() {
