@@ -109,6 +109,7 @@ class TreeActivity : AppCompatActivity() {
     private fun spanCount(): Int = LibPrefs.spanCount(this)
 
     private fun rebuild() {
+        val savedScroll = recycler.layoutManager?.onSaveInstanceState()   // 0+1: 스크롤 위치 보존
         val span = spanCount()
         if (grid) {
             val glm = GridLayoutManager(this, span)
@@ -133,6 +134,7 @@ class TreeActivity : AppCompatActivity() {
         )
         selCtl.bind(ta)
         recycler.adapter = ta
+        recycler.layoutManager?.onRestoreInstanceState(savedScroll)
     }
 
     private fun play(v: Vid) {

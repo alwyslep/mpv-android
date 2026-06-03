@@ -173,6 +173,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     private fun load() {
         val mode = LibPrefs.viewMode(this)
         val grid = LibPrefs.grid(this)
+        val savedScroll = recycler.layoutManager?.onSaveInstanceState()  // 0+1: 스크롤 위치 보존(재생 복귀·갱신 시)
         val showSel = mode == "videos"   // 선택/이동은 영상 평면 모드만 (폴더/트리는 폴더 진입 후)
         selMenuItem?.isVisible = showSel
         moveMenuItem?.isVisible = showSel
@@ -194,6 +195,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                     val va = VideoAdapter(vids.toMutableList(), grid) { v -> play(v.uri.toString(), v.name) }
                     selCtl.bind(va)
                     recycler.adapter = va
+                    recycler.layoutManager?.onRestoreInstanceState(savedScroll)
                 }
             } else if (mode == "tree") {
                 val root = MediaLibrary.treeRoot(allVids)
@@ -222,6 +224,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                         },
                         onVideo = { e -> e.vid?.let { play(it.uri.toString(), it.name) } }
                     )
+                    recycler.layoutManager?.onRestoreInstanceState(savedScroll)
                 }
             } else {
                 // folder
@@ -238,6 +241,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                                 .putExtra("name", f.name)
                         )
                     }
+                    recycler.layoutManager?.onRestoreInstanceState(savedScroll)
                 }
             }
         }.start()

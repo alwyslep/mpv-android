@@ -112,9 +112,11 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun rebuild() {
         recycler.layoutManager =
             if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
+        val saved = recycler.layoutManager?.onSaveInstanceState()   // 0+1: 스크롤 위치 보존
         val va = VideoAdapter(vids.toMutableList(), grid) { v -> play(v) }
         selCtl.bind(va)
         recycler.adapter = va
+        recycler.layoutManager?.onRestoreInstanceState(saved)
     }
 
     private fun play(v: Vid) {
