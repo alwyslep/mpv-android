@@ -13,11 +13,6 @@
         <attr name="sync_default" format="string" />
     </declare-styleable>
 
-    <declare-styleable name="ConfigEditDialog">
-        <attr name="filename" format="string" />
-        <attr name="dialogMessage" format="string" />
-    </declare-styleable>
-
     <!-- Color to apply to separator for OK/Cancel buttons -->
     <attr name="nnf_separator_color" format="color"/>
     <!-- Drawable to use as a divider between list items (optional) -->
