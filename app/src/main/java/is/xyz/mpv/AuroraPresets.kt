@@ -44,6 +44,9 @@ object AuroraPresets {
         Eff("kaleidoscope", "만화경", "Kaleidoscope", 0.72f, 0.98f),
         Eff("gradientflow", "흐름", "Gradient Flow", 0.66f, 0.97f),
         Eff("plasma", "플라스마", "Plasma", 0.70f, 0.96f),
+        Eff("nebula", "성운", "Nebula", 0.60f, 0.95f),
+        Eff("bokeh", "보케", "Bokeh", 0.65f, 1.0f),
+        Eff("beam", "빔", "Beam", 0.72f, 0.98f),
     )
 
     private val SPEEDS = listOf(

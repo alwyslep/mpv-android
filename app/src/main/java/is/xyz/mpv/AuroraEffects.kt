@@ -33,6 +33,9 @@ object AuroraEffects {
         KaleidoscopeEffect,
         GradientFlowEffect,
         PlasmaEffect,
+        NebulaEffect,
+        BokehEffect,
+        BeamEffect,
     )
 
     private val map: Map<String, AuroraEffect> = ALL.associateBy { it.id }
@@ -383,5 +386,99 @@ object PlasmaEffect : AuroraEffect {
         s.paint.shader = null
         s.paint.isFilterBitmap = true
         canvas.drawBitmap(bmp, src, b, s.paint)
+    }
+}
+
+/** 성운 — 큰 글로우 구름 3겹이 아주 느리게 표류·중첩. 깊고 부드러운 분위기. */
+object NebulaEffect : AuroraEffect {
+    override val id = "nebula"
+    private const val N = 3
+    override fun draw(canvas: Canvas, b: Rect, tMs: Long, cfg: AuroraConfig, s: AuroraScratch) {
+        val span = max(b.width(), b.height()).toFloat()
+        val hueBase = AuroraMath.hueBase(tMs, cfg.huePeriodMs)
+        val t = tMs / 1000f
+        val a = AuroraMath.alpha(cfg, tMs)
+        for (i in 0 until N) {
+            val rgb = AuroraMath.hsv(s, hueBase + i * (360f / N), cfg.sat, cfg.value, a)
+            val fx = 0.30f + 0.40f * sin(t * 0.05f + i * 2.1f)
+            val fy = 0.35f + 0.35f * cos(t * 0.04f + i * 1.3f)
+            val cx = b.left + fx * b.width()
+            val cy = b.top + fy * b.height()
+            val r = (1.0f + 0.25f * sin(t * 0.03f + i)) * span
+            if (r <= 0f) continue
+            s.paint.shader = RadialGradient(
+                cx, cy, r,
+                intArrayOf(
+                    AuroraMath.withAlpha(rgb, a, 0.85f),
+                    AuroraMath.withAlpha(rgb, a, 0.4f),
+                    AuroraMath.withAlpha(rgb, a, 0.12f),
+                    AuroraMath.withAlpha(rgb, a, 0f),
+                ),
+                floatArrayOf(0f, 0.4f, 0.7f, 1f),
+                Shader.TileMode.CLAMP,
+            )
+            canvas.drawRect(b, s.paint)
+        }
+    }
+}
+
+/** 보케 — 작은 빛망울 다수가 부드럽게 부유(다양한 크기). */
+object BokehEffect : AuroraEffect {
+    override val id = "bokeh"
+    private const val N = 9
+    override fun draw(canvas: Canvas, b: Rect, tMs: Long, cfg: AuroraConfig, s: AuroraScratch) {
+        val span = max(b.width(), b.height()).toFloat()
+        val hueBase = AuroraMath.hueBase(tMs, cfg.huePeriodMs)
+        val t = tMs / 1000f
+        val a = AuroraMath.alpha(cfg, tMs)
+        for (i in 0 until N) {
+            val rgb = AuroraMath.hsv(s, hueBase + i * (360f / N), cfg.sat, cfg.value, a)
+            val ph = t * 0.06f + i * 0.8f
+            val fx = (i + 0.5f) / N + 0.06f * sin(ph * 1.3f + i)
+            val fy = 0.5f + 0.42f * sin(ph + i * 1.7f)
+            val cx = b.left + fx * b.width()
+            val cy = b.top + fy * b.height()
+            val r = (0.10f + 0.05f * (i % 3)) * span
+            if (r <= 0f) continue
+            s.paint.shader = RadialGradient(
+                cx, cy, r,
+                intArrayOf(
+                    AuroraMath.withAlpha(rgb, a, 0.9f),
+                    AuroraMath.withAlpha(rgb, a, 0.3f),
+                    AuroraMath.withAlpha(rgb, a, 0f),
+                ),
+                floatArrayOf(0f, 0.6f, 1f),
+                Shader.TileMode.CLAMP,
+            )
+            canvas.drawCircle(cx, cy, r, s.paint)
+        }
+    }
+}
+
+/** 빔 — 중심에서 방사하는 광선(SweepGradient)이 천천히 회전. */
+object BeamEffect : AuroraEffect {
+    override val id = "beam"
+    private const val N = 12
+    override fun draw(canvas: Canvas, b: Rect, tMs: Long, cfg: AuroraConfig, s: AuroraScratch) {
+        val hueBase = AuroraMath.hueBase(tMs, cfg.huePeriodMs)
+        val t = tMs / 1000f
+        val a = AuroraMath.alpha(cfg, tMs)
+        val cx = b.exactCenterX(); val cy = b.exactCenterY()
+        val colors = IntArray(N * 2 + 1)
+        val pos = FloatArray(N * 2 + 1)
+        for (k in 0 until N) {
+            val rgb = AuroraMath.hsv(s, hueBase + k * (360f / N), cfg.sat, cfg.value, a)
+            colors[2 * k] = AuroraMath.withAlpha(rgb, a, 0.7f)     // 광선 중심
+            colors[2 * k + 1] = AuroraMath.withAlpha(rgb, a, 0f)   // 광선 사이
+            pos[2 * k] = k / N.toFloat()
+            pos[2 * k + 1] = (k + 0.5f) / N
+        }
+        colors[N * 2] = colors[0]; pos[N * 2] = 1f
+        val sweep = SweepGradient(cx, cy, colors, pos)
+        val m = android.graphics.Matrix()
+        m.setRotate(t * 6f, cx, cy)
+        sweep.setLocalMatrix(m)
+        s.paint.shader = sweep
+        canvas.drawRect(b, s.paint)
     }
 }
