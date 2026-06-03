@@ -260,6 +260,10 @@ class PreferenceActivity : AppCompatActivity(),
                 startActivity(android.content.Intent(requireContext(), `is`.xyz.mpv.ScriptsActivity::class.java))
                 true
             }
+            findPreference<Preference>("data_backup")?.setOnPreferenceClickListener {
+                startActivity(android.content.Intent(requireContext(), `is`.xyz.mpv.DataBackupActivity::class.java))
+                true
+            }
         }
     }
 

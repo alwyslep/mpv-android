@@ -247,6 +247,12 @@
             android:exported="false" />
 
         <activity
+            android:name=".DataBackupActivity"
+            android:configChanges="orientation|screenSize"
+            android:theme="@style/MediaLibraryTheme"
+            android:exported="false" />
+
+        <activity
             android:name=".SearchActivity"
             android:configChanges="orientation|screenSize"
             android:theme="@style/MediaLibraryTheme"

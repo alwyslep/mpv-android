@@ -14,4 +14,10 @@
         android:title="mpv 설정 · 스크립트 관리"
         android:summary="mpv.conf·input.conf·스크립트(.lua/.js) — URL/파일/직접입력 추가, 편집·토글·삭제, GitHub 동기화 (/sdcard/mpv)" />
 
+    <Preference
+        app:iconSpaceReserved="false"
+        app:key="data_backup"
+        android:title="데이터 백업 · 복원"
+        android:summary="재생위치·트랙·평점·즐겨찾기·장면 썸네일 백업/복원/병합 (품번 기준, 기기 무관)" />
+
 </PreferenceScreen>

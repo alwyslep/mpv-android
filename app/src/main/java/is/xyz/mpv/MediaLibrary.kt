@@ -709,6 +709,44 @@ object Ratings {
     }
 }
 
+// 3: 라이브러리 데이터(재생위치/트랙/평점/찜/장면지정) 백업·복원·병합 — 품번/파일명 키라 기기·이동 무관.
+object CacheBackup {
+    private const val PREFS = "media_library"
+    private val MAPS = listOf("progress_v1", "tracks_v1", "ratings_v1")  // String JSON object
+
+    fun export(ctx: Context): String {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val o = JSONObject()
+        for (k in MAPS) o.put(k, p.getString(k, "{}"))
+        o.put("favorites_v1", org.json.JSONArray((p.getStringSet("favorites_v1", emptySet()) ?: emptySet()).toList()))
+        val ct = JSONObject()
+        p.all.forEach { (k, v) -> if (k.startsWith("cthumb_") && v is Long) ct.put(k, v) }
+        o.put("cthumb", ct)
+        return o.toString(2)
+    }
+
+    // merge=false: 덮어쓰기(복원). merge=true: 기존과 합치기(겹치면 가져온 값 우선).
+    fun import(ctx: Context, json: String, merge: Boolean): Boolean = try {
+        val o = JSONObject(json)
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        val e = p.edit()
+        for (k in MAPS) {
+            val inc = JSONObject(o.optString(k, "{}"))
+            if (merge) {
+                val cur = JSONObject(p.getString(k, "{}"))
+                val it = inc.keys(); while (it.hasNext()) { val kk = it.next(); cur.put(kk, inc.get(kk)) }
+                e.putString(k, cur.toString())
+            } else e.putString(k, inc.toString())
+        }
+        val arr = o.optJSONArray("favorites_v1")
+        val incFav = if (arr != null) (0 until arr.length()).map { arr.getString(it) }.toSet() else emptySet()
+        e.putStringSet("favorites_v1", if (merge) (p.getStringSet("favorites_v1", emptySet()) ?: emptySet()) + incFav else incFav)
+        o.optJSONObject("cthumb")?.let { ct -> val it = ct.keys(); while (it.hasNext()) { val kk = it.next(); e.putLong(kk, ct.getLong(kk)) } }
+        e.apply()
+        true
+    } catch (_: Throwable) { false }
+}
+
 // B-56(통합 라이브러리 2단계): 시청/평가(review)를 통합 허브(receiver /review)로 push.
 //   로컬 저장은 uri 키 유지(동작 중 UI 무손상), 허브엔 품번(code) 키로 전송(경계 변환).
 //   code 못 구하면 skip. 백그라운드 스레드 fire-and-forget — 오프라인/허브다운 무시
