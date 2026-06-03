@@ -50,6 +50,7 @@ class PreferenceActivity : AppCompatActivity(),
             )
         }
         setContentView(frameLayout)
+        `is`.xyz.mpv.AuroraDrawable.apply(this)   // 설정 화면 배경 = 오로라 (슬라이더 라이브 미리보기)
         supportActionBar?.elevation = 0F
         ViewCompat.setOnApplyWindowInsetsListener(frameLayout) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -134,6 +135,9 @@ class PreferenceActivity : AppCompatActivity(),
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
+        if (key != null && key.startsWith("aurora_")) {   // 오로라 값 변경 → 배경 즉시 재적용(라이브 미리보기)
+            `is`.xyz.mpv.AuroraDrawable.apply(this); return
+        }
         if (key != "material_you_theming") return
         if (sharedPreferences.getBoolean(key, false))
             DynamicColors.applyToActivityIfAvailable(this)

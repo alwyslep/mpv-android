@@ -79,6 +79,36 @@
             android:title="@string/pref_aurora_pulse_depth_title"
             android:summary="@string/pref_aurora_pulse_depth_summary" />
 
+        <SeekBarPreference
+            app:iconSpaceReserved="false"
+            app:showSeekBarValue="true"
+            android:key="aurora_sat"
+            android:defaultValue="75"
+            android:max="100"
+            android:dependency="aurora_enabled"
+            android:title="채도"
+            android:summary="색의 진하기 (0=흑백, 100=원색)" />
+
+        <SeekBarPreference
+            app:iconSpaceReserved="false"
+            app:showSeekBarValue="true"
+            android:key="aurora_value"
+            android:defaultValue="90"
+            android:max="100"
+            android:dependency="aurora_enabled"
+            android:title="명도"
+            android:summary="밝기 (낮을수록 어둡게)" />
+
+        <SeekBarPreference
+            app:iconSpaceReserved="false"
+            app:showSeekBarValue="true"
+            android:key="aurora_glow"
+            android:defaultValue="38"
+            android:max="100"
+            android:dependency="aurora_enabled"
+            android:title="글로우 세기"
+            android:summary="배경 빛의 불투명도 (낮을수록 은은)" />
+
     </PreferenceCategory>
 
 </PreferenceScreen>

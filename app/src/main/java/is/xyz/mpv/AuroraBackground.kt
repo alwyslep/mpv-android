@@ -140,6 +140,9 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
         const val KEY_PRESET = "aurora_preset"          // AuroraPresets.id (효과+분위기 60종)
         const val KEY_SPEED = "aurora_speed"            // 25~400 (%) 전역 속도 배율
         const val KEY_PULSE_DEPTH = "aurora_pulse_depth" // 0~100(%) 검정 맥동 깊이 override
+        const val KEY_SAT = "aurora_sat"     // 0~100 채도 (전역, preset 대체)
+        const val KEY_VALUE = "aurora_value" // 0~100 명도 (전역)
+        const val KEY_GLOW = "aurora_glow"   // 10~100 글로우 세기(%) → baseAlpha
 
         // ── 기본값 ──
         const val DEF_PRESET = AuroraPresets.DEFAULT_ID
@@ -161,9 +164,10 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
                 huePeriodMs = (preset.hueSec * 1000f / scale).toLong().coerceAtLeast(500L),
                 pulsePeriodMs = (preset.pulseSec * 1000f / scale).toLong().coerceAtLeast(300L),
                 pulseDepth = depthPct / 100f,
-                sat = preset.sat,
-                value = preset.value,
-                baseAlpha = 0x60,
+                // 채도·명도·글로우는 전역 슬라이더(없으면 preset 기본). preset 은 효과·색속도·맥동에 집중.
+                sat = intPref(KEY_SAT, (preset.sat * 100).toInt()).coerceIn(0, 100) / 100f,
+                value = intPref(KEY_VALUE, (preset.value * 100).toInt()).coerceIn(0, 100) / 100f,
+                baseAlpha = (intPref(KEY_GLOW, 38).coerceIn(10, 100) * 255 / 100),
             )
         }
 
