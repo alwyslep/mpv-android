@@ -106,6 +106,40 @@ internal object Utils {
         File("$configDir/subfont.ttf").delete()
 
         writeFontsConf(context, File("$configDir/fonts.conf"))
+        seedConfig(context)
+    }
+
+    /**
+     * 번들된 기본 mpv 설정/스크립트(assets/mpv-config/) 를 config-dir 로 시드.
+     * **대상 파일이 없을 때만** 복사 → 사용자가 수정·삭제 후 다시 넣은 커스텀은 보존,
+     * /sdcard/mpv 통째 삭제 시엔 기본 세트 자동 복원. 하위 디렉토리(scripts/) 재귀.
+     */
+    fun seedConfig(context: Context) {
+        seedDir(context.assets, "mpv-config", mpvConfigDir().also { it.mkdirs() }.path)
+    }
+
+    private fun seedDir(am: AssetManager, assetPath: String, destDir: String) {
+        val entries = am.list(assetPath) ?: return
+        File(destDir).mkdirs()
+        for (e in entries) {
+            val child = "$assetPath/$e"
+            val sub = am.list(child)
+            if (sub != null && sub.isNotEmpty()) {
+                seedDir(am, child, "$destDir/$e")          // 하위 디렉토리(scripts)
+            } else {
+                val out = File(destDir, e)
+                if (!out.exists()) {                        // 없을 때만 — 사용자 커스텀 보존
+                    try {
+                        am.open(child, AssetManager.ACCESS_STREAMING).use { ins ->
+                            FileOutputStream(out).use { ins.copyTo(it) }
+                        }
+                        Log.w(TAG, "Seeded config file: $child")
+                    } catch (e2: IOException) {
+                        Log.e(TAG, "Failed to seed: $child", e2)
+                    }
+                }
+            }
+        }
     }
 
     fun findRealPath(fd: Int): String? {

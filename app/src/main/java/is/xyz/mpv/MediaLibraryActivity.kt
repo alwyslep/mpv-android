@@ -31,6 +31,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     private lateinit var fabMenu: View
     private lateinit var selCtl: SelectionController   // jembed/이동 선택모드 (공통 컨트롤러)
     private var selMenuItem: MenuItem? = null
+    private var seeded = false   // 번들 스크립트/conf 시드 1회 플래그
 
     // 로컬/USB 폴더 1개 선택 → 내 SAF 타일 브라우저로 진입(OS 선택기 대신).
     private val openTree =
@@ -171,6 +172,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
         ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
         Thread {
+            if (!seeded) { Utils.seedConfig(this); seeded = true }   // 번들 기본 스크립트/conf 복원(없을 때만)
             val allVids = MediaLibrary.queryVideos(this)
             if (mode == "videos") {
                 var vids = LibPrefs.sortVids(this, allVids).filter { LibPrefs.passWatch(this, it.uri.toString()) }
