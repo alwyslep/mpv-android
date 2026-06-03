@@ -16,10 +16,19 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import java.io.File
 
+/** 선택모드를 지원하는 어댑터 공통 계약 — VideoAdapter·TreeAdapter 가 구현. */
+interface SelectableVids {
+    var selectionMode: Boolean
+    val selected: LinkedHashSet<String>
+    var onSelectionChanged: (() -> Unit)?
+    fun selectableVids(): List<Vid>   // uri→Vid lookup 용 (영상만)
+    fun refreshSelection()            // notifyDataSetChanged
+}
+
 /**
- * jembed/이동 선택모드 공통 컨트롤러 — MediaLibraryActivity·FolderVideosActivity 가 공유.
+ * jembed/이동 선택모드 공통 컨트롤러 — MediaLibraryActivity·FolderVideosActivity·TreeActivity 가 공유.
  * 화면이 어댑터를 만들 때 bind(), sel_bar 버튼을 enter/embedBatch/moveBatch/exit 에 연결.
- * 품번/이름은 adapter.items(Vid)에서 직접 추출 — 각 화면의 별도 목록 의존 제거.
+ * 품번/이름은 어댑터의 selectableVids(Vid)에서 직접 추출 — 각 화면의 별도 목록 의존 제거.
  */
 class SelectionController(
     private val act: AppCompatActivity,
@@ -27,34 +36,34 @@ class SelectionController(
     private val selCount: TextView,
     private val onReload: () -> Unit
 ) {
-    var adapter: VideoAdapter? = null
+    var sel: SelectableVids? = null
         private set
 
-    fun bind(a: VideoAdapter) { adapter = a; a.onSelectionChanged = { update() } }
-    fun unbind() { adapter = null }
+    fun bind(a: SelectableVids) { sel = a; a.onSelectionChanged = { update() } }
+    fun unbind() { sel = null }
 
-    val isActive: Boolean get() = adapter?.selectionMode == true
+    val isActive: Boolean get() = sel?.selectionMode == true
 
     fun enter() {
-        val a = adapter
+        val a = sel
         if (a == null) { toast("'영상' 보기 모드 또는 폴더 안에서 선택하세요"); return }
-        a.selectionMode = true; a.notifyDataSetChanged()
+        a.selectionMode = true; a.refreshSelection()
         selBar.visibility = View.VISIBLE; update()
     }
 
     fun exit() {
-        adapter?.let { it.selectionMode = false; it.selected.clear(); it.notifyDataSetChanged() }
+        sel?.let { it.selectionMode = false; it.selected.clear(); it.refreshSelection() }
         selBar.visibility = View.GONE
     }
 
-    fun update() { selCount.text = "${adapter?.selected?.size ?: 0}개 선택" }
+    fun update() { selCount.text = "${sel?.selected?.size ?: 0}개 선택" }
 
-    private fun vidOf(u: String): Vid? = adapter?.items?.find { it.uri.toString() == u }
+    private fun vidOf(u: String): Vid? = sel?.selectableVids()?.find { it.uri.toString() == u }
     private fun toast(m: String) = Toast.makeText(act, m, Toast.LENGTH_SHORT).show()
 
     // ─── 배치 임베드 ───
     fun embedBatch() {
-        val a = adapter ?: return
+        val a = sel ?: return
         val items = a.selected.toList().mapNotNull { u ->
             val name = vidOf(u)?.name ?: return@mapNotNull null
             val code = Regex("([A-Za-z]{2,7}-\\d{2,5})").find(name)?.value?.uppercase() ?: return@mapNotNull null
@@ -83,7 +92,7 @@ class SelectionController(
 
     // ─── 배치 이동 ───
     fun moveBatch() {
-        val a = adapter ?: return
+        val a = sel ?: return
         val items = a.selected.toList().mapNotNull { u -> vidOf(u)?.let { Uri.parse(u) to it.name } }
         if (items.isEmpty()) { toast("선택 없음"); return }
         pickFolder(

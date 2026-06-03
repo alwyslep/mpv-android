@@ -23,6 +23,7 @@ class TreeActivity : AppCompatActivity() {
     private var grid = true
     private var toggleItem: MenuItem? = null
     private var pendingUri: String? = null
+    private lateinit var selCtl: SelectionController
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
@@ -52,6 +53,9 @@ class TreeActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        toolbar.menu.add(0, 3, 2, "선택(임베드)").apply {
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -64,11 +68,16 @@ class TreeActivity : AppCompatActivity() {
                 2 -> QuickSettings.show(this) {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
+                3 -> selCtl.enter()
             }
             true
         }
 
         recycler = findViewById(R.id.recycler)
+        selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
+        findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
+        findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
+        findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }
         rebuild()
         reload()
     }
@@ -105,7 +114,7 @@ class TreeActivity : AppCompatActivity() {
         } else {
             recycler.layoutManager = LinearLayoutManager(this)
         }
-        recycler.adapter = TreeAdapter(
+        val ta = TreeAdapter(
             entries, grid,
             onDir = { e ->
                 startActivity(
@@ -116,11 +125,18 @@ class TreeActivity : AppCompatActivity() {
             },
             onVideo = { e -> e.vid?.let { play(it) } }
         )
+        selCtl.bind(ta)
+        recycler.adapter = ta
     }
 
     private fun play(v: Vid) {
         pendingUri = v.uri.toString()
         playLauncher.launch(Playback.intentFor(this, v.uri.toString(), v.name))
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (selCtl.isActive) selCtl.exit() else super.onBackPressed()
     }
 }
 
@@ -129,7 +145,13 @@ class TreeAdapter(
     private val grid: Boolean,
     private val onDir: (TreeEntry) -> Unit,
     private val onVideo: (TreeEntry) -> Unit
-) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>(), SelectableVids {
+
+    override var selectionMode = false
+    override val selected = LinkedHashSet<String>()
+    override var onSelectionChanged: (() -> Unit)? = null
+    override fun selectableVids(): List<Vid> = items.mapNotNull { it.vid }
+    override fun refreshSelection() { notifyDataSetChanged() }
 
     private val typeDir = 0
     private val typeVid = 1
@@ -146,6 +168,7 @@ class TreeAdapter(
         val code: TextView = v.findViewById(R.id.code)
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
+        val check: android.widget.CheckBox? = v.findViewById(R.id.check)
     }
 
     override fun getItemViewType(position: Int) =
@@ -189,7 +212,16 @@ class TreeAdapter(
                 h.progress.visibility = View.GONE
             }
             ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
-            h.itemView.setOnClickListener { onVideo(e) }
+            val us = v.uri.toString()
+            h.check?.visibility = if (selectionMode) View.VISIBLE else View.GONE
+            h.check?.isChecked = selected.contains(us)
+            h.itemView.setOnClickListener {
+                if (selectionMode) {
+                    if (!selected.remove(us)) selected.add(us)
+                    notifyItemChanged(h.bindingAdapterPosition)
+                    onSelectionChanged?.invoke()
+                } else onVideo(e)
+            }
             h.itemView.setOnLongClickListener {
                 VideoActions.longPress(it, v.uri.toString(), v.name) { notifyItemChanged(h.bindingAdapterPosition) }
                 true

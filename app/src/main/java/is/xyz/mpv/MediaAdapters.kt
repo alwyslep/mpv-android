@@ -66,12 +66,14 @@ class VideoAdapter(
     val items: List<Vid>,
     private val grid: Boolean,
     private val onClick: (Vid) -> Unit
-) : RecyclerView.Adapter<VideoAdapter.VH>() {
+) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
 
     // jembed 선택모드 — 체크박스 다중선택
-    var selectionMode = false
-    val selected = LinkedHashSet<String>()
-    var onSelectionChanged: (() -> Unit)? = null
+    override var selectionMode = false
+    override val selected = LinkedHashSet<String>()
+    override var onSelectionChanged: (() -> Unit)? = null
+    override fun selectableVids(): List<Vid> = items
+    override fun refreshSelection() { notifyDataSetChanged() }
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val thumbBox: View = v.findViewById(R.id.thumb_box)
