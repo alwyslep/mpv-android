@@ -8,22 +8,10 @@
         android:summary="@string/pref_gpu_next_summary"
         android:title="@string/pref_gpu_next_title" />
 
-    <is.xyz.mpv.preferences.ConfigEditDialogPreference
-        app:iconSpaceReserved="false"
-        app:filename="mpv.conf"
-        android:title="@string/pref_edit_mpv_conf"
-        app:dialogMessage="@string/pref_edit_mpv_conf_message" />
-
-    <is.xyz.mpv.preferences.ConfigEditDialogPreference
-        app:iconSpaceReserved="false"
-        app:filename="input.conf"
-        android:title="@string/pref_edit_input_conf"
-        app:dialogMessage="@string/pref_edit_input_conf_message" />
-
     <Preference
         app:iconSpaceReserved="false"
         app:key="manage_scripts"
-        android:title="스크립트 (.lua/.js) 관리"
-        android:summary="유저스크립트 추가/켜기/삭제 (/sdcard/mpv/scripts)" />
+        android:title="mpv 설정 · 스크립트 관리"
+        android:summary="mpv.conf·input.conf·스크립트(.lua/.js) — URL/파일/직접입력 추가, 편집·토글·삭제, GitHub 동기화 (/sdcard/mpv)" />
 
 </PreferenceScreen>
