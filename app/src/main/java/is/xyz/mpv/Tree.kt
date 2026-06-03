@@ -121,7 +121,7 @@ class TreeActivity : AppCompatActivity() {
             recycler.layoutManager = LinearLayoutManager(this)
         }
         val ta = TreeAdapter(
-            entries, grid,
+            entries.toMutableList(), grid,
             onDir = { e ->
                 startActivity(
                     android.content.Intent(this, TreeActivity::class.java)
@@ -147,7 +147,7 @@ class TreeActivity : AppCompatActivity() {
 }
 
 class TreeAdapter(
-    private val items: List<TreeEntry>,
+    private val items: MutableList<TreeEntry>,
     private val grid: Boolean,
     private val onDir: (TreeEntry) -> Unit,
     private val onVideo: (TreeEntry) -> Unit
@@ -158,6 +158,11 @@ class TreeAdapter(
     override var onSelectionChanged: (() -> Unit)? = null
     override fun selectableVids(): List<Vid> = items.mapNotNull { it.vid }
     override fun refreshSelection() { notifyDataSetChanged() }
+    override fun notifyItem(uri: String) { val i = items.indexOfFirst { it.vid?.uri?.toString() == uri }; if (i >= 0) notifyItemChanged(i) }
+    override fun removeItem(uri: String) {
+        val i = items.indexOfFirst { it.vid?.uri?.toString() == uri }
+        if (i >= 0) { items.removeAt(i); selected.remove(uri); notifyItemRemoved(i) }
+    }
 
     private val typeDir = 0
     private val typeVid = 1

@@ -24,7 +24,8 @@ object JMove {
         items: List<Pair<Uri, String>>,   // (uri, displayName)
         destDir: String,                  // 내부저장소 절대경로 폴더
         onProgress: (idx: Int, total: Int, name: String) -> Unit,
-        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit
+        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
+        onItemMoved: (uri: Uri) -> Unit = {}
     ) {
         val app = ctx.applicationContext
         Thread {
@@ -45,7 +46,7 @@ object JMove {
                         if (dst.absolutePath == sf.absolutePath) { fails.add("$name: 같은 위치"); continue }
                         if (dst.exists()) { fails.add("$name: 대상에 동일 파일 존재"); continue }
                         val moved = sf.renameTo(dst) || run { sf.copyTo(dst, overwrite = false); sf.delete() }
-                        if (moved) { ok++; scan.add(src); scan.add(dst.absolutePath) }
+                        if (moved) { ok++; scan.add(src); scan.add(dst.absolutePath); ui { onItemMoved(uri) } }
                         else fails.add("$name: 이동 실패")
                     } else {
                         // 외부저장소(SAF) → 내부 대상: 스트림 복사 + 원본 SAF 삭제
@@ -57,7 +58,7 @@ object JMove {
                         if (!copied) { runCatching { dst.delete() }; fails.add("$name: SAF 복사 실패"); continue }
                         val deleted = try { DocumentsContract.deleteDocument(app.contentResolver, uri) } catch (e: Throwable) { false }
                         scan.add(dst.absolutePath)
-                        if (deleted) ok++ else fails.add("$name: 복사됨·원본 SAF 삭제 실패(수동 삭제 필요)")
+                        if (deleted) { ok++; ui { onItemMoved(uri) } } else fails.add("$name: 복사됨·원본 SAF 삭제 실패(수동 삭제 필요)")
                     }
                 } catch (e: Throwable) { fails.add("$name: ${e.javaClass.simpleName}: ${e.message}") }
             }
@@ -70,7 +71,8 @@ object JMove {
     fun moveToSaf(
         ctx: Context, items: List<Pair<Uri, String>>, destDir: DocumentFile,
         onProgress: (idx: Int, total: Int, name: String) -> Unit,
-        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit
+        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
+        onItemMoved: (uri: Uri) -> Unit = {}
     ) {
         val app = ctx.applicationContext
         Thread {
@@ -90,7 +92,7 @@ object JMove {
                             val moved = try {
                                 DocumentsContract.moveDocument(app.contentResolver, uri, parent, destDir.uri) != null
                             } catch (_: Throwable) { false }
-                            if (moved) { ok++; continue }
+                            if (moved) { ok++; ui { onItemMoved(uri) }; continue }
                         }
                     }
                     // ② fallback: 복사 + 원본 삭제 (내부→SAF, 다른 드라이브, moveDocument 불가 시)
@@ -104,7 +106,7 @@ object JMove {
                     if (!copied) { runCatching { outDoc.delete() }; fails.add("$name: 복사 실패"); continue }
                     if (src != null) { File(src).delete(); scan.add(src) }
                     else runCatching { DocumentsContract.deleteDocument(app.contentResolver, uri) }
-                    ok++
+                    ok++; ui { onItemMoved(uri) }
                 } catch (e: Throwable) { fails.add("$name: ${e.javaClass.simpleName}: ${e.message}") }
             }
             if (scan.isNotEmpty()) runCatching { MediaScannerConnection.scanFile(app, scan.toTypedArray(), null, null) }

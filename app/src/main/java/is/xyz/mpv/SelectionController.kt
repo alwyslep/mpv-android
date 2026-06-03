@@ -23,6 +23,8 @@ interface SelectableVids {
     var onSelectionChanged: (() -> Unit)?
     fun selectableVids(): List<Vid>   // uri→Vid lookup 용 (영상만)
     fun refreshSelection()            // notifyDataSetChanged
+    fun notifyItem(uri: String)       // 항목 1개 갱신 — 임베드 완료 시 그 타일 썸네일 즉시 반영
+    fun removeItem(uri: String)       // 항목 1개 제거 — 이동 완료 시 목록에서 즉시 사라짐
 }
 
 /**
@@ -74,6 +76,15 @@ class SelectionController(
     private fun vidOf(u: String): Vid? = sel?.selectableVids()?.find { it.uri.toString() == u }
     private fun toast(m: String) = Toast.makeText(act, m, Toast.LENGTH_SHORT).show()
 
+    // 진행 다이얼로그를 비모달로 — 배경(목록) 터치/스크롤이 다이얼로그 너머로 통과, dim 제거, 하단 배치.
+    private fun nonModal(dlg: androidx.appcompat.app.AlertDialog) {
+        dlg.window?.apply {
+            setGravity(android.view.Gravity.BOTTOM)
+            clearFlags(android.view.WindowManager.LayoutParams.FLAG_DIM_BEHIND)
+            addFlags(android.view.WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL)
+        }
+    }
+
     // ─── 배치 임베드 ───
     fun embedBatch() {
         val a = sel ?: return
@@ -96,7 +107,7 @@ class SelectionController(
         btnCancel.setOnClickListener {
             cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 작품 완료 후)"
         }
-        dlg.show()
+        dlg.show(); nonModal(dlg)
         JEmbed.embedBatch(act, items,
             onProgress = { idx, total, code, stage, pct ->
                 tv.text = "전체 ${idx + 1}/$total"
@@ -111,7 +122,8 @@ class SelectionController(
                     if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
                 Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
             },
-            cancel = { cancelled.get() })
+            cancel = { cancelled.get() },
+            onItemDone = { uri, success -> if (success) sel?.notifyItem(uri.toString()) })   // 작품별 썸네일 즉시 반영
     }
 
     // ─── 배치 이동 ───
@@ -120,8 +132,8 @@ class SelectionController(
         val items = a.selected.toList().mapNotNull { u -> vidOf(u)?.let { Uri.parse(u) to it.name } }
         if (items.isEmpty()) { toast("선택 없음"); return }
         pickFolder(
-            onInternal = { dir -> runMoveProgress(items) { onP, onD -> JMove.move(act, items, dir, onP, onD) } },
-            onSaf = { doc -> runMoveProgress(items) { onP, onD -> JMove.moveToSaf(act, items, doc, onP, onD) } }
+            onInternal = { dir -> runMoveProgress(items) { onP, onD -> JMove.move(act, items, dir, onP, onD) { u -> sel?.removeItem(u.toString()) } } },
+            onSaf = { doc -> runMoveProgress(items) { onP, onD -> JMove.moveToSaf(act, items, doc, onP, onD) { u -> sel?.removeItem(u.toString()) } } }
         )
     }
 
@@ -135,7 +147,7 @@ class SelectionController(
         ll.addView(tv); ll.addView(pb)
         val dlg = MaterialAlertDialogBuilder(act)
             .setTitle("이동 중 (${items.size}개)").setView(ll).setCancelable(false).create()
-        dlg.show()
+        dlg.show(); nonModal(dlg)
         mover({ idx, _, name -> tv.text = "${idx + 1}/${items.size}   $name"; pb.progress = idx },
             { ok, fail, fails ->
                 dlg.dismiss(); exit(); onReload()

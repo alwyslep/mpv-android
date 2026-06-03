@@ -17,6 +17,17 @@ android {
         vectorDrawables.useSupportLibrary = true
     }
 
+    // 고정 debug 서명 — repo 의 debug.keystore 사용. CI runner 마다 keystore 가 달라
+    // 서명이 바뀌면 재설치(설정·썸네일 캐시 소실)가 강제되던 문제 해결 → 동일 서명 = 업데이트 설치(데이터 유지).
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
     flavorDimensions "default"
     productFlavors {
         "default" {

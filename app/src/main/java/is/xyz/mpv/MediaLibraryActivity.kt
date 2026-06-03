@@ -191,7 +191,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                     empty.visibility = if (vids.isEmpty()) View.VISIBLE else View.GONE
                     recycler.layoutManager =
                         if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
-                    val va = VideoAdapter(vids, grid) { v -> play(v.uri.toString(), v.name) }
+                    val va = VideoAdapter(vids.toMutableList(), grid) { v -> play(v.uri.toString(), v.name) }
                     selCtl.bind(va)
                     recycler.adapter = va
                 }

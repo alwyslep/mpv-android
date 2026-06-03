@@ -66,7 +66,8 @@ object JEmbed {
         items: List<Pair<Uri, String>>,
         onProgress: (idx: Int, total: Int, name: String, stage: String, pct: Int) -> Unit,
         onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
-        cancel: () -> Boolean = { false }
+        cancel: () -> Boolean = { false },
+        onItemDone: (uri: Uri, ok: Boolean) -> Unit = { _, _ -> }
     ) {
         val app = ctx.applicationContext
         Thread {
@@ -76,9 +77,9 @@ object JEmbed {
                 if (cancel()) break   // graceful: 현재 작품 시작 전 중단 (진행 중 작품은 끝까지)
                 val (uri, code) = pair
                 ui { onProgress(i, items.size, code, "준비", 0) }
-                if (code.isBlank()) { fails.add("$code: 품번 없음"); continue }
+                if (code.isBlank()) { fails.add("$code: 품번 없음"); ui { onItemDone(uri, false) }; continue }
                 val rec = Library.fetchSync(app, code)
-                if (rec == null) { fails.add("$code: hub 메타 없음"); continue }
+                if (rec == null) { fails.add("$code: hub 메타 없음"); ui { onItemDone(uri, false) }; continue }
                 val msg = try {
                     processOne(app, uri, code, rec) { stage, pct -> ui { onProgress(i, items.size, code, stage, pct) } }
                 } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
@@ -87,7 +88,8 @@ object JEmbed {
                     ThumbLoader.invalidate(app, uri)
                     val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
                     if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
-                } else fails.add("$code: $msg")
+                    ui { onItemDone(uri, true) }   // 이 작품 완료 → 해당 타일 썸네일 즉시 반영
+                } else { fails.add("$code: $msg"); ui { onItemDone(uri, false) } }
             }
             ui { onDone(ok, fails.size, fails) }
         }.start()

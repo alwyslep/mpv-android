@@ -112,7 +112,7 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun rebuild() {
         recycler.layoutManager =
             if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
-        val va = VideoAdapter(vids, grid) { v -> play(v) }
+        val va = VideoAdapter(vids.toMutableList(), grid) { v -> play(v) }
         selCtl.bind(va)
         recycler.adapter = va
     }

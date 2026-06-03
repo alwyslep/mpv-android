@@ -63,7 +63,7 @@ class FolderAdapter(
 
 // P2: 비디오 카드 — 임베드 커버 + 길이 + 라벨(품번/한글제목 분리, 없으면 파일명) + 해상도·크기.
 class VideoAdapter(
-    val items: List<Vid>,
+    val items: MutableList<Vid>,
     private val grid: Boolean,
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
@@ -74,6 +74,11 @@ class VideoAdapter(
     override var onSelectionChanged: (() -> Unit)? = null
     override fun selectableVids(): List<Vid> = items
     override fun refreshSelection() { notifyDataSetChanged() }
+    override fun notifyItem(uri: String) { val i = items.indexOfFirst { it.uri.toString() == uri }; if (i >= 0) notifyItemChanged(i) }
+    override fun removeItem(uri: String) {
+        val i = items.indexOfFirst { it.uri.toString() == uri }
+        if (i >= 0) { items.removeAt(i); selected.remove(uri); notifyItemRemoved(i) }
+    }
 
     class VH(v: View) : RecyclerView.ViewHolder(v) {
         val thumbBox: View = v.findViewById(R.id.thumb_box)
