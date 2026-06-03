@@ -1480,7 +1480,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     autoRotationMode = "manual"
                     cycleOrientation()
                     true
-                }
+                },
+                MenuItem(R.id.thumbBtn) { setCurrentAsThumb(); true }
         )
 
         if (!isPlayingAudio)
@@ -1515,6 +1516,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
 
         picker.number = MPVLib.getPropertyDouble(property)
         dialog.show()
+    }
+
+    // 5: 현재 재생 위치의 프레임을 이 영상의 라이브러리 썸네일로 지정 (커버 대신).
+    private fun setCurrentAsThumb() {
+        val u = playbackUri() ?: return
+        val posSec = MPVLib.getPropertyInt("time-pos") ?: return
+        LibPrefs.setCustomThumbPos(this, u, posSec * 1000L)
+        ThumbLoader.invalidate(this, Uri.parse(u))
+        showToast("현재 화면을 라이브러리 썸네일로 지정")
     }
 
     private fun openAdvancedMenu(restoreState: StateRestoreCallback) {

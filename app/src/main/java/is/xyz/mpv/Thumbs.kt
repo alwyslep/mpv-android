@@ -171,10 +171,11 @@ object ThumbLoader {
             if (bmp == null || meta == null || (needDur && dur == null)) {
                 var freshBmp = false
                 var art = ""; var stu = ""; var ser = ""
+                val customUs = LibPrefs.customThumbPos(ctx, key).let { if (it >= 0) it * 1000 else -1L }  // 5: 사용자 지정 썸네일 위치
                 val mmr = MediaMetadataRetriever()
                 try {
                     mmr.setDataSource(ctx, uri)
-                    if (bmp == null) {
+                    if (bmp == null && customUs < 0) {   // 커스텀 썸네일 미지정 시에만 임베드 커버
                         val bytes = mmr.embeddedPicture
                         if (bytes != null) { bmp = decodeSampled(bytes, 600); freshBmp = bmp != null }
                     }
@@ -188,7 +189,7 @@ object ThumbLoader {
                     art = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim().orEmpty()
                     stu = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)?.trim().orEmpty()
                     ser = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim().orEmpty()
-                    if (bmp == null) { bmp = scaledFrame(mmr); freshBmp = bmp != null }  // 커버 없으면 프레임
+                    if (bmp == null) { bmp = scaledFrame(mmr, if (customUs >= 0) customUs else 3_000_000L); freshBmp = bmp != null }  // 5: 지정 위치 or 3초 프레임
                 } catch (_: Throwable) {
                 } finally {
                     try { mmr.release() } catch (_: Throwable) {}
@@ -269,11 +270,11 @@ object ThumbLoader {
         }
     }
 
-    private fun scaledFrame(mmr: MediaMetadataRetriever): Bitmap? = try {
+    private fun scaledFrame(mmr: MediaMetadataRetriever, posUs: Long = 3_000_000L): Bitmap? = try {
         if (Build.VERSION.SDK_INT >= 27)
-            mmr.getScaledFrameAtTime(3_000_000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 360, 240)
+            mmr.getScaledFrameAtTime(posUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC, 360, 240)
         else
-            mmr.getFrameAtTime(3_000_000, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
+            mmr.getFrameAtTime(posUs, MediaMetadataRetriever.OPTION_CLOSEST_SYNC)
     } catch (_: Throwable) {
         null
     }
