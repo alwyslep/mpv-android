@@ -65,13 +65,15 @@ object JEmbed {
         ctx: Context,
         items: List<Pair<Uri, String>>,
         onProgress: (idx: Int, total: Int, name: String, stage: String, pct: Int) -> Unit,
-        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit
+        onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
+        cancel: () -> Boolean = { false }
     ) {
         val app = ctx.applicationContext
         Thread {
             var ok = 0
             val fails = ArrayList<String>()
             for ((i, pair) in items.withIndex()) {
+                if (cancel()) break   // graceful: 현재 작품 시작 전 중단 (진행 중 작품은 끝까지)
                 val (uri, code) = pair
                 ui { onProgress(i, items.size, code, "준비", 0) }
                 if (code.isBlank()) { fails.add("$code: 품번 없음"); continue }
