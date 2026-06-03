@@ -27,6 +27,20 @@ data class CachedVideo(
     val artist: String, val studio: String, val series: String
 )
 
+// 1: 캐시 안정 키 — 품번(파일명 정규식) ?: 파일명(확장자 제외) ?: uri. 경로/이동/임베딩 무관.
+//    같은 품번/파일명이면 이동·재다운로드해도 같은 캐시 공유(재캐싱 방지).
+object MediaKey {
+    private val CODE = Regex("([A-Za-z]{2,7}-\\d{2,5})")
+    fun of(uri: String, name: String?): String {
+        if (!name.isNullOrEmpty()) {
+            CODE.find(name)?.value?.uppercase()?.let { return "code:$it" }
+            val base = name.substringBeforeLast('.').trim()
+            if (base.isNotEmpty()) return "name:${base.lowercase()}"
+        }
+        return uri
+    }
+}
+
 object ThumbLoader {
     private val exec = Executors.newFixedThreadPool(3)
     private val bmpCache = object : LruCache<String, Bitmap>(
@@ -142,7 +156,8 @@ object ThumbLoader {
         titleView?.tag = key
         durView?.tag = key
 
-        val customMs = LibPrefs.customThumbPos(thumb.context, key)   // 2/5: 장면 지정 시 캐시 자동 분리(커버 파일 포함)
+        val diskKey = MediaKey.of(key, fallbackName)                 // 1: 디스크 캐시는 품번/파일명 기준(이동 무관)
+        val customMs = LibPrefs.customThumbPos(thumb.context, diskKey) // 2/5: 장면 지정(품번 키) — 이동해도 유지
         val cb = if (customMs >= 0) null else bmpCache.get(key)      // 지정 시 메모리 캐시(커버) 무시
         val cm = metaCache[key]
         val cd = durCache[key]
@@ -159,7 +174,7 @@ object ThumbLoader {
             var bmp = cb
             var meta = cm
             var dur = cd
-            val hk = hashKey(if (customMs >= 0) "$key#$customMs" else key)   // customThumbPos 별 캐시 분리
+            val hk = hashKey(if (customMs >= 0) "$diskKey#$customMs" else diskKey)   // 1: 품번/파일명 기준 + customThumbPos 별 분리
 
             // ① 디스크 캐시 (MMR 회피 — 재진입 즉시)
             if (bmp == null) bmp = loadDiskBmp(ctx, hk)

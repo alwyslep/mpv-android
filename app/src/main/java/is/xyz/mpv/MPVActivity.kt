@@ -1528,7 +1528,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     private fun setCurrentAsThumb() {
         val u = playbackUri() ?: return
         val posSec = MPVLib.getPropertyInt("time-pos") ?: return
-        LibPrefs.setCustomThumbPos(this, u, posSec * 1000L)
+        // 1: 품번/파일명 키로 저장 → 이동해도 장면 썸네일 유지 (ThumbLoader 와 동일 키)
+        val k = MediaKey.of(u, MPVLib.getPropertyString("filename"))
+        LibPrefs.setCustomThumbPos(this, k, posSec * 1000L)
         ThumbLoader.invalidate(this, Uri.parse(u))
         showToast("현재 화면을 라이브러리 썸네일로 지정")
     }
