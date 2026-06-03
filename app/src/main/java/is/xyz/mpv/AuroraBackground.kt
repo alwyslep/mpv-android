@@ -133,7 +133,7 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
         // 바탕(거의 검정, 살짝 푸른 기).
         val BASE = Color.parseColor("#0A0B10")
 
-        private const val FRAME_DELAY_MS = 45L
+        private const val FRAME_DELAY_MS = 33L   // ≈30fps (이전 45L≈22fps) — 더 부드러운 움직임
 
         // ── SharedPreferences 키 ──
         const val KEY_ENABLED = "aurora_enabled"
