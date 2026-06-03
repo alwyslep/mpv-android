@@ -146,6 +146,7 @@ object ThumbLoader {
         val cm = metaCache[key]
         val cd = durCache[key]
         thumb.setImageBitmap(cb)
+        applyCoverAlign(thumb, cm != null && cm.isNotEmpty() && cm[0].isNotBlank())
         applyText(codeView, titleView, cm, fallbackName)
         if (durView != null) applyDur(durView, cd)
 
@@ -201,9 +202,29 @@ object ThumbLoader {
             if (dur != null) durCache[key] = dur!!
 
             val fb = bmp; val fm = meta; val fd = dur
-            thumb.post { if (thumb.tag == key) thumb.setImageBitmap(fb) }
+            thumb.post { if (thumb.tag == key) { thumb.setImageBitmap(fb); applyCoverAlign(thumb, fm != null && fm.isNotEmpty() && fm[0].isNotBlank()) } }
             codeView?.post { if (codeView.tag == key) applyText(codeView, titleView, fm, fallbackName) }
             durView?.post { if (durView.tag == key) applyDur(durView, fd) }
+        }
+    }
+
+    // 커버 정렬 — 임베드 커버(isCover)만 좌/우/중앙. 추출 썸네일(프레임)은 항상 centerCrop.
+    //   left=오른쪽 크롭(왼쪽 보존)·right=왼쪽 크롭, 세로는 중앙. MATRIX 로 crop-align(ImageView 기본 미지원).
+    private fun applyCoverAlign(iv: ImageView, isCover: Boolean) {
+        val align = if (isCover) LibPrefs.coverAlign(iv.context) else "center"
+        if (align == "center") { iv.scaleType = ImageView.ScaleType.CENTER_CROP; return }
+        iv.post {
+            val d = iv.drawable
+            val vw = iv.width.toFloat(); val vh = iv.height.toFloat()
+            if (d == null || vw <= 0 || vh <= 0) { iv.scaleType = ImageView.ScaleType.CENTER_CROP; return@post }
+            val bw = d.intrinsicWidth.toFloat(); val bh = d.intrinsicHeight.toFloat()
+            if (bw <= 0 || bh <= 0) { iv.scaleType = ImageView.ScaleType.CENTER_CROP; return@post }
+            val scale = maxOf(vw / bw, vh / bh)
+            val sw = bw * scale; val sh = bh * scale
+            val dx = when (align) { "left" -> 0f; "right" -> vw - sw; else -> (vw - sw) / 2 }
+            val dy = (vh - sh) / 2
+            val m = android.graphics.Matrix(); m.setScale(scale, scale); m.postTranslate(dx, dy)
+            iv.scaleType = ImageView.ScaleType.MATRIX; iv.imageMatrix = m
         }
     }
 

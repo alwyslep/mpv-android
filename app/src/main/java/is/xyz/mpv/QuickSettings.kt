@@ -38,6 +38,7 @@ object QuickSettings {
         var pThumb = LibPrefs.showThumb(ctx)
         var pCoverScale = (LibPrefs.coverScale(ctx) * 100).toInt()  // 50~200(%)
         var pEmbedFilter = LibPrefs.embedFilter(ctx)
+        var pCoverAlign = LibPrefs.coverAlign(ctx)
 
         // 보기 모드
         val grpMode = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_mode)
@@ -88,6 +89,13 @@ object QuickSettings {
             override fun onStartTrackingTouch(s: SeekBar) {}
             override fun onStopTrackingTouch(s: SeekBar) {}
         })
+
+        // 커버 정렬 (임베드 커버만 — 추출 썸네일은 중앙 고정)
+        val grpAlign = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_cover_align)
+        grpAlign.check(when (pCoverAlign) { "left" -> R.id.ca_left; "right" -> R.id.ca_right; else -> R.id.ca_center })
+        grpAlign.addOnButtonCheckedListener { _, id, on ->
+            if (on) pCoverAlign = when (id) { R.id.ca_left -> "left"; R.id.ca_right -> "right"; else -> "center" }
+        }
 
         // 정렬 아이콘 셀
         val primary = MaterialColors.getColor(v, androidx.appcompat.R.attr.colorPrimary, 0)
@@ -154,6 +162,7 @@ object QuickSettings {
             LibPrefs.setField(ctx, "show_thumb", pThumb)
             LibPrefs.setCoverScale(ctx, pCoverScale)
             LibPrefs.setField(ctx, "embed_filter", pEmbedFilter)
+            LibPrefs.setCoverAlign(ctx, pCoverAlign)
             dlg.dismiss()
             onApply()
         }

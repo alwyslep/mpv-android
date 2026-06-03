@@ -303,6 +303,8 @@ object LibPrefs {
 
     fun showFav(ctx: Context) = p(ctx).getBoolean("show_fav", true)  // ♥/평점 뱃지
     fun embedFilter(ctx: Context) = p(ctx).getBoolean("embed_filter", false)  // jembed: 임베드없음만 표시
+    fun coverAlign(ctx: Context): String = p(ctx).getString("cover_align", "center") ?: "center"  // 커버 정렬 left/center/right (임베드 커버만)
+    fun setCoverAlign(ctx: Context, v: String) = p(ctx).edit().putString("cover_align", v).apply()
 
     // B-57 v3: 커버 타일 크기 — cover_scale(%) 클수록 큰 타일(열 적게). 50~200%.
     fun coverScale(ctx: Context): Float =

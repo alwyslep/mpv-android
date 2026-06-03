@@ -102,6 +102,18 @@
                 android:textSize="12sp" />
         </LinearLayout>
 
+        <TextView style="@style/QsLabel" android:text="커버 정렬 (임베드 커버만 · 추출 썸네일은 중앙 고정)" />
+        <com.google.android.material.button.MaterialButtonToggleGroup
+            android:id="@+id/grp_cover_align"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:singleSelection="true"
+            app:selectionRequired="true">
+            <com.google.android.material.button.MaterialButton android:id="@+id/ca_left" style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="좌" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/ca_center" style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="중앙" />
+            <com.google.android.material.button.MaterialButton android:id="@+id/ca_right" style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content" android:text="우" />
+        </com.google.android.material.button.MaterialButtonToggleGroup>
+
         <TextView style="@style/QsLabel" android:text="@string/qs_sort" />
         <LinearLayout
             android:layout_width="match_parent"
