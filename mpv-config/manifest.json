@@ -1,0 +1,20 @@
+{
+  "_comment": "mpv-aurora 기본 설정/스크립트 원본. 앱이 raw URL 로 pull(GitHub 동기화). conf=config-dir 루트, scripts=scripts/ 하위.",
+  "conf": [
+    "mpv.conf",
+    "input.conf"
+  ],
+  "scripts": [
+    "_soul_manager.lua",
+    "bookmarks.lua",
+    "favorite.lua",
+    "jav_osd.lua",
+    "multiwindow_fix.lua",
+    "playstats.lua",
+    "precise_speed.lua",
+    "prev_next_file.lua",
+    "progress_bar.lua",
+    "screenshot_to_clip.lua",
+    "sub_style_toggle.lua"
+  ]
+}
