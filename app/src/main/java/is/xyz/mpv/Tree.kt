@@ -75,6 +75,7 @@ class TreeActivity : AppCompatActivity() {
 
         recycler = findViewById(R.id.recycler)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
+        findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }
         findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
         findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
         findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }
@@ -86,8 +87,10 @@ class TreeActivity : AppCompatActivity() {
         Thread {
             val vids = MediaLibrary.queryVideos(this)
             val dir = intent.getStringExtra("dir") ?: MediaLibrary.treeRoot(vids)
+            val ef = LibPrefs.embedFilter(this)
             val list = MediaLibrary.treeChildren(vids, dir)
                 .filter { it.dirPath != null || LibPrefs.passWatch(this, it.vid!!.uri.toString()) }
+                .filter { it.dirPath != null || !ef || JEmbed.isUnembedded(this, it.vid!!.uri, it.vid!!.path) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 entries = list

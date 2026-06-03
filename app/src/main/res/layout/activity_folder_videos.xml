@@ -39,6 +39,12 @@
             android:textColor="?attr/colorOnSurface"
             android:textSize="14sp" />
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/sel_all"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="전체" />
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/sel_embed"
             style="@style/Widget.Material3.Button.TextButton"
             android:layout_width="wrap_content"

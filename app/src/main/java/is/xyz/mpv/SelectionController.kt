@@ -56,6 +56,16 @@ class SelectionController(
         selBar.visibility = View.GONE
     }
 
+    // 전체선택 토글 — 이미 전부 선택돼 있으면 해제. (필터된 목록 전체를 한 번에)
+    fun selectAll() {
+        val a = sel ?: run { toast("'영상' 보기 모드 또는 폴더 안에서 선택하세요"); return }
+        if (!a.selectionMode) { a.selectionMode = true; selBar.visibility = View.VISIBLE }
+        val all = a.selectableVids().map { it.uri.toString() }
+        if (a.selected.size == all.size && a.selected.containsAll(all)) a.selected.clear()
+        else { a.selected.clear(); a.selected.addAll(all) }
+        a.refreshSelection(); update()
+    }
+
     fun update() { selCount.text = "${sel?.selected?.size ?: 0}개 선택" }
 
     private fun vidOf(u: String): Vid? = sel?.selectableVids()?.find { it.uri.toString() == u }

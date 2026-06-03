@@ -109,6 +109,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         recycler.layoutManager = LinearLayoutManager(this)
         empty = findViewById(R.id.empty)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById(R.id.sel_count)) { load() }
+        findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }
         findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
         findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
         findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }

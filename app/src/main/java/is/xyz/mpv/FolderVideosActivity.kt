@@ -77,6 +77,7 @@ class FolderVideosActivity : AppCompatActivity() {
 
         recycler = findViewById(R.id.recycler)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
+        findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }
         findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
         findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
         findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }
@@ -86,8 +87,9 @@ class FolderVideosActivity : AppCompatActivity() {
 
     private fun reload() {
         Thread {
-            val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
+            var list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
                 .filter { LibPrefs.passWatch(this, it.uri.toString()) }
+            if (LibPrefs.embedFilter(this)) list = list.filter { JEmbed.isUnembedded(this, it.uri, it.path) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 vids = list
