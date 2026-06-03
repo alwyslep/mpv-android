@@ -56,6 +56,8 @@ class TreeActivity : AppCompatActivity() {
         toolbar.menu.add(0, 3, 2, "선택(임베드)").apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
+        toolbar.menu.add(0, 4, 3, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        MetaHub.fetchAsync(this)
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -69,6 +71,7 @@ class TreeActivity : AppCompatActivity() {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
                 3 -> selCtl.enter()
+                4 -> FilterSheet.show(this) { reload() }
             }
             true
         }
@@ -87,10 +90,8 @@ class TreeActivity : AppCompatActivity() {
         Thread {
             val vids = MediaLibrary.queryVideos(this)
             val dir = intent.getStringExtra("dir") ?: MediaLibrary.treeRoot(vids)
-            val ef = LibPrefs.embedFilter(this)
             val list = MediaLibrary.treeChildren(vids, dir)
-                .filter { it.dirPath != null || LibPrefs.passWatch(this, it.vid!!.uri.toString()) }
-                .filter { it.dirPath != null || !ef || JEmbed.isUnembedded(this, it.vid!!.uri, it.vid!!.path) }
+                .filter { it.dirPath != null || FilterEngine.passes(this, it.vid!!) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 entries = list

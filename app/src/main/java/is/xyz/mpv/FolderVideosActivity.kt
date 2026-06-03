@@ -58,6 +58,8 @@ class FolderVideosActivity : AppCompatActivity() {
         toolbar.menu.add(0, 3, 2, "선택(임베드)").apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
+        toolbar.menu.add(0, 4, 3, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        MetaHub.fetchAsync(this)
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -71,6 +73,7 @@ class FolderVideosActivity : AppCompatActivity() {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
                 3 -> selCtl.enter()
+                4 -> FilterSheet.show(this) { reload() }
             }
             true
         }
@@ -87,9 +90,8 @@ class FolderVideosActivity : AppCompatActivity() {
 
     private fun reload() {
         Thread {
-            var list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
-                .filter { LibPrefs.passWatch(this, it.uri.toString()) }
-            if (LibPrefs.embedFilter(this)) list = list.filter { JEmbed.isUnembedded(this, it.uri, it.path) }
+            val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
+                .filter { FilterEngine.passes(this, it) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 vids = list

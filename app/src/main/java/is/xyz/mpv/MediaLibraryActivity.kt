@@ -94,6 +94,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         selMenuItem = toolbar.menu.add(0, 5, 3, "선택(임베드)").apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
+        toolbar.menu.add(0, 6, 4, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
@@ -101,6 +102,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 3 -> QuickSettings.show(this) { load() }
                 1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
                 5 -> selCtl.enter()
+                6 -> FilterSheet.show(this) { load() }
             }
             true
         }
@@ -172,12 +174,12 @@ class MediaLibraryActivity : AppCompatActivity() {
         if (mode != "videos") { selCtl.exit(); selCtl.unbind() }
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
         ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
+        MetaHub.fetchAsync(this)       // 필터: hub 메타맵 1회 채움(메타 필터용)
         Thread {
             if (!seeded) { Utils.seedConfig(this); seeded = true }   // 번들 기본 스크립트/conf 복원(없을 때만)
             val allVids = MediaLibrary.queryVideos(this)
             if (mode == "videos") {
-                var vids = LibPrefs.sortVids(this, allVids).filter { LibPrefs.passWatch(this, it.uri.toString()) }
-                if (LibPrefs.embedFilter(this)) vids = vids.filter { JEmbed.isUnembedded(this, it.uri, it.path) }
+                val vids = LibPrefs.sortVids(this, allVids).filter { FilterEngine.passes(this, it) }
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     homeVids = vids.map { it.uri.toString() to it.name }

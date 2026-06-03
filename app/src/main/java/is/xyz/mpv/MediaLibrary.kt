@@ -457,6 +457,111 @@ object ResolutionHub {
     }
 }
 
+// 필터 2차: receiver GET /meta-index(code→배우/스튜디오/시리즈/장르) 1회 캐시 + distinct 목록.
+// 품번은 파일명 정규식으로 추출(MMR 회피, 빠름) → hub 메타 조회. hub 없는 파일은 메타 매칭 제외.
+object MetaHub {
+    data class Meta(val actress: List<String>, val studio: String, val series: String, val genres: List<String>)
+    @Volatile private var map: Map<String, Meta>? = null
+    @Volatile var actresses: List<String> = emptyList(); private set
+    @Volatile var studios: List<String> = emptyList(); private set
+    @Volatile var seriesList: List<String> = emptyList(); private set
+    @Volatile var genres: List<String> = emptyList(); private set
+
+    fun get(code: String): Meta? = map?.get(code.uppercase())
+    fun ready(): Boolean = map != null
+    fun clear() { map = null }
+
+    fun fetchAsync(ctx: Context) {
+        if (map != null) return
+        val app = ctx.applicationContext
+        Thread {
+            try {
+                val url = URL(LibPrefs.hubUrl(app).trimEnd('/') + "/meta-index")
+                val con = url.openConnection() as HttpURLConnection
+                con.connectTimeout = 2000
+                con.readTimeout = 8000
+                val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                con.disconnect()
+                val mObj = JSONObject(text).optJSONObject("meta") ?: JSONObject()
+                val m = HashMap<String, Meta>(mObj.length())
+                val aSet = sortedSetOf<String>(); val sSet = sortedSetOf<String>()
+                val seSet = sortedSetOf<String>(); val gSet = sortedSetOf<String>()
+                val keys = mObj.keys()
+                while (keys.hasNext()) {
+                    val k = keys.next(); val o = mObj.optJSONObject(k) ?: continue
+                    val act = parseArr(o.optString("a")); val stu = o.optString("s").trim()
+                    val ser = o.optString("se").trim(); val gen = parseArr(o.optString("g"))
+                    m[k.uppercase()] = Meta(act, stu, ser, gen)
+                    aSet.addAll(act); if (stu.isNotEmpty()) sSet.add(stu)
+                    if (ser.isNotEmpty()) seSet.add(ser); gSet.addAll(gen)
+                }
+                map = m
+                actresses = aSet.toList(); studios = sSet.toList(); seriesList = seSet.toList(); genres = gSet.toList()
+            } catch (_: Throwable) {}
+        }.start()
+    }
+
+    private fun parseArr(s: String): List<String> {
+        if (s.isBlank()) return emptyList()
+        return try {
+            val arr = org.json.JSONArray(s)
+            (0 until arr.length()).map { arr.optString(it).trim() }.filter { it.isNotEmpty() }
+        } catch (_: Throwable) {
+            s.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+        }
+    }
+}
+
+// 통합 필터 엔진 — 시청/임베드/해상도/확장자/불일치/메타(배우·스튜디오·시리즈·장르)를 AND 로 판정.
+// 세 화면(videos/folder/tree)이 .filter { FilterEngine.passes(ctx, vid) } 하나로 적용.
+object FilterEngine {
+    private const val PREFS = "media_library"
+    private val CODE = Regex("([A-Za-z]{2,7}-\\d{2,5})")
+
+    fun anyActive(ctx: Context): Boolean {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return p.getBoolean("embed_filter", false) || p.getInt("filter_res_max", 0) > 0 ||
+            (p.getStringSet("filter_ext", emptySet())?.isNotEmpty() == true) ||
+            p.getBoolean("filter_mismatch_res", false) || p.getBoolean("filter_mismatch_dur", false) ||
+            (p.getStringSet("filter_actress", emptySet())?.isNotEmpty() == true) ||
+            (p.getStringSet("filter_studio", emptySet())?.isNotEmpty() == true) ||
+            (p.getStringSet("filter_series", emptySet())?.isNotEmpty() == true) ||
+            (p.getStringSet("filter_genre", emptySet())?.isNotEmpty() == true)
+    }
+
+    fun passes(ctx: Context, v: Vid): Boolean {
+        val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!LibPrefs.passWatch(ctx, v.uri.toString())) return false
+        if (p.getBoolean("embed_filter", false) && !JEmbed.isUnembedded(ctx, v.uri, v.path.ifEmpty { null })) return false
+        val resMax = p.getInt("filter_res_max", 0)
+        if (resMax > 0 && (v.height <= 0 || v.height > resMax)) return false
+        val exts = p.getStringSet("filter_ext", emptySet()) ?: emptySet()
+        if (exts.isNotEmpty() && v.nameExt.substringAfterLast('.', "").uppercase() !in exts) return false
+        val code = CODE.find(v.name)?.value?.uppercase()
+        if (p.getBoolean("filter_mismatch_res", false)) {
+            val hubH = code?.let { ResolutionHub.get(it) } ?: return false
+            if (!(v.height in 1 until (hubH - hubH / 10))) return false
+        }
+        if (p.getBoolean("filter_mismatch_dur", false)) {
+            val hubSec = code?.let { DurationHub.get(it) } ?: return false
+            val tol = maxOf(10L, hubSec / 50)
+            if (kotlin.math.abs(v.durationMs / 1000 - hubSec) <= tol) return false
+        }
+        val fa = p.getStringSet("filter_actress", emptySet()) ?: emptySet()
+        val fs = p.getStringSet("filter_studio", emptySet()) ?: emptySet()
+        val fse = p.getStringSet("filter_series", emptySet()) ?: emptySet()
+        val fg = p.getStringSet("filter_genre", emptySet()) ?: emptySet()
+        if (fa.isNotEmpty() || fs.isNotEmpty() || fse.isNotEmpty() || fg.isNotEmpty()) {
+            val meta = code?.let { MetaHub.get(it) } ?: return false
+            if (fa.isNotEmpty() && meta.actress.none { it in fa }) return false
+            if (fs.isNotEmpty() && meta.studio !in fs) return false
+            if (fse.isNotEmpty() && meta.series !in fse) return false
+            if (fg.isNotEmpty() && meta.genres.none { it in fg }) return false
+        }
+        return true
+    }
+}
+
 // 재생 위치 저장 — 이어보기 + 타일 진행률. uri 별 {pos, dur} (ms).
 object Progress {
     private const val PREFS = "media_library"
