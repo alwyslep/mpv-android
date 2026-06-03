@@ -754,9 +754,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         binding.controls.alpha = 1f
         binding.topControls.alpha = 1f
 
-        // bottom_controls OFF → 하단 컨트롤(seek/버튼)은 띄우지 않음(제스처로 제어). 상단만 표시.
-        binding.controls.visibility = if (controlsAtBottom) View.VISIBLE else View.GONE
-        if (binding.topControls.visibility != View.VISIBLE) {
+        // bottom_controls OFF → 하단 컨트롤(seek/버튼) 숨김(제스처로 제어), 상단만 표시.
+        // 이미 표시 중이면 재설정 안 함 — 터치 중 매번 set 되는 폭주(seek 방해/떨림) 방지.
+        if (binding.controls.visibility != View.VISIBLE && binding.topControls.visibility != View.VISIBLE) {
+            binding.controls.visibility = if (controlsAtBottom) View.VISIBLE else View.GONE
             binding.topControls.visibility = View.VISIBLE
 
             if (this.statsFPS) {
@@ -859,9 +860,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         }
 
         if (super.dispatchTouchEvent(ev)) {
-            // reset delay if the event has been handled
-            // ideally we'd want to know if the event was delivered to controls, but we can't
-            if (binding.controls.visibility == View.VISIBLE && !fadeRunnable.hasStarted)
+            // 컨트롤(하단/상단)이 보일 때 화면 터치는 표시 타임아웃 리셋. 단 MOVE(제스처 seek/볼륨/밝기) 중엔
+            // 스킵 — 매 MOVE 마다 showControls 가 호출돼 제스처를 방해하고 화면을 떨게 하던 문제(4·6) 방지.
+            if (ev.action != MotionEvent.ACTION_MOVE && !fadeRunnable.hasStarted &&
+                (binding.controls.visibility == View.VISIBLE || binding.topControls.visibility == View.VISIBLE))
                 showControls()
             if (ev.action == MotionEvent.ACTION_UP)
                 return true
