@@ -5,6 +5,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.documentfile.provider.DocumentFile
@@ -82,6 +83,17 @@ object JMove {
                 ui { onProgress(i, items.size, name) }
                 try {
                     val src = pathFromMediaStore(app, uri)
+                    // ① SAF src + 같은 드라이브(authority 동일) → moveDocument 로 즉시 이동(복사 없음) — 속도 핵심
+                    if (src == null && Build.VERSION.SDK_INT >= 24 && uri.authority == destDir.uri.authority) {
+                        val parent = parentDocUri(uri)
+                        if (parent != null) {
+                            val moved = try {
+                                DocumentsContract.moveDocument(app.contentResolver, uri, parent, destDir.uri) != null
+                            } catch (_: Throwable) { false }
+                            if (moved) { ok++; continue }
+                        }
+                    }
+                    // ② fallback: 복사 + 원본 삭제 (내부→SAF, 다른 드라이브, moveDocument 불가 시)
                     val dname = if (src != null) File(src).name else safDisplayName(app, uri)
                     if (destDir.findFile(dname) != null) { fails.add("$name: 대상에 동일 파일 존재"); continue }
                     val outDoc = destDir.createFile("video/mp4", dname) ?: run { fails.add("$name: 대상 생성 실패"); continue }
@@ -96,9 +108,17 @@ object JMove {
                 } catch (e: Throwable) { fails.add("$name: ${e.javaClass.simpleName}: ${e.message}") }
             }
             if (scan.isNotEmpty()) runCatching { MediaScannerConnection.scanFile(app, scan.toTypedArray(), null, null) }
+            runCatching { MediaLibrary.clearSafCache() }   // SAF 변경 반영 — 다음 load 재스캔
             ui { onDone(ok, fails.size, fails) }
         }.start()
     }
+
+    // SAF document uri 의 부모 document uri (moveDocument sourceParent 용). docId 의 마지막 '/' 이전이 부모.
+    private fun parentDocUri(uri: Uri): Uri? = try {
+        val docId = DocumentsContract.getDocumentId(uri)
+        val cut = docId.lastIndexOf('/')
+        if (cut < 0) null else DocumentsContract.buildDocumentUriUsingTree(uri, docId.substring(0, cut))
+    } catch (_: Throwable) { null }
 
     private fun safDisplayName(ctx: Context, uri: Uri): String {
         try {
