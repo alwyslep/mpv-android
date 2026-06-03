@@ -340,7 +340,13 @@ object JEmbed {
         } catch (_: Throwable) { -1 }
         if (fb == 0x47) return true
         val cm = ThumbLoader.cachedMeta(uri.toString())
-        return cm != null && cm.isNotEmpty() && cm[0].isBlank()
+        if (cm != null) return cm.isNotEmpty() && cm[0].isBlank()
+        // 캐시 미상 → MMR 로 임베드 커버 유무 직접 확인 (커버 없으면 미임베드=true). 캐시 false 오판 방지.
+        return try {
+            val mmr = android.media.MediaMetadataRetriever()
+            try { mmr.setDataSource(ctx, uri); mmr.embeddedPicture == null }
+            finally { runCatching { mmr.release() } }
+        } catch (_: Throwable) { true }
     }
 
     private fun pathFromMediaStore(ctx: Context, uri: Uri): String? = try {

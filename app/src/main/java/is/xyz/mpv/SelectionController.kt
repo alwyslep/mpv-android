@@ -76,17 +76,21 @@ class SelectionController(
         MaterialAlertDialogBuilder(act)
             .setTitle("장면 썸네일 (${vids.size}개)").setView(ll)
             .setPositiveButton("적용") { _, _ ->
-                var n = 0
-                for (v in vids) {
-                    // 커버 있는 파일 제외(임베드된 것). SAF 등 길이 0 도 제외.
-                    if (v.durationMs > 0 && JEmbed.isUnembedded(act, v.uri, v.path.ifEmpty { null })) {
-                        val ms = v.durationMs * seek.progress / 100
-                        LibPrefs.setCustomThumbPos(act, MediaKey.of(v.uri.toString(), v.name), ms)
-                        ThumbLoader.invalidate(act, v.uri); sel?.notifyItem(v.uri.toString()); n++
+                val pct = seek.progress
+                Thread {   // 커버 유무 판정에 MMR 가능 → 백그라운드
+                    var n = 0
+                    for (v in vids) {
+                        // 커버 있는 파일 제외(임베드된 것). SAF 등 길이 0 도 제외.
+                        if (v.durationMs > 0 && JEmbed.isUnembedded(act, v.uri, v.path.ifEmpty { null })) {
+                            LibPrefs.setCustomThumbPos(act, MediaKey.of(v.uri.toString(), v.name), v.durationMs * pct / 100)
+                            ThumbLoader.invalidate(act, v.uri); n++
+                        }
                     }
-                }
-                exit(); onReload()
-                Toast.makeText(act, "썸네일 적용: ${n}개 (커버 있는 파일 제외)", Toast.LENGTH_LONG).show()
+                    act.runOnUiThread {
+                        exit(); onReload()
+                        Toast.makeText(act, "썸네일 적용: ${n}개 (커버 있는 파일 제외)", Toast.LENGTH_LONG).show()
+                    }
+                }.start()
             }
             .setNeutralButton("해제") { _, _ ->
                 for (v in vids) {
