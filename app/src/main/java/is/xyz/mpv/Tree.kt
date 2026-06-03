@@ -58,6 +58,7 @@ class TreeActivity : AppCompatActivity() {
         }
         toolbar.menu.add(0, 4, 3, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
         toolbar.menu.add(0, 5, 4, "이동").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        toolbar.menu.add(0, 6, 5, "썸네일 지정").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
         MetaHub.fetchAsync(this)
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
@@ -74,6 +75,7 @@ class TreeActivity : AppCompatActivity() {
                 3 -> selCtl.enter(showEmbed = true, showMove = false)
                 4 -> FilterSheet.show(this) { reload() }
                 5 -> selCtl.enter(showEmbed = false, showMove = true)
+                6 -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)
             }
             true
         }
@@ -81,6 +83,7 @@ class TreeActivity : AppCompatActivity() {
         recycler = findViewById(R.id.recycler)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
         findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }
+        findViewById<View>(R.id.sel_thumb).setOnClickListener { selCtl.thumbBatch() }
         findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
         findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
         findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }

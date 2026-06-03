@@ -191,7 +191,7 @@ object ThumbLoader {
                 val mmr = MediaMetadataRetriever()
                 try {
                     mmr.setDataSource(ctx, uri)
-                    if (bmp == null && customUs < 0) {   // 커스텀 썸네일 미지정 시에만 임베드 커버
+                    if (bmp == null) {   // 커버 우선 — 임베드 커버 있으면 그것(장면지정은 커버 없는 파일만)
                         val bytes = mmr.embeddedPicture
                         if (bytes != null) { bmp = decodeSampled(bytes, 600); freshBmp = bmp != null }
                     }

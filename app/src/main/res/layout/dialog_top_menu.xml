@@ -96,12 +96,5 @@
         android:text="@string/switch_orientation"
         android:textAllCaps="false" />
 
-    <Button
-        android:id="@+id/thumbBtn"
-        style="@style/Widget.AppCompat.Button.Borderless"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="현재 화면을 라이브러리 썸네일로"
-        android:textAllCaps="false" />
 
 </LinearLayout>

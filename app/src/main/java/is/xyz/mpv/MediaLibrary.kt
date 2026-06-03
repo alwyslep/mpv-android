@@ -308,6 +308,7 @@ object LibPrefs {
     // 5: 사용자가 시청 중 지정한 썸네일 위치(ms). -1=미지정(커버/3초 프레임). 키는 uri.
     fun customThumbPos(ctx: Context, uri: String): Long = p(ctx).getLong("cthumb_$uri", -1L)
     fun setCustomThumbPos(ctx: Context, uri: String, ms: Long) = p(ctx).edit().putLong("cthumb_$uri", ms).apply()
+    fun clearCustomThumbPos(ctx: Context, uri: String) = p(ctx).edit().remove("cthumb_$uri").apply()  // 장면 썸네일 해제(재지정)
     // 6: 상세보기 커버 높이(dp) — 슬라이더/마우스휠로 조절.
     fun detailCoverHeight(ctx: Context): Int = p(ctx).getInt("detail_cover_h", 300)
     fun setDetailCoverHeight(ctx: Context, dp: Int) = p(ctx).edit().putInt("detail_cover_h", dp).apply()

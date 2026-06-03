@@ -46,14 +46,57 @@ class SelectionController(
 
     val isActive: Boolean get() = sel?.selectionMode == true
 
-    // 임베드/이동 독립 진입 — 액션에 맞는 버튼만 노출(임베드 진입=임베드만, 이동 진입=이동만).
-    fun enter(showEmbed: Boolean = true, showMove: Boolean = true) {
+    // 임베드/이동/썸네일 독립 진입 — 액션에 맞는 버튼만 노출.
+    fun enter(showEmbed: Boolean = true, showMove: Boolean = true, showThumb: Boolean = false) {
         val a = sel
         if (a == null) { toast("'영상' 보기 모드 또는 폴더 안에서 선택하세요"); return }
         a.selectionMode = true; a.refreshSelection()
         selBar.findViewById<View>(R.id.sel_embed)?.visibility = if (showEmbed) View.VISIBLE else View.GONE
         selBar.findViewById<View>(R.id.sel_move)?.visibility = if (showMove) View.VISIBLE else View.GONE
+        selBar.findViewById<View>(R.id.sel_thumb)?.visibility = if (showThumb) View.VISIBLE else View.GONE
         selBar.visibility = View.VISIBLE; update()
+    }
+
+    // 장면 썸네일 일괄 — % 위치 슬라이더로 적용(커버 없는 파일만) / 해제. 품번·파일명 키.
+    fun thumbBatch() {
+        val vids = (sel?.selected?.toList() ?: emptyList()).mapNotNull { vidOf(it) }
+        if (vids.isEmpty()) { toast("선택 없음"); return }
+        val ll = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 24, 48, 8) }
+        val tv = TextView(act).apply { text = "썸네일 위치: 50%" }
+        ll.addView(tv)
+        val seek = android.widget.SeekBar(act).apply {
+            max = 100; progress = 50
+            setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+                override fun onProgressChanged(s: android.widget.SeekBar, p: Int, u: Boolean) { tv.text = "썸네일 위치: $p%" }
+                override fun onStartTrackingTouch(s: android.widget.SeekBar) {}
+                override fun onStopTrackingTouch(s: android.widget.SeekBar) {}
+            })
+        }
+        ll.addView(seek)
+        MaterialAlertDialogBuilder(act)
+            .setTitle("장면 썸네일 (${vids.size}개)").setView(ll)
+            .setPositiveButton("적용") { _, _ ->
+                var n = 0
+                for (v in vids) {
+                    // 커버 있는 파일 제외(임베드된 것). SAF 등 길이 0 도 제외.
+                    if (v.durationMs > 0 && JEmbed.isUnembedded(act, v.uri, v.path.ifEmpty { null })) {
+                        val ms = v.durationMs * seek.progress / 100
+                        LibPrefs.setCustomThumbPos(act, MediaKey.of(v.uri.toString(), v.name), ms)
+                        ThumbLoader.invalidate(act, v.uri); sel?.notifyItem(v.uri.toString()); n++
+                    }
+                }
+                exit(); onReload()
+                Toast.makeText(act, "썸네일 적용: ${n}개 (커버 있는 파일 제외)", Toast.LENGTH_LONG).show()
+            }
+            .setNeutralButton("해제") { _, _ ->
+                for (v in vids) {
+                    LibPrefs.clearCustomThumbPos(act, MediaKey.of(v.uri.toString(), v.name))
+                    ThumbLoader.invalidate(act, v.uri); sel?.notifyItem(v.uri.toString())
+                }
+                exit(); onReload()
+                Toast.makeText(act, "썸네일 해제: ${vids.size}개", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("취소", null).show()
     }
 
     fun exit() {
