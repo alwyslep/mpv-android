@@ -740,8 +740,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         binding.controls.alpha = 1f
         binding.topControls.alpha = 1f
 
-        if (binding.controls.visibility != View.VISIBLE) {
-            binding.controls.visibility = View.VISIBLE
+        // bottom_controls OFF → 하단 컨트롤(seek/버튼)은 띄우지 않음(제스처로 제어). 상단만 표시.
+        binding.controls.visibility = if (controlsAtBottom) View.VISIBLE else View.GONE
+        if (binding.topControls.visibility != View.VISIBLE) {
             binding.topControls.visibility = View.VISIBLE
 
             if (this.statsFPS) {
@@ -1014,19 +1015,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             gestures.setMetrics(dm.widthPixels.toFloat(), dm.heightPixels.toFloat())
         }
 
-        // Adjust control margins
+        // 하단 컨트롤은 표시될 때 화면 하단에 고정 (표시 여부는 bottom_controls = showControls 에서 처리)
         binding.controls.updateLayoutParams<MarginLayoutParams> {
-            bottomMargin = if (!controlsAtBottom) {
-                Utils.convertDp(this@MPVActivity, 60f)
-            } else {
-                0
-            }
-            leftMargin = if (!controlsAtBottom) {
-                Utils.convertDp(this@MPVActivity, if (isLandscape) 60f else 24f)
-            } else {
-                0
-            }
-            rightMargin = leftMargin
+            bottomMargin = 0; leftMargin = 0; rightMargin = 0
         }
     }
 
