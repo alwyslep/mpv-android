@@ -308,6 +308,9 @@ object LibPrefs {
     // 5: 사용자가 시청 중 지정한 썸네일 위치(ms). -1=미지정(커버/3초 프레임). 키는 uri.
     fun customThumbPos(ctx: Context, uri: String): Long = p(ctx).getLong("cthumb_$uri", -1L)
     fun setCustomThumbPos(ctx: Context, uri: String, ms: Long) = p(ctx).edit().putLong("cthumb_$uri", ms).apply()
+    // 6: 상세보기 커버 높이(dp) — 슬라이더/마우스휠로 조절.
+    fun detailCoverHeight(ctx: Context): Int = p(ctx).getInt("detail_cover_h", 300)
+    fun setDetailCoverHeight(ctx: Context, dp: Int) = p(ctx).edit().putInt("detail_cover_h", dp).apply()
 
     // B-57 v3: 커버 타일 크기 — cover_scale(%) 클수록 큰 타일(열 적게). 50~200%.
     fun coverScale(ctx: Context): Float =

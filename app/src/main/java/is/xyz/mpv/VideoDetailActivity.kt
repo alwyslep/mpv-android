@@ -37,6 +37,7 @@ class VideoDetailActivity : AppCompatActivity() {
 
         uriStr = intent.getStringExtra("uri") ?: ""
         fallbackName = intent.getStringExtra("name") ?: ""
+        setupCoverSize()
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         toolbar.title = getString(R.string.detail_info)
@@ -269,6 +270,26 @@ class VideoDetailActivity : AppCompatActivity() {
     }
 
     private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+    // 6: 상세보기 커버 높이 조절 — 슬라이더 + 커버 위 마우스 휠. 값 prefs 저장(영속).
+    private fun setupCoverSize() {
+        val cover = findViewById<android.widget.ImageView>(R.id.cover)
+        val sb = findViewById<android.widget.SeekBar>(R.id.cover_size)
+        fun apply(h: Int) { val lp = cover.layoutParams; lp.height = dp(h); cover.layoutParams = lp }
+        var h = LibPrefs.detailCoverHeight(this).coerceIn(200, 600)
+        apply(h); sb.max = 400; sb.progress = (h - 200).coerceIn(0, 400)
+        sb.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(s: android.widget.SeekBar, p: Int, u: Boolean) { h = 200 + p; apply(h) }
+            override fun onStartTrackingTouch(s: android.widget.SeekBar) {}
+            override fun onStopTrackingTouch(s: android.widget.SeekBar) { LibPrefs.setDetailCoverHeight(this@VideoDetailActivity, h) }
+        })
+        cover.setOnGenericMotionListener { _, e ->
+            if (e.action == android.view.MotionEvent.ACTION_SCROLL) {
+                h = (h + if (e.getAxisValue(android.view.MotionEvent.AXIS_VSCROLL) > 0) 24 else -24).coerceIn(200, 600)
+                apply(h); sb.progress = (h - 200).coerceIn(0, 400); LibPrefs.setDetailCoverHeight(this, h); true
+            } else false
+        }
+    }
 
     companion object {
         fun open(ctx: Context, uri: String, name: String) {
