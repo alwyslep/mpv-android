@@ -337,8 +337,8 @@ object LibPrefs {
     fun setHubUrl(ctx: Context, v: String) = p(ctx).edit().putString("hub_url", v).apply()
 
     // 0 안 봄 · 1 보는 중 · 2 다 봄 (Progress 위치 기준)
-    fun watchStatus(ctx: Context, uri: String): Int {
-        val pr = Progress.get(ctx, uri) ?: return 0
+    fun watchStatus(ctx: Context, uri: String, name: String?): Int {
+        val pr = Progress.get(ctx, uri, name) ?: return 0
         val (pos, dur) = pr
         if (dur <= 0) return if (pos > 3000) 1 else 0
         return when {
@@ -349,15 +349,15 @@ object LibPrefs {
     }
 
     // 행 필터 통합: 시청 상태 + 즐겨찾기. (호출처 다수라 이름 유지)
-    fun passWatch(ctx: Context, uri: String): Boolean {
+    fun passWatch(ctx: Context, uri: String, name: String?): Boolean {
         val watchOk = when (watchFilter(ctx)) {
-            "unwatched" -> watchStatus(ctx, uri) == 0
-            "watching" -> watchStatus(ctx, uri) == 1
-            "watched" -> watchStatus(ctx, uri) == 2
+            "unwatched" -> watchStatus(ctx, uri, name) == 0
+            "watching" -> watchStatus(ctx, uri, name) == 1
+            "watched" -> watchStatus(ctx, uri, name) == 2
             else -> true
         }
         if (!watchOk) return false
-        return !favOnly(ctx) || Favorites.has(ctx, uri)
+        return !favOnly(ctx) || Favorites.has(ctx, uri, name)
     }
 
     private fun <T> sortGeneric(
@@ -379,7 +379,7 @@ object LibPrefs {
 
     fun sortVids(ctx: Context, l: List<Vid>): List<Vid> =
         sortGeneric(ctx, l, { it.name }, { it.dateModified }, { it.size }, { it.durationMs }, { it.folderPath },
-            { Ratings.get(ctx, it.uri.toString()) })
+            { Ratings.get(ctx, it.uri.toString(), it.name) })
 
     fun sortFolds(ctx: Context, l: List<Fold>): List<Fold> =
         sortGeneric(ctx, l, { it.name }, { it.rep?.dateModified ?: 0L }, { it.count.toLong() },
@@ -540,7 +540,7 @@ object FilterEngine {
 
     fun passes(ctx: Context, v: Vid): Boolean {
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-        if (!LibPrefs.passWatch(ctx, v.uri.toString())) return false
+        if (!LibPrefs.passWatch(ctx, v.uri.toString(), v.name)) return false
         if (p.getBoolean("embed_filter", false) && !JEmbed.isUnembedded(ctx, v.uri, v.path.ifEmpty { null })) return false
         val resMax = p.getInt("filter_res_max", 0)
         if (resMax > 0 && (v.height <= 0 || v.height > resMax)) return false
@@ -576,24 +576,27 @@ object Progress {
     private const val PREFS = "media_library"
     private const val KEY = "progress_v1"
 
-    fun save(ctx: Context, uri: String, posMs: Long, durMs: Long) {
+    // 키 = MediaKey.of(uri, name) — 품번/파일명 기준(경로/이동 무관). name 은 파일명(확장자 포함).
+    fun save(ctx: Context, uri: String, name: String?, posMs: Long, durMs: Long) {
         if (durMs <= 0) return
+        val key = MediaKey.of(uri, name)
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val o = JSONObject(p.getString(KEY, "{}"))
-        o.put(uri, JSONObject().put("p", posMs).put("d", durMs))
+        o.put(key, JSONObject().put("p", posMs).put("d", durMs))
         p.edit().putString(KEY, o.toString()).apply()
     }
 
     // (pos, dur) ms 또는 null
-    fun get(ctx: Context, uri: String): Pair<Long, Long>? {
+    fun get(ctx: Context, uri: String, name: String?): Pair<Long, Long>? {
+        val key = MediaKey.of(uri, name)
         val o = JSONObject(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "{}"))
-        if (!o.has(uri)) return null
-        val e = o.getJSONObject(uri)
+        if (!o.has(key)) return null
+        val e = o.getJSONObject(key)
         return e.optLong("p") to e.optLong("d")
     }
 
-    fun percent(ctx: Context, uri: String): Float {
-        val (pos, dur) = get(ctx, uri) ?: return 0f
+    fun percent(ctx: Context, uri: String, name: String?): Float {
+        val (pos, dur) = get(ctx, uri, name) ?: return 0f
         if (dur <= 0) return 0f
         return (pos.toFloat() / dur).coerceIn(0f, 1f)
     }
@@ -609,11 +612,12 @@ object Playback {
             Intent().putExtra("filepath", uri)
         }
         i.setClass(ctx, MPVActivity::class.java)
-        if (resume) Progress.get(ctx, uri)?.let { (pos, dur) ->
+        i.putExtra("media_name", title)   // 1-2차: 품번/파일명 키 산출용(이어보기/진행저장 정합)
+        if (resume) Progress.get(ctx, uri, title)?.let { (pos, dur) ->
             // 시작 직후/거의 끝이면 이어보기 생략
             if (pos > 3000 && pos < dur - 3000) i.putExtra("position", pos.toInt())
         }
-        Tracks.get(ctx, uri)?.let { (aid, sid) ->
+        Tracks.get(ctx, uri, title)?.let { (aid, sid) ->
             if (aid.isNotEmpty()) i.putExtra("saved_aid", aid)
             if (sid.isNotEmpty()) i.putExtra("saved_sid", sid)
         }
@@ -621,18 +625,17 @@ object Playback {
     }
 
     // 자동 다음재생 조건: 설정 ON + 방금 작품을 끝까지 봄(다 봄).
-    fun shouldAdvance(ctx: Context, uri: String): Boolean =
+    fun shouldAdvance(ctx: Context, uri: String, name: String?): Boolean =
         androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
-            .getBoolean("autoplay_next", false) && LibPrefs.watchStatus(ctx, uri) == 2
+            .getBoolean("autoplay_next", false) && LibPrefs.watchStatus(ctx, uri, name) == 2
 
     fun onResult(ctx: Context, uri: String, data: Intent?) {
         if (data == null) return
         val pos = data.getIntExtra("position", -1)
         val dur = data.getIntExtra("duration", -1)
-        if (pos >= 0 && dur > 0) Progress.save(ctx, uri, pos.toLong(), dur.toLong())
+        // 진행위치/트랙 로컬 저장은 MPVActivity 가 직접(품번/파일명 키, 외부 실행 통일). 여기선 hub push 만.
         val aid = data.getStringExtra("saved_aid")
         val sid = data.getStringExtra("saved_sid")
-        if (aid != null || sid != null) Tracks.save(ctx, uri, aid ?: "", sid ?: "")
         // B-56: 통합 허브 push (code 키). 위치/시청상태 + 트랙 한 번에.
         val f = HashMap<String, Any?>()
         if (pos >= 0 && dur > 0) {
@@ -650,17 +653,19 @@ object Tracks {
     private const val PREFS = "media_library"
     private const val KEY = "tracks_v1"
 
-    fun save(ctx: Context, uri: String, aid: String, sid: String) {
+    fun save(ctx: Context, uri: String, name: String?, aid: String, sid: String) {
+        val key = MediaKey.of(uri, name)
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val o = JSONObject(p.getString(KEY, "{}"))
-        o.put(uri, JSONObject().put("a", aid).put("s", sid))
+        o.put(key, JSONObject().put("a", aid).put("s", sid))
         p.edit().putString(KEY, o.toString()).apply()
     }
 
-    fun get(ctx: Context, uri: String): Pair<String, String>? {
+    fun get(ctx: Context, uri: String, name: String?): Pair<String, String>? {
+        val key = MediaKey.of(uri, name)
         val o = JSONObject(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "{}"))
-        if (!o.has(uri)) return null
-        val e = o.getJSONObject(uri)
+        if (!o.has(key)) return null
+        val e = o.getJSONObject(key)
         return e.optString("a") to e.optString("s")
     }
 }
@@ -670,15 +675,16 @@ object Favorites {
     private const val PREFS = "media_library"
     private const val KEY = "favorites_v1"
 
-    fun has(ctx: Context, uri: String): Boolean =
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY, emptySet())?.contains(uri) ?: false
+    fun has(ctx: Context, uri: String, name: String?): Boolean =
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getStringSet(KEY, emptySet())?.contains(MediaKey.of(uri, name)) ?: false
 
-    fun toggle(ctx: Context, uri: String): Boolean {
+    fun toggle(ctx: Context, uri: String, name: String?): Boolean {
+        val key = MediaKey.of(uri, name)
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val cur = LinkedHashSet(p.getStringSet(KEY, emptySet()) ?: emptySet())
-        val now = if (cur.contains(uri)) { cur.remove(uri); false } else { cur.add(uri); true }
+        val now = if (cur.contains(key)) { cur.remove(key); false } else { cur.add(key); true }
         p.edit().putStringSet(KEY, cur).apply()
-        ReviewSync.push(ctx, uri, mapOf("fav" to if (now) 1 else 0))  // B-56
+        ReviewSync.push(ctx, uri, mapOf("fav" to if (now) 1 else 0))  // B-56 (hub 는 uri/code 키)
         return now
     }
 }
@@ -688,17 +694,18 @@ object Ratings {
     private const val PREFS = "media_library"
     private const val KEY = "ratings_v1"
 
-    fun get(ctx: Context, uri: String): Int {
+    fun get(ctx: Context, uri: String, name: String?): Int {
         val o = JSONObject(ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, "{}"))
-        return o.optInt(uri, 0)
+        return o.optInt(MediaKey.of(uri, name), 0)
     }
 
-    fun set(ctx: Context, uri: String, stars: Int) {
+    fun set(ctx: Context, uri: String, name: String?, stars: Int) {
+        val key = MediaKey.of(uri, name)
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         val o = JSONObject(p.getString(KEY, "{}"))
-        if (stars <= 0) o.remove(uri) else o.put(uri, stars.coerceIn(1, 5))
+        if (stars <= 0) o.remove(key) else o.put(key, stars.coerceIn(1, 5))
         p.edit().putString(KEY, o.toString()).apply()
-        ReviewSync.push(ctx, uri, mapOf("rating" to stars.coerceIn(0, 5)))  // B-56
+        ReviewSync.push(ctx, uri, mapOf("rating" to stars.coerceIn(0, 5)))  // B-56 (hub 는 uri/code 키)
     }
 }
 

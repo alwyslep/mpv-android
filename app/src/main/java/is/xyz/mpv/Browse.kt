@@ -36,7 +36,7 @@ class BrowseActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
-            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in browseItems.indices) {
+            if (u != null && Playback.shouldAdvance(this, u, browseItems.find { it.uri == u }?.name) && playIndex + 1 in browseItems.indices) {
                 playBrowse(browseItems[playIndex + 1])
             }
         }
@@ -140,7 +140,7 @@ class BrowseActivity : AppCompatActivity() {
     private fun showVideos(name: String) {
         inVideos = true
         toolbar.title = name
-        val items = all.filter { keyOf(it).trim() == name && LibPrefs.passWatch(this, it.uri) }.map {
+        val items = all.filter { keyOf(it).trim() == name && LibPrefs.passWatch(this, it.uri, it.name) }.map {
             SearchItem(it.code.ifEmpty { it.title }, Uri.parse(it.uri), "", it.dur ?: 0L, 0L)
         }
         browseItems = items

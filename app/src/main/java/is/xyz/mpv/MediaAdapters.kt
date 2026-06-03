@@ -144,7 +144,7 @@ class VideoAdapter(
         } else {
             h.dur.visibility = View.GONE
         }
-        val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, v.uri.toString()) else 0f
+        val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, v.uri.toString(), v.name) else 0f
         if (pct > 0f) {
             h.progress.visibility = View.VISIBLE
             h.progress.progress = (pct * 100).toInt()
@@ -154,8 +154,8 @@ class VideoAdapter(
         // ♥/평점 뱃지
         val us = v.uri.toString()
         if (LibPrefs.showFav(ctx)) {
-            val fav = Favorites.has(ctx, us)
-            val rt = Ratings.get(ctx, us)
+            val fav = Favorites.has(ctx, us, v.name)
+            val rt = Ratings.get(ctx, us, v.name)
             val txt = buildString {
                 if (fav) append("♥")
                 if (rt > 0) { if (isNotEmpty()) append(" "); append("★").append(rt) }

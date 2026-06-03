@@ -43,7 +43,7 @@ class SafBrowserActivity : AppCompatActivity() {
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
             rebuild()
-            if (u != null && Playback.shouldAdvance(this, u)) {
+            if (u != null && Playback.shouldAdvance(this, u, entries.filter { !it.isDir }.find { it.uri.toString() == u }?.name)) {
                 val vids = entries.filter { !it.isDir }
                 val idx = vids.indexOfFirst { it.uri.toString() == u }
                 if (idx >= 0 && idx + 1 in vids.indices) play(vids[idx + 1])
@@ -232,7 +232,7 @@ class SafAdapter(
             val extPart = if (LibPrefs.showExt(ctx)) e.name.substringAfterLast(".", "").uppercase() else ""
             h.meta.text = listOf(szPart, extPart).filter { it.isNotEmpty() }.joinToString("  ·  ")
             val fallback = e.name.substringBeforeLast(".")
-            val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, e.uri.toString()) else 0f
+            val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, e.uri.toString(), e.name) else 0f
             if (pct > 0f) {
                 h.progress.visibility = View.VISIBLE
                 h.progress.progress = (pct * 100).toInt()

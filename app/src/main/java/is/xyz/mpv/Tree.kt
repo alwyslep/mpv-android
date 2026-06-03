@@ -29,7 +29,7 @@ class TreeActivity : AppCompatActivity() {
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
             rebuild()
-            if (u != null && Playback.shouldAdvance(this, u)) {
+            if (u != null && Playback.shouldAdvance(this, u, entries.mapNotNull { it.vid }.find { it.uri.toString() == u }?.name)) {
                 val vids = entries.mapNotNull { it.vid }
                 val idx = vids.indexOfFirst { it.uri.toString() == u }
                 if (idx >= 0 && idx + 1 in vids.indices) play(vids[idx + 1])
@@ -220,7 +220,7 @@ class TreeAdapter(
             } else {
                 h.dur.visibility = View.GONE
             }
-            val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, v.uri.toString()) else 0f
+            val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, v.uri.toString(), v.name) else 0f
             if (pct > 0f) {
                 h.progress.visibility = View.VISIBLE
                 h.progress.progress = (pct * 100).toInt()

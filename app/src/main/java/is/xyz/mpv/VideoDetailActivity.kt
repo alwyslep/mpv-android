@@ -85,7 +85,7 @@ class VideoDetailActivity : AppCompatActivity() {
     private fun setupFavRating() {
         val fav = findViewById<android.widget.ImageView>(R.id.fav_btn)
         fav.setOnClickListener {
-            Favorites.toggle(this, uriStr)
+            Favorites.toggle(this, uriStr, fallbackName)
             paintFav(fav)
         }
         paintFav(fav)
@@ -93,7 +93,7 @@ class VideoDetailActivity : AppCompatActivity() {
             iv.setOnClickListener {
                 val want = i + 1
                 // 같은 별을 다시 누르면 해제
-                Ratings.set(this, uriStr, if (Ratings.get(this, uriStr) == want) 0 else want)
+                Ratings.set(this, uriStr, fallbackName, if (Ratings.get(this, uriStr, fallbackName) == want) 0 else want)
                 paintStars()
             }
         }
@@ -101,11 +101,11 @@ class VideoDetailActivity : AppCompatActivity() {
     }
 
     private fun paintFav(fav: android.widget.ImageView) {
-        fav.setImageResource(if (Favorites.has(this, uriStr)) R.drawable.ic_fav else R.drawable.ic_fav_border)
+        fav.setImageResource(if (Favorites.has(this, uriStr, fallbackName)) R.drawable.ic_fav else R.drawable.ic_fav_border)
     }
 
     private fun paintStars() {
-        val r = Ratings.get(this, uriStr)
+        val r = Ratings.get(this, uriStr, fallbackName)
         stars.forEachIndexed { i, iv ->
             iv.setImageResource(if (i < r) R.drawable.ic_star else R.drawable.ic_star_border)
         }
@@ -113,7 +113,7 @@ class VideoDetailActivity : AppCompatActivity() {
 
     private fun updateResumeButton() {
         val btn = findViewById<MaterialButton>(R.id.btn_resume)
-        val pr = Progress.get(this, uriStr)
+        val pr = Progress.get(this, uriStr, fallbackName)
         if (pr != null && pr.first > 3000 && pr.first < pr.second - 3000) {
             btn.visibility = View.VISIBLE
             btn.text = getString(R.string.detail_resume_at, MediaLibrary.fmtDur(pr.first))

@@ -29,7 +29,7 @@ class FolderVideosActivity : AppCompatActivity() {
             if (u != null) Playback.onResult(this, u, res.data)
             rebuild()
             // 자동 다음 재생: 방금 작품을 끝까지 봤고(다 봄) 다음이 있으면
-            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in vids.indices) {
+            if (u != null && Playback.shouldAdvance(this, u, vids.find { it.uri.toString() == u }?.name) && playIndex + 1 in vids.indices) {
                 play(vids[playIndex + 1])
             }
         }

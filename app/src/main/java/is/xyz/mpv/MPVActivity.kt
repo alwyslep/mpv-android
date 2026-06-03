@@ -315,7 +315,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // 4: 외부 앱(파일 매니저) 실행 등 position 미지정 시 저장 진행위치로 이어보기 — 앱 내부 Playback 과 통일
         if ((intent.extras?.getInt("position", 0) ?: 0) <= 0) {
             playbackUri()?.let { u ->
-                Progress.get(this, u)?.let { (pos, dur) ->
+                Progress.get(this, u, mediaName())?.let { (pos, dur) ->
                     if (pos > 3000 && pos < dur - 3000)
                         onloadCommands.add(arrayOf("set", "file-local-options/start", "${pos / 1000f}"))
                 }
@@ -350,6 +350,19 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // 재생 중 파일의 원본 uri (이어보기/진행저장 키) — content uri 또는 filepath extra.
     private fun playbackUri(): String? = intent.dataString ?: intent.getStringExtra("filepath")
 
+    // 1-2차: 캐시 키(품번/파일명) 산출용 파일명. 앱 내부=media_name extra, 외부=DISPLAY_NAME, 없으면 mpv filename.
+    private fun mediaName(): String? {
+        intent.getStringExtra("media_name")?.let { return it }
+        intent.data?.let { d ->
+            runCatching {
+                contentResolver.query(d, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
+                    if (it.moveToFirst()) it.getString(0)?.let { n -> return n }
+                }
+            }
+        }
+        return runCatching { MPVLib.getPropertyString("filename") }.getOrNull()
+    }
+
     private fun finishWithResult(code: Int, includeTimePos: Boolean = false, includeTracks: Boolean = false) {
         // Refer to http://mpv-android.github.io/mpv-android/intent.html
         // FIXME: should track end-file events to accurately report OK vs CANCELED
@@ -364,7 +377,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             result.putExtra("position", pos.toInt())
             result.putExtra("duration", dur.toInt())
             // 4: 외부/내부 통일 — MPVActivity 가 직접 진행위치 저장(결과 반환에만 의존하지 않음)
-            playbackUri()?.let { u -> if (dur > 0 && pos in 0..dur) Progress.save(this, u, pos, dur) }
+            playbackUri()?.let { u -> if (dur > 0 && pos in 0..dur) Progress.save(this, u, mediaName(), pos, dur) }
         }
         if (includeTracks) {
             // 살아있는 경로(뒤로키)면 직접 읽고, eof/SHUTDOWN 경로면 END_FILE 보존값 사용.
@@ -372,6 +385,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             val sid = try { MPVLib.getPropertyString("sid") } catch (_: Throwable) { null } ?: lastSid
             aid?.let { result.putExtra("saved_aid", it) }
             sid?.let { result.putExtra("saved_sid", it) }
+            // 1-2차: 트랙 선택도 품번/파일명 키로 직접 저장(외부 실행 통일)
+            playbackUri()?.let { u -> Tracks.save(this, u, mediaName(), aid ?: "", sid ?: "") }
         }
         setResult(code, result)
         finish()

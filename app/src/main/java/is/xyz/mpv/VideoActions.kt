@@ -11,14 +11,14 @@ object VideoActions {
     fun longPress(anchor: View, uri: String, name: String, onChanged: () -> Unit) {
         val ctx = anchor.context
         val pm = PopupMenu(ctx, anchor)
-        val faved = Favorites.has(ctx, uri)
+        val faved = Favorites.has(ctx, uri, name)
         pm.menu.add(0, 1, 0, ctx.getString(R.string.action_details))
         pm.menu.add(0, 2, 1, if (faved) ctx.getString(R.string.action_unfav) else ctx.getString(R.string.action_fav))
         pm.menu.add(0, 3, 2, ctx.getString(R.string.action_rate))
         pm.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> VideoDetailActivity.open(ctx, uri, name)
-                2 -> { Favorites.toggle(ctx, uri); onChanged() }
+                2 -> { Favorites.toggle(ctx, uri, name); onChanged() }
                 3 -> ratingDialog(ctx, uri, onChanged)
             }
             true

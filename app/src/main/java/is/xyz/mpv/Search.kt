@@ -80,7 +80,7 @@ class SearchAdapter(
         val item = items[position]
         val ctx = h.itemView.context
         h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
-        val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, item.uri.toString()) else 0f
+        val pct = if (LibPrefs.showProgress(ctx)) Progress.percent(ctx, item.uri.toString(), item.name) else 0f
         if (pct > 0f) {
             h.progress.visibility = View.VISIBLE
             h.progress.progress = (pct * 100).toInt()
@@ -128,7 +128,7 @@ class SearchActivity : AppCompatActivity() {
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
             runQuery()
-            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in playlist.indices) {
+            if (u != null && Playback.shouldAdvance(this, u, playlist.find { it.uri.toString() == u }?.name) && playIndex + 1 in playlist.indices) {
                 play(playlist[playIndex + 1])
             }
         }
@@ -201,7 +201,7 @@ class SearchActivity : AppCompatActivity() {
             return
         }
         val res = index.asSequence().filter { item ->
-            if (!LibPrefs.passWatch(this, item.uri.toString())) return@filter false
+            if (!LibPrefs.passWatch(this, item.uri.toString(), item.name)) return@filter false
             if (item.name.lowercase().contains(q)) return@filter true
             val m = ThumbLoader.cachedMeta(item.uri.toString()) ?: return@filter false
             m[0].lowercase().contains(q) || m[1].lowercase().contains(q)

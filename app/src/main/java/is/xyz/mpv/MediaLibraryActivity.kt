@@ -65,7 +65,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
-            if (u != null && Playback.shouldAdvance(this, u) && playIndex + 1 in homeVids.indices) {
+            if (u != null && Playback.shouldAdvance(this, u, homeVids.find { it.first == u }?.second) && playIndex + 1 in homeVids.indices) {
                 val (nu, nn) = homeVids[playIndex + 1]
                 play(nu, nn)
             }
