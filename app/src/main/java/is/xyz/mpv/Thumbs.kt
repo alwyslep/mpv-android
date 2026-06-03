@@ -142,7 +142,8 @@ object ThumbLoader {
         titleView?.tag = key
         durView?.tag = key
 
-        val cb = bmpCache.get(key)
+        val customMs = LibPrefs.customThumbPos(thumb.context, key)   // 2/5: 장면 지정 시 캐시 자동 분리(커버 파일 포함)
+        val cb = if (customMs >= 0) null else bmpCache.get(key)      // 지정 시 메모리 캐시(커버) 무시
         val cm = metaCache[key]
         val cd = durCache[key]
         thumb.setImageBitmap(cb)
@@ -158,7 +159,7 @@ object ThumbLoader {
             var bmp = cb
             var meta = cm
             var dur = cd
-            val hk = hashKey(key)
+            val hk = hashKey(if (customMs >= 0) "$key#$customMs" else key)   // customThumbPos 별 캐시 분리
 
             // ① 디스크 캐시 (MMR 회피 — 재진입 즉시)
             if (bmp == null) bmp = loadDiskBmp(ctx, hk)
@@ -171,7 +172,7 @@ object ThumbLoader {
             if (bmp == null || meta == null || (needDur && dur == null)) {
                 var freshBmp = false
                 var art = ""; var stu = ""; var ser = ""
-                val customUs = LibPrefs.customThumbPos(ctx, key).let { if (it >= 0) it * 1000 else -1L }  // 5: 사용자 지정 썸네일 위치
+                val customUs = if (customMs >= 0) customMs * 1000 else -1L  // 5: 사용자 지정 썸네일 위치(커버 무시)
                 val mmr = MediaMetadataRetriever()
                 try {
                     mmr.setDataSource(ctx, uri)
