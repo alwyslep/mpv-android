@@ -79,10 +79,16 @@ object FilterSheet {
             text = "적용"; layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         btns.addView(reset); btns.addView(apply)
-        ll.addView(btns)
 
+        // 버튼은 스크롤 밖 하단 고정 (콘텐츠가 길어 잘리던 문제) — 스크롤 영역 + 고정 버튼바
+        val outer = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(ScrollView(ctx).apply { addView(ll) },
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(btns)
+        }
         val sheet = BottomSheetDialog(ctx)
-        sheet.setContentView(ScrollView(ctx).apply { addView(ll) })
+        sheet.setContentView(outer)
 
         reset.setOnClickListener {
             p.edit().remove("filter_res_max").putBoolean("embed_filter", false)
@@ -104,8 +110,12 @@ object FilterSheet {
                 .putStringSet("filter_genre", fg)
                 .apply()
             sheet.dismiss(); onApply()
+            Toast.makeText(ctx, "필터 적용됨", Toast.LENGTH_SHORT).show()
         }
         sheet.show()
+        // 콘텐츠 전체가 보이도록 펼친 상태로 — 적용/초기화 버튼 항상 노출
+        sheet.behavior.state = com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED
+        sheet.behavior.skipCollapsed = true
     }
 
     // "배우  (N)  ▸" 행 — 탭하면 hub 목록 다중선택 다이얼로그. 선택 set 직접 갱신.
