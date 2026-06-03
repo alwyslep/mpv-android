@@ -34,7 +34,7 @@ class AboutActivity : AppCompatActivity(), MPVLib.LogObserver {
             insets
         }
 
-        logs = "mpv-android ${BuildConfig.VERSION_NAME} / ${BuildConfig.VERSION_CODE} (${BuildConfig.BUILD_TYPE})\n"
+        logs = CHANGELOG + "\n" + "mpv-android ${BuildConfig.VERSION_NAME} / ${BuildConfig.VERSION_CODE} (${BuildConfig.BUILD_TYPE})\n"
 
         // create mpv context to capture version info from log
         MPVLib.create(this)
@@ -45,8 +45,34 @@ class AboutActivity : AppCompatActivity(), MPVLib.LogObserver {
 
     private fun updateLog() {
         runOnUiThread {
-            binding.logs.text = logs
+            binding.logs.text = prettify(logs)
         }
+    }
+
+    // "Configuration:" 줄(긴 -/-- 옵션 나열, 가로 한 줄)을 옵션마다 줄바꿈해 세로 목록으로 — 가독성.
+    private fun prettify(s: String): String =
+        s.split("\n").joinToString("\n") { line ->
+            if (line.startsWith("Configuration:"))
+                "Configuration:\n" + line.removePrefix("Configuration:").trim()
+                    .split(Regex("\\s+")).filter { it.isNotEmpty() }.joinToString("\n") { "  $it" }
+            else line
+        }
+
+    companion object {
+        // mpv-aurora(JAV 라이브러리 전용 빌드) 변경이력 — mpv 정보 화면 맨 위에 표시.
+        private val CHANGELOG = """
+            ┌─ mpv-aurora · JAV 라이브러리 전용 빌드 ─┐
+            변경이력
+              v20  해상도 불일치 마커 (실제 vs 최고화질 ⚠)
+              v19  파일 이동 — 내부↔외부(SAF) 전 조합
+              v18  jembed 배치 임베드 + '임베드없음' 필터
+                   스크립트(.lua/.js)·mpv.conf 관리
+              v15  jembed(메타 직접 임베드) + TS→mp4 remux
+                   외부저장소(USB/SD) SAF 통합
+              v6   동적 오로라 배경 + 커버 크기 슬라이더
+                   길이 불일치 마커 + 미디어 라이브러리 홈
+            └────────────────────────────┘
+        """.trimIndent()
     }
 
     override fun onDestroy() {
