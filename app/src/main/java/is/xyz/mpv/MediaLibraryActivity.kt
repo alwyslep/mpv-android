@@ -212,7 +212,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                         recycler.layoutManager = LinearLayoutManager(this)
                     }
                     homeVids = children.mapNotNull { it.vid }.map { it.uri.toString() to it.name }
-                    recycler.adapter = TreeAdapter(children, grid,
+                    recycler.adapter = TreeAdapter(children.toMutableList(), grid,
                         onDir = { e ->
                             startActivity(
                                 Intent(this, TreeActivity::class.java)
