@@ -757,7 +757,11 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         // bottom_controls OFF → 하단 컨트롤(seek/버튼) 숨김(제스처로 제어), 상단만 표시.
         // 이미 표시 중이면 재설정 안 함 — 터치 중 매번 set 되는 폭주(seek 방해/떨림) 방지.
         if (binding.controls.visibility != View.VISIBLE && binding.topControls.visibility != View.VISIBLE) {
-            binding.controls.visibility = if (controlsAtBottom) View.VISIBLE else View.GONE
+            // 하단 seek/버튼 그룹: bottom_controls 또는 오디오일 때만. 숨김모드여도 제목(showMediaTitle)은 표시(5).
+            val bottomOn = controlsAtBottom || useAudioUI
+            binding.controlsSeekbarGroup.visibility = if (bottomOn) View.VISIBLE else View.GONE
+            binding.controlsButtonGroup.visibility = if (bottomOn) View.VISIBLE else View.GONE
+            binding.controls.visibility = if (bottomOn || showMediaTitle) View.VISIBLE else View.GONE
             binding.topControls.visibility = View.VISIBLE
 
             if (this.statsFPS) {
