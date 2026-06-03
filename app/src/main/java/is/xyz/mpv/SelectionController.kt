@@ -80,8 +80,8 @@ class SelectionController(
                 Thread {   // 커버 유무 판정에 MMR 가능 → 백그라운드
                     var n = 0
                     for (v in vids) {
-                        // 커버 있는 파일 제외(임베드된 것). SAF 등 길이 0 도 제외.
-                        if (v.durationMs > 0 && JEmbed.isUnembedded(act, v.uri, v.path.ifEmpty { null })) {
+                        // 커버 '이미지' 있는 파일만 제외(메타 유무 아님). SAF 등 길이 0 도 제외.
+                        if (v.durationMs > 0 && !ThumbLoader.hasCover(act, v.uri)) {
                             LibPrefs.setCustomThumbPos(act, MediaKey.of(v.uri.toString(), v.name), v.durationMs * pct / 100)
                             ThumbLoader.invalidate(act, v.uri); n++
                         }

@@ -142,6 +142,13 @@ object ThumbLoader {
         }
     }
 
+    // 임베드 커버 '이미지'가 실제로 있는지 (메타 유무와 무관). 장면 썸네일 제외 판정용 — MMR 직접.
+    fun hasCover(ctx: Context, uri: Uri): Boolean = try {
+        val mmr = MediaMetadataRetriever()
+        try { mmr.setDataSource(ctx, uri); mmr.embeddedPicture != null }
+        finally { runCatching { mmr.release() } }
+    } catch (_: Throwable) { false }
+
     fun load(
         thumb: ImageView,
         codeView: TextView?,
