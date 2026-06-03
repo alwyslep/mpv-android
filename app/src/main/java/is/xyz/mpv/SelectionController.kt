@@ -157,24 +157,41 @@ class SelectionController(
             })
     }
 
-    // 반화면 폴더트리(BottomSheet) — 내부저장소(File) + 외부저장소(SAF 트리) 탐색 후 '여기로 이동'.
+    // 우측 사이드 패널 폴더트리 — 내부저장소(File)+외부저장소(SAF) 탐색, 마지막 위치 기억(다음 이동 시 그 폴더부터).
     private fun pickFolder(
         onInternal: (String) -> Unit,
         onSaf: (DocumentFile) -> Unit
     ) {
-        val sheet = BottomSheetDialog(act)
-        val outer = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(24, 24, 24, 24) }
+        val prefs = act.getSharedPreferences("media_library", android.content.Context.MODE_PRIVATE)
+        val dlg = android.app.Dialog(act)
+        dlg.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val outer = LinearLayout(act).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(28, 36, 28, 28)
+            setBackgroundColor(0xF21A1A1A.toInt())
+        }
         val pathTv = TextView(act).apply { setPadding(8, 8, 8, 16); textSize = 13f }
         val scroll = ScrollView(act)
         val listLl = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL }
         scroll.addView(listLl)
         val moveBtn = MaterialButton(act).apply { text = "여기로 이동" }
-        var mode = 0
-        var curFile: File? = null
-        var curDoc: DocumentFile? = null
+
+        // 마지막 위치 복원
+        var mode = prefs.getInt("move_mode", 0)
+        var curFile: File? = prefs.getString("move_file", null)?.let { File(it) }?.takeIf { it.isDirectory }
+        var curDoc: DocumentFile? = prefs.getString("move_doc", null)?.let {
+            runCatching { DocumentFile.fromTreeUri(act, Uri.parse(it)) }.getOrNull()
+        }?.takeIf { it.isDirectory }
+        if (mode == 1 && curFile == null) mode = 0
+        if (mode == 2 && curDoc == null) mode = 0
+
+        fun saveLoc() = prefs.edit()
+            .putInt("move_mode", mode)
+            .putString("move_file", curFile?.absolutePath)
+            .putString("move_doc", curDoc?.uri?.toString())
+            .apply()
         fun addRow(text: String, onClick: () -> Unit) {
             listLl.addView(TextView(act).apply {
-                this.text = text; textSize = 15f; setPadding(8, 28, 8, 28); setOnClickListener { onClick() }
+                this.text = text; textSize = 15f; setPadding(8, 26, 8, 26); setOnClickListener { onClick() }
             })
         }
         fun render() {
@@ -184,7 +201,7 @@ class SelectionController(
                     pathTv.text = "대상 저장소 선택"; moveBtn.visibility = View.GONE
                     addRow("📁  내부저장소") { mode = 1; curFile = Environment.getExternalStorageDirectory(); render() }
                     for (t in SafTrees.all(act)) {
-                        val doc = DocumentFile.fromTreeUri(act, Uri.parse(t))
+                        val doc = runCatching { DocumentFile.fromTreeUri(act, Uri.parse(t)) }.getOrNull()
                         if (doc != null) addRow("💾  ${doc.name ?: "외부저장소"}") { mode = 2; curDoc = doc; render() }
                     }
                 }
@@ -203,14 +220,21 @@ class SelectionController(
                     }
                 }
             }
+            saveLoc()
         }
         moveBtn.setOnClickListener {
-            sheet.dismiss()
+            saveLoc(); dlg.dismiss()
             when (mode) { 1 -> onInternal(curFile!!.absolutePath); 2 -> onSaf(curDoc!!) }
         }
         outer.addView(pathTv)
         outer.addView(scroll, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         outer.addView(moveBtn)
-        render(); sheet.setContentView(outer); sheet.show()
+        dlg.setContentView(outer)
+        dlg.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0))
+            setLayout(Utils.convertDp(act, 340f), ViewGroup.LayoutParams.MATCH_PARENT)
+            setGravity(android.view.Gravity.END)
+        }
+        render(); dlg.show()
     }
 }
