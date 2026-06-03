@@ -19,21 +19,21 @@ object VideoActions {
             when (item.itemId) {
                 1 -> VideoDetailActivity.open(ctx, uri, name)
                 2 -> { Favorites.toggle(ctx, uri, name); onChanged() }
-                3 -> ratingDialog(ctx, uri, onChanged)
+                3 -> ratingDialog(ctx, uri, name, onChanged)
             }
             true
         }
         pm.show()
     }
 
-    fun ratingDialog(ctx: Context, uri: String, onChanged: () -> Unit) {
+    fun ratingDialog(ctx: Context, uri: String, name: String?, onChanged: () -> Unit) {
         val labels = arrayOf("★", "★★", "★★★", "★★★★", "★★★★★", ctx.getString(R.string.rating_none))
-        val cur = Ratings.get(ctx, uri)
+        val cur = Ratings.get(ctx, uri, name)
         val checked = if (cur in 1..5) cur - 1 else 5
         MaterialAlertDialogBuilder(ctx)
             .setTitle(ctx.getString(R.string.qs_rating))
             .setSingleChoiceItems(labels, checked) { dlg, which ->
-                Ratings.set(ctx, uri, if (which == 5) 0 else which + 1)
+                Ratings.set(ctx, uri, name, if (which == 5) 0 else which + 1)
                 onChanged()
                 dlg.dismiss()
             }
