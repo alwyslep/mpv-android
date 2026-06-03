@@ -38,6 +38,23 @@
     <style name="AppTheme.Preference" parent="Theme.Material3.DayNight">
         <item name="toolbarStyle">@style/AppTheme.Toolbar.Style</item>
         <item name="alertDialogTheme">@style/AppTheme.Preference.AlertDialog</item>
+        <item name="preferenceTheme">@style/JavPreferenceTheme</item>
+    </style>
+
+    <!-- 7: 소울 벤치마킹 — 설정 항목을 반투명 카드형으로(오로라 배경 비침) -->
+    <style name="JavPreferenceTheme" parent="@style/PreferenceThemeOverlay">
+        <item name="preferenceStyle">@style/JavPref</item>
+        <item name="switchPreferenceCompatStyle">@style/JavPref.Switch</item>
+        <item name="dialogPreferenceStyle">@style/JavPref.Dialog</item>
+    </style>
+    <style name="JavPref" parent="@style/Preference.Material">
+        <item name="android:layout">@layout/pref_jav_item</item>
+    </style>
+    <style name="JavPref.Switch" parent="@style/Preference.SwitchPreferenceCompat.Material">
+        <item name="android:layout">@layout/pref_jav_item</item>
+    </style>
+    <style name="JavPref.Dialog" parent="@style/Preference.DialogPreference.Material">
+        <item name="android:layout">@layout/pref_jav_item</item>
     </style>
 
     <style name="AppTheme.Toolbar.Style" parent="Widget.Material3.Toolbar">

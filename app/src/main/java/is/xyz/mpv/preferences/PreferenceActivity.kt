@@ -39,6 +39,16 @@ class PreferenceActivity : AppCompatActivity(),
         preferences = PreferenceManager.getDefaultSharedPreferences(this)
         preferences.registerOnSharedPreferenceChangeListener(this)
         supportFragmentManager.addOnBackStackChangedListener(this)
+        // 7: 설정 리스트 투명화 → 오로라 배경 비침 (카드형 항목은 pref_jav_item)
+        supportFragmentManager.registerFragmentLifecycleCallbacks(
+            object : FragmentManager.FragmentLifecycleCallbacks() {
+                override fun onFragmentViewCreated(fm: FragmentManager, f: androidx.fragment.app.Fragment, v: android.view.View, s: Bundle?) {
+                    if (f is androidx.preference.PreferenceFragmentCompat) {
+                        f.listView?.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        f.listView?.clipToPadding = false
+                    }
+                }
+            }, true)
         if (preferences.getBoolean("material_you_theming", false))
             DynamicColors.applyToActivityIfAvailable(this)
         enableEdgeToEdge()

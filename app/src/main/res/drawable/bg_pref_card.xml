@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 소울풍 설정 항목 카드 — 오로라 배경 위 반투명 어두운 둥근 카드 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="#D91C1C1E" />
+    <corners android:radius="18dp" />
+</shape>
