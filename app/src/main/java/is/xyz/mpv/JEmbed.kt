@@ -48,9 +48,10 @@ object JEmbed {
                 val msg = try {
                     val m = processOne(app, uri, code, rec)
                     if (m.contains("✓")) {
-                        ThumbLoader.invalidate(app, uri)   // 해당 영상만 캐시 무효화(전체 X)
                         // 내부저장소: remux/embed 로 파일이 바뀌었으니 MediaStore 즉시 갱신(홈에서 사라짐 방지)
                         val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
+                        val nm = p?.let { File(it).name } ?: uri.lastPathSegment
+                        ThumbLoader.invalidate(app, uri, nm)   // 27: 파일명(diskKey) 전달 — 디스크 옛 썸네일까지 삭제
                         if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
                     }
                     m
@@ -85,8 +86,9 @@ object JEmbed {
                 } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
                 if (msg.contains("✓")) {
                     ok++
-                    ThumbLoader.invalidate(app, uri)
                     val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
+                    val nm = p?.let { File(it).name } ?: uri.lastPathSegment
+                    ThumbLoader.invalidate(app, uri, nm)   // 27: 파일명(diskKey) 전달 — 디스크 옛 썸네일까지 삭제
                     if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
                     ui { onItemDone(uri, true) }   // 이 작품 완료 → 해당 타일 썸네일 즉시 반영
                 } else { fails.add("$code: $msg"); ui { onItemDone(uri, false) } }

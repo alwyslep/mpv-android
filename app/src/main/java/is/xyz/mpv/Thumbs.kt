@@ -103,12 +103,20 @@ object ThumbLoader {
     }
 
     // v6: 단일 영상 캐시만 무효화 — embed 후 전체 clearCache 의 썸네일 전멸 부작용 방지.
-    fun invalidate(ctx: Context, uri: Uri) {
+    // 27: 디스크 캐시는 diskKey(품번/파일명) 해시로 저장되므로(load 와 동일) 그 키로 지워야 한다.
+    //     과거엔 uri 해시로만 지워 디스크의 옛 자동썸네일이 남아 임베드 후 커버가 안 떴음.
+    //     name=파일명(load 의 fallbackName) 전달 시 정확. customThumbPos(장면지정) 변형도 함께 삭제. uri 잔재도 청소.
+    fun invalidate(ctx: Context, uri: Uri, name: String? = null) {
         val key = uri.toString()
         bmpCache.remove(key); metaCache.remove(key); durCache.remove(key)
-        val hk = hashKey(key); val d = cacheDir(ctx)
-        runCatching { File(d, "$hk.jpg").delete() }
-        runCatching { File(d, "$hk.txt").delete() }
+        val d = cacheDir(ctx)
+        val candidates = linkedSetOf(MediaKey.of(key, name), key)  // diskKey(품번/파일명) + 구 uri
+        for (dk in candidates) {
+            val customMs = LibPrefs.customThumbPos(ctx, dk)
+            val hk = hashKey(if (customMs >= 0) "$dk#$customMs" else dk)
+            runCatching { File(d, "$hk.jpg").delete() }
+            runCatching { File(d, "$hk.txt").delete() }
+        }
     }
 
     // v6: 로컬 파일 길이 vs hub(queue.sqlite) duration_sec 불일치 → cb(true).
