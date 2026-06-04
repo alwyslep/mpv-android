@@ -144,8 +144,10 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
         // we need to call write-watch-later manually
         MPVLib.setOptionString("save-position-on-quit", "no")
         // 32-B: 기능 on/off(feat_*) 를 user-data 로 전달 → 각 lua 가 observe 해 런타임 토글. 기본 on.
+        //   feat_* 는 FeaturesActivity 와 같은 "media_library" prefs(기본 mpv prefs 아님).
+        val featPrefs = context.getSharedPreferences("media_library", android.content.Context.MODE_PRIVATE)
         for (n in arrayOf("jav_osd", "precise_speed", "bookmarks", "sub_style_toggle", "screenshot_to_clip", "progress_bar"))
-            MPVLib.setPropertyString("user-data/aurora/feat/$n", if (sharedPreferences.getBoolean("feat_$n", true)) "true" else "false")
+            MPVLib.setPropertyString("user-data/aurora/feat/$n", if (featPrefs.getBoolean("feat_$n", true)) "true" else "false")
     }
 
     fun onPointerEvent(event: MotionEvent): Boolean {
