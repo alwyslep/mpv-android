@@ -13,8 +13,9 @@ import java.io.File
 
 /**
  * 파일 이동(3) 엔진 — 선택 영상들을 대상 폴더로 이동.
- * PoC: 내부저장소(MediaStore DATA path) File 이동. 같은 볼륨=renameTo(즉시), 다른 볼륨=copy+delete.
- * 이동 후 원본·대상 둘 다 MediaScannerConnection.scanFile 로 MediaStore 갱신. SAF(외부) 이동은 다음 단계.
+ * move(): 대상=내부저장소 폴더. 같은 볼륨=renameTo(즉시), 다른 볼륨/SAF src=copy+delete.
+ * moveToSaf(): 대상=외부 SAF 폴더. 같은 드라이브 SAF src=moveDocument(즉시), 그 외=copy+delete.
+ * 이동 후 MediaScannerConnection.scanFile + clearSafCache 로 양측 반영. (목적지 SAF 지원 완료 — 14번에서 검증)
  */
 object JMove {
     private fun ui(cb: () -> Unit) = Handler(Looper.getMainLooper()).post(cb)

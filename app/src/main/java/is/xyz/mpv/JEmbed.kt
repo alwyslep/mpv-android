@@ -33,7 +33,7 @@ import java.nio.charset.Charset
  * 메타=hub(Library.fetch /library?code=), atom=jav_dl mutagen 동일(©nam/©ART/©alb/©gen/©cmt/covr).
  *
  * random read/write 추상화 [Rw]: 내부=RandomAccessFile, 외부 SAF=Os.pread/pwrite(fd).
- * SAF remux(외부 TS)는 다음 단계 — 이번 외부는 ftyp mp4 embed 만(TS 면 폴백).
+ * 외부 SAF 도 완전 지원: TS=remuxSaf(새 문서 생성→remux fd→원본삭제→rename→embed), mp4=embedAtomRw(OsRw).
  */
 object JEmbed {
     private val LATIN1: Charset = Charsets.ISO_8859_1
