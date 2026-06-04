@@ -193,16 +193,30 @@ class ScriptsActivity : AppCompatActivity() {
         Toast.makeText(this, "GitHub 동기화 중…", Toast.LENGTH_SHORT).show()
         Thread {
             var n = 0
+            // B-62: 브랜치 raw 는 Fastly CDN 캐시(~5분) 지연으로 빌드 직후 옛 파일 → 최신 커밋 SHA 고정 URL(불변)로 우회.
+            val sha = latestSha()
+            val base = if (sha != null) "https://raw.githubusercontent.com/alwyslep/mpv-android/$sha/mpv-config" else raw
             try {
-                val mtext = URL("$raw/manifest.json").openStream().bufferedReader().use { it.readText() }
+                val mtext = URL("$base/manifest.json").openStream().bufferedReader().use { it.readText() }
                 val mo = JSONObject(mtext)
-                mo.optJSONArray("conf")?.let { for (i in 0 until it.length()) if (pullTo("$raw/${it.getString(i)}", File(cfgDir, it.getString(i)))) n++ }
-                mo.optJSONArray("scripts")?.let { for (i in 0 until it.length()) if (pullTo("$raw/scripts/${it.getString(i)}", File(scriptsDir, it.getString(i)))) n++ }
+                mo.optJSONArray("conf")?.let { for (i in 0 until it.length()) if (pullTo("$base/${it.getString(i)}", File(cfgDir, it.getString(i)))) n++ }
+                mo.optJSONArray("scripts")?.let { for (i in 0 until it.length()) if (pullTo("$base/scripts/${it.getString(i)}", File(scriptsDir, it.getString(i)))) n++ }
             } catch (_: Throwable) {}
             val cnt = n
-            ui { Toast.makeText(this, "동기화 완료: ${cnt}개 갱신", Toast.LENGTH_LONG).show(); render() }
+            val tag = if (sha != null) " (커밋 ${sha.take(7)})" else " (브랜치·캐시 가능)"
+            ui { Toast.makeText(this, "동기화 완료: ${cnt}개 갱신$tag", Toast.LENGTH_LONG).show(); render() }
         }.start()
     }
+
+    // B-62: GitHub API 로 브랜치 최신 커밋 SHA (Accept: vnd.github.sha → SHA 텍스트만). 실패 시 null → 브랜치 URL 폴백.
+    private fun latestSha(): String? = try {
+        val con = URL("https://api.github.com/repos/alwyslep/mpv-android/commits/p1-launcher").openConnection() as HttpURLConnection
+        con.setRequestProperty("Accept", "application/vnd.github.sha")
+        con.connectTimeout = 4000; con.readTimeout = 8000
+        val s = con.inputStream.bufferedReader().use { it.readText().trim() }
+        con.disconnect()
+        if (Regex("^[0-9a-f]{40}$").matches(s)) s else null
+    } catch (_: Throwable) { null }
 
     private fun pullTo(url: String, dest: File): Boolean = try {
         val con = URL(url).openConnection() as HttpURLConnection
