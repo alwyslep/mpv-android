@@ -39,7 +39,7 @@
         android:summary="@string/pref_hardware_decoding_summary"
         android:title="@string/pref_hardware_decoding_title" />
 
-    <ListPreference
+    <is.xyz.mpv.preferences.SegmentListPreference
         android:defaultValue="@string/pref_background_play_default"
         app:iconSpaceReserved="false"
         android:key="background_play"
