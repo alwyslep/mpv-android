@@ -226,4 +226,55 @@
         <item>stretch</item>
         <item>original</item>
     </string-array>
+
+    <!-- 22: 화질 필터 프리셋(드롭다운/세그먼트). value "" = mpv 기본(미설정) -->
+    <string-array name="video_upscale_pref_entries">
+        <item>기본 (성능)</item>
+        <item>빠름 (bicubic)</item>
+        <item>표준 (spline36)</item>
+        <item>고품질 (lanczos)</item>
+        <item>최고품질 (EWA lanczos)</item>
+    </string-array>
+    <string-array name="video_upscale_pref_values" translatable="false">
+        <item></item>
+        <item>bicubic_fast</item>
+        <item>spline36</item>
+        <item>lanczos</item>
+        <item>ewa_lanczossharp</item>
+    </string-array>
+
+    <string-array name="video_downscale_pref_entries">
+        <item>기본 (성능)</item>
+        <item>표준 (mitchell)</item>
+        <item>선명 (catmull_rom)</item>
+        <item>고품질 (hermite)</item>
+    </string-array>
+    <string-array name="video_downscale_pref_values" translatable="false">
+        <item></item>
+        <item>mitchell</item>
+        <item>catmull_rom</item>
+        <item>hermite</item>
+    </string-array>
+
+    <string-array name="video_tscale_pref_entries">
+        <item>기본 (oversample)</item>
+        <item>부드러움 (mitchell)</item>
+        <item>선명 (catmull_rom)</item>
+        <item>가우시안</item>
+    </string-array>
+    <string-array name="video_tscale_pref_values" translatable="false">
+        <item></item>
+        <item>mitchell</item>
+        <item>catmull_rom</item>
+        <item>gaussian</item>
+    </string-array>
+
+    <string-array name="video_interpolation_entries">
+        <item>끄기</item>
+        <item>켜기</item>
+    </string-array>
+    <string-array name="video_interpolation_values" translatable="false">
+        <item>off</item>
+        <item>on</item>
+    </string-array>
 </resources>
