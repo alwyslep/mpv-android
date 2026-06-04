@@ -2095,6 +2095,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             if (this.statsLuaMode > 0 && !playbackHasStarted) {
                 MPVLib.command(arrayOf("script-binding", "stats/display-page-${this.statsLuaMode}-toggle"))
             }
+            // 32-B: 기능 on/off 를 user-data 로 (command set — lua 가 get_property 로 읽음). 파일 로드 시점=lua 준비 완료.
+            val fp = getSharedPreferences("media_library", MODE_PRIVATE)
+            for (n in arrayOf("jav_osd", "precise_speed", "bookmarks", "sub_style_toggle", "screenshot_to_clip", "progress_bar"))
+                MPVLib.command(arrayOf("set", "user-data/aurora/feat/$n", if (fp.getBoolean("feat_$n", true)) "true" else "false"))
 
             playbackHasStarted = true
         }
