@@ -23,6 +23,7 @@ class FolderVideosActivity : AppCompatActivity() {
 
     private var pendingUri: String? = null
     private var playIndex = -1
+    private var scrollState: android.os.Parcelable? = null   // 31: 스크롤 보존(onPause+Bundle)
     private val playLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
@@ -38,6 +39,8 @@ class FolderVideosActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
         AuroraDrawable.apply(this)
+        @Suppress("DEPRECATION")
+        savedInstanceState?.getParcelable<android.os.Parcelable>("scroll")?.let { scrollState = it }  // 31
 
         folderPath = intent.getStringExtra("path") ?: ""
         val name = intent.getStringExtra("name") ?: getString(R.string.qs_folder)
@@ -118,13 +121,25 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun spanCount(): Int = LibPrefs.spanCount(this)
 
     private fun rebuild() {
+        // 31: LM 재생성 전(기존, 아이템 있을 때만) 위치 저장 → 필드. 재생성/복귀 모두 보존.
+        if ((recycler.adapter?.itemCount ?: 0) > 0)
+            recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
         recycler.layoutManager =
             if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
-        val saved = recycler.layoutManager?.onSaveInstanceState()   // 0+1: 스크롤 위치 보존
         val va = VideoAdapter(vids.toMutableList(), grid) { v -> play(v) }
         selCtl.bind(va)
         recycler.adapter = va
-        recycler.layoutManager?.onRestoreInstanceState(saved)
+        recycler.layoutManager?.onRestoreInstanceState(scrollState)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::recycler.isInitialized) recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        scrollState?.let { outState.putParcelable("scroll", it) }
     }
 
     private fun play(v: Vid) {

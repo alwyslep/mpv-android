@@ -36,6 +36,7 @@ class SafBrowserActivity : AppCompatActivity() {
     private var entries: List<SafEntry> = emptyList()
     private var grid = true
     private var toggleItem: MenuItem? = null
+    private var scrollState: android.os.Parcelable? = null   // 31: 스크롤 보존(onPause+Bundle)
 
     private var pendingUri: String? = null
     private val playLauncher =
@@ -53,6 +54,8 @@ class SafBrowserActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
+        @Suppress("DEPRECATION")
+        savedInstanceState?.getParcelable<android.os.Parcelable>("scroll")?.let { scrollState = it }  // 31
 
         treeUri = Uri.parse(intent.getStringExtra("tree") ?: "")
         docId = intent.getStringExtra("docId") ?: DocumentsContract.getTreeDocumentId(treeUri)
@@ -144,6 +147,9 @@ class SafBrowserActivity : AppCompatActivity() {
     }
 
     private fun rebuild() {
+        // 31: LM 재생성 전(기존, 아이템 있을 때만) 위치 저장 → 필드.
+        if ((recycler.adapter?.itemCount ?: 0) > 0)
+            recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
         val span = spanCount()
         if (grid) {
             val glm = GridLayoutManager(this, span)
@@ -167,6 +173,17 @@ class SafBrowserActivity : AppCompatActivity() {
             },
             onVideo = { e -> play(e) }
         )
+        recycler.layoutManager?.onRestoreInstanceState(scrollState)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        if (::recycler.isInitialized) recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        scrollState?.let { outState.putParcelable("scroll", it) }
     }
 
     private fun play(e: SafEntry) {
