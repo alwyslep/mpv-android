@@ -31,7 +31,7 @@ local function cycle()
 end
 
 -- 32-B: FeaturesActivity on/off (user-data) — off 면 키 무시
-local function feat_off() return mp.get_property("user-data/aurora/feat/sub_style_toggle", "true") == "false" end
+local function feat_off() local v = mp.get_property_native("user-data/aurora/feat/sub_style_toggle", true); return v == false or v == "false" or v == "no" or v == "0" end
 mp.register_script_message("sub-style-cycle", function() if not feat_off() then cycle() end end)
 
 mp.msg.info("sub_style_toggle.lua loaded — " .. #presets .. " presets")

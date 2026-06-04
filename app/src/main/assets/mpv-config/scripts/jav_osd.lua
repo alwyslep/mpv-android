@@ -87,7 +87,7 @@ local function refreshCache()
 end
 
 -- 32-B: FeaturesActivity on/off (user-data) — off 면 자동표시·키 모두 차단
-local function feat_off() return mp.get_property("user-data/aurora/feat/jav_osd", "true") == "false" end
+local function feat_off() local v = mp.get_property_native("user-data/aurora/feat/jav_osd", true); return v == false or v == "false" or v == "no" or v == "0" end
 
 local function show(duration)
     if feat_off() then return end

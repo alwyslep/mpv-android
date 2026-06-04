@@ -168,7 +168,7 @@ end
 load_db()
 
 -- 32-B: FeaturesActivity on/off (user-data) — off 면 키 무시
-local function feat_off() return mp.get_property("user-data/aurora/feat/bookmarks", "true") == "false" end
+local function feat_off() local v = mp.get_property_native("user-data/aurora/feat/bookmarks", true); return v == false or v == "false" or v == "no" or v == "0" end
 local function gated(fn) return function(...) if not feat_off() then fn(...) end end end
 mp.register_script_message("bookmark-add", gated(add))
 mp.register_script_message("bookmark-list", gated(list))

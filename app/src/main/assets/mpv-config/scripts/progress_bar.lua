@@ -38,15 +38,13 @@ end
 
 -- 32-B: 네이티브(FeaturesActivity)가 user-data/aurora/feat/progress_bar 로 on/off 전달 → 런타임 토글.
 --   observe 콜백 의존 대신 draw(0.25s 주기)에서 매번 직접 읽어 확실히 반영.
+-- user-data 가 boolean/문자열 어느 타입으로 저장돼도 off 판정(native 로 받음)
 local function feat_off()
-    return mp.get_property("user-data/aurora/feat/progress_bar", "true") == "false"
+    local v = mp.get_property_native("user-data/aurora/feat/progress_bar", true)
+    return v == false or v == "false" or v == "no" or v == "0"
 end
 
-local _dbg = mp.create_osd_overlay("ass-events")
 local function draw()
-    local _v = mp.get_property("user-data/aurora/feat/progress_bar", "NIL")
-    _dbg.data = string.format("{\\an7\\pos(12,120)\\fs26\\bord2\\1c&H0000FF&}feat=%s off=%s", tostring(_v), tostring(_v == "false"))
-    _dbg:update()
     if feat_off() then
         if overlay.data ~= "" then overlay.data = ""; overlay:update() end
         return

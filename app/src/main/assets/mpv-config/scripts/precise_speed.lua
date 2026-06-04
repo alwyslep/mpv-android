@@ -37,7 +37,7 @@ local function reset()
 end
 
 -- 32-B: FeaturesActivity on/off (user-data) — off 면 키 무시
-local function feat_off() return mp.get_property("user-data/aurora/feat/precise_speed", "true") == "false" end
+local function feat_off() local v = mp.get_property_native("user-data/aurora/feat/precise_speed", true); return v == false or v == "false" or v == "no" or v == "0" end
 local function gated(fn) return function(...) if not feat_off() then fn(...) end end end
 mp.register_script_message("precise-speed-up", gated(up))
 mp.register_script_message("precise-speed-down", gated(down))
