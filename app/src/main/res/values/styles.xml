@@ -67,6 +67,18 @@
         <item name="android:colorBackground">?attr/colorSurface</item>
     </style>
 
+    <!-- 24: 재생 중 더보기 팝업 — 다크(영상 위 라이트 팝업 방지) + 우리 톤 -->
+    <style name="DarkPopupDialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorSurface">#1F1F22</item>
+        <item name="android:colorBackground">#1F1F22</item>
+        <item name="colorOnSurface">#FFFFFF</item>
+        <item name="colorPrimary">#FFB300</item>
+        <item name="android:textColorPrimary">#FFFFFF</item>
+        <item name="android:textColorSecondary">#C8C8CC</item>
+        <item name="dialogCornerRadius">20dp</item>
+        <item name="cornerFamily">rounded</item>
+    </style>
+
 
     <!-- P2: 미디어 라이브러리 홈 (NextPlayer식 다크 Material3, 자체 Toolbar 사용 → NoActionBar) -->
     <style name="MediaLibraryTheme" parent="Theme.Material3.DayNight.NoActionBar">

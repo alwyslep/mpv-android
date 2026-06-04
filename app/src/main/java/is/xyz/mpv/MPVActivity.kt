@@ -1397,7 +1397,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             restoreState: StateRestoreCallback) {
         lateinit var dialog: AlertDialog
 
-        val builder = AlertDialog.Builder(this)
+        // 24: 다크 테마 팝업(영상 위 라이트 방지)
+        val builder = com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.DarkPopupDialog)
         val dialogView = LayoutInflater.from(builder.context).inflate(layoutRes, null)
 
         for (button in buttons) {
