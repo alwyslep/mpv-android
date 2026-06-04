@@ -179,29 +179,34 @@ class SelectionController(
         val items = a.selected.toList().mapNotNull { u -> vidOf(u)?.let { Uri.parse(u) to it.name } }
         if (items.isEmpty()) { toast("선택 없음"); return }
         pickFolder(
-            onInternal = { dir -> runMoveProgress(items) { onP, onD -> JMove.move(act, items, dir, onP, onD) { u -> sel?.removeItem(u.toString()) } } },
-            onSaf = { doc -> runMoveProgress(items) { onP, onD -> JMove.moveToSaf(act, items, doc, onP, onD) { u -> sel?.removeItem(u.toString()) } } }
+            onInternal = { dir -> runMoveProgress(items) { onP, onD, cancel -> JMove.move(act, items, dir, onP, onD, { u -> sel?.removeItem(u.toString()) }, cancel) } },
+            onSaf = { doc -> runMoveProgress(items) { onP, onD, cancel -> JMove.moveToSaf(act, items, doc, onP, onD, { u -> sel?.removeItem(u.toString()) }, cancel) } }
         )
     }
 
     private fun runMoveProgress(
         items: List<Pair<Uri, String>>,
-        mover: ((Int, Int, String) -> Unit, (Int, Int, List<String>) -> Unit) -> Unit
+        mover: ((Int, Int, String) -> Unit, (Int, Int, List<String>) -> Unit, () -> Boolean) -> Unit
     ) {
+        val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
         val ll = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
         val tv = TextView(act)
         val pb = ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply { max = items.size }
-        ll.addView(tv); ll.addView(pb)
+        val btnCancel = MaterialButton(act, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "중단" }
+        ll.addView(tv); ll.addView(pb); ll.addView(btnCancel)
         val dlg = MaterialAlertDialogBuilder(act)
             .setTitle("이동 중 (${items.size}개)").setView(ll).setCancelable(false).create()
+        btnCancel.setOnClickListener { cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 파일 완료 후)" }
         dlg.show(); nonModal(dlg)
         mover({ idx, _, name -> tv.text = "${idx + 1}/${items.size}   $name"; pb.progress = idx },
             { ok, fail, fails ->
                 dlg.dismiss(); exit(); onReload()
-                val msg = "이동 완료: 성공 $ok, 실패 $fail" +
+                val head = if (cancelled.get()) "중단됨" else "이동 완료"
+                val msg = "$head: 성공 $ok, 실패 $fail" +
                     if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
                 Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
-            })
+            },
+            { cancelled.get() })
     }
 
     // 우측 사이드 패널 폴더트리 — 내부저장소(File)+외부저장소(SAF) 탐색, 마지막 위치 기억(다음 이동 시 그 폴더부터).

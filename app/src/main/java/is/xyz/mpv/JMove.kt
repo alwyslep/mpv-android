@@ -25,7 +25,8 @@ object JMove {
         destDir: String,                  // 내부저장소 절대경로 폴더
         onProgress: (idx: Int, total: Int, name: String) -> Unit,
         onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
-        onItemMoved: (uri: Uri) -> Unit = {}
+        onItemMoved: (uri: Uri) -> Unit = {},
+        cancel: () -> Boolean = { false }
     ) {
         val app = ctx.applicationContext
         Thread {
@@ -35,6 +36,7 @@ object JMove {
             if (!dir.exists()) dir.mkdirs()
             val scan = ArrayList<String>()
             for ((i, pair) in items.withIndex()) {
+                if (cancel()) break   // graceful: 다음 파일 시작 전 중단(진행 중 파일은 끝까지)
                 val (uri, name) = pair
                 ui { onProgress(i, items.size, name) }
                 try {
@@ -72,7 +74,8 @@ object JMove {
         ctx: Context, items: List<Pair<Uri, String>>, destDir: DocumentFile,
         onProgress: (idx: Int, total: Int, name: String) -> Unit,
         onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
-        onItemMoved: (uri: Uri) -> Unit = {}
+        onItemMoved: (uri: Uri) -> Unit = {},
+        cancel: () -> Boolean = { false }
     ) {
         val app = ctx.applicationContext
         Thread {
@@ -81,6 +84,7 @@ object JMove {
             if (!destDir.canWrite()) { ui { onDone(0, items.size, listOf("대상 폴더 쓰기 불가")) }; return@Thread }
             val scan = ArrayList<String>()
             for ((i, pair) in items.withIndex()) {
+                if (cancel()) break   // graceful: 다음 파일 시작 전 중단
                 val (uri, name) = pair
                 ui { onProgress(i, items.size, name) }
                 try {

@@ -74,9 +74,10 @@ class VideoAdapter(
     override var onSelectionChanged: (() -> Unit)? = null
     override fun selectableVids(): List<Vid> = items
     override fun refreshSelection() { notifyDataSetChanged() }
-    override fun notifyItem(uri: String) { val i = items.indexOfFirst { it.uri.toString() == uri }; if (i >= 0) notifyItemChanged(i) }
+    override fun notifyItem(uri: String) { val t = android.net.Uri.parse(uri); val i = items.indexOfFirst { it.uri == t }; if (i >= 0) notifyItemChanged(i) }
     override fun removeItem(uri: String) {
-        val i = items.indexOfFirst { it.uri.toString() == uri }
+        val t = android.net.Uri.parse(uri)   // Uri equals 비교 — 문자열 round-trip 표현차(SAF 인코딩) 무관
+        val i = items.indexOfFirst { it.uri == t }
         if (i >= 0) { items.removeAt(i); selected.remove(uri); notifyItemRemoved(i) }
     }
 

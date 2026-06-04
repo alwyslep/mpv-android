@@ -163,9 +163,10 @@ class TreeAdapter(
     override var onSelectionChanged: (() -> Unit)? = null
     override fun selectableVids(): List<Vid> = items.mapNotNull { it.vid }
     override fun refreshSelection() { notifyDataSetChanged() }
-    override fun notifyItem(uri: String) { val i = items.indexOfFirst { it.vid?.uri?.toString() == uri }; if (i >= 0) notifyItemChanged(i) }
+    override fun notifyItem(uri: String) { val t = android.net.Uri.parse(uri); val i = items.indexOfFirst { it.vid?.uri == t }; if (i >= 0) notifyItemChanged(i) }
     override fun removeItem(uri: String) {
-        val i = items.indexOfFirst { it.vid?.uri?.toString() == uri }
+        val t = android.net.Uri.parse(uri)
+        val i = items.indexOfFirst { it.vid?.uri == t }
         if (i >= 0) { items.removeAt(i); selected.remove(uri); notifyItemRemoved(i) }
     }
 
