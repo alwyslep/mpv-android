@@ -222,7 +222,8 @@ internal class MPVView(context: Context, attrs: AttributeSet) : BaseMPVView(cont
             Property("shuffle", MPV_FORMAT_FLAG),
             Property("hwdec-current"),
             Property("mute", MPV_FORMAT_FLAG),
-            Property("current-tracks/audio/selected")
+            Property("current-tracks/audio/selected"),
+            Property("user-data/aurora/cmd", MPV_FORMAT_STRING)   // 29: input.conf→aurora_bridge.lua→네이티브 디스패치
         )
 
         for ((name, format) in p)

@@ -6,6 +6,7 @@
   ],
   "scripts": [
     "_soul_manager.lua",
+    "aurora_bridge.lua",
     "bookmarks.lua",
     "favorite.lua",
     "jav_osd.lua",

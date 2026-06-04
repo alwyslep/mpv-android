@@ -2043,12 +2043,27 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     }
 
     override fun eventProperty(property: String, value: String) {
+        if (property == "user-data/aurora/cmd") {   // 29: input.conf 단축키 → 네이티브 기능 브리지
+            eventUiHandler.post { auroraCmd(value) }
+            return
+        }
         val metaUpdated = psc.update(property, value)
         if (metaUpdated)
             updateMediaSession()
 
         if (!activityIsForeground) return
         eventUiHandler.post { eventPropertyUi(property, value, metaUpdated) }
+    }
+
+    // 29: aurora_bridge.lua 가 user-data/aurora/cmd 에 "<명령>#<seq>" 를 set → 디스패치. seq 로 같은 명령 반복도 트리거.
+    private fun auroraCmd(raw: String) {
+        when (raw.substringBefore('#')) {
+            "thumb" -> setCurrentAsThumb()
+            "lock" -> lockUI()
+            "pip" -> goIntoPiP()
+            "menu" -> openTopMenu()
+            "exit" -> finishWithResult(RESULT_OK, includeTimePos = true, includeTracks = true)
+        }
     }
 
     override fun event(eventId: Int) {
