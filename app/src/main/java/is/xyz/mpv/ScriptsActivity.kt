@@ -121,8 +121,9 @@ class ScriptsActivity : AppCompatActivity() {
         val sc = ScrollView(this).apply { addView(et); minimumHeight = 900 }
         AlertDialog.Builder(this).setTitle(f.name.removeSuffix(".off")).setView(sc)
             .setPositiveButton("저장") { _, _ ->
-                f.writeText(et.text.toString())
-                Toast.makeText(this, "저장됨 (재생/재시작 후 적용)", Toast.LENGTH_SHORT).show(); render()
+                val body = et.text.toString()
+                f.writeText(body)
+                toastResult(f.name.removeSuffix(".off"), body, "저장됨 (재생/재시작 후 적용)"); render()
             }
             .setNegativeButton("취소", null).show()
     }
@@ -154,7 +155,9 @@ class ScriptsActivity : AppCompatActivity() {
             .setPositiveButton("저장") { _, _ ->
                 val name = nameEt.text.toString().trim()
                 val dest = destFor(name) ?: run { Toast.makeText(this, ".conf / .lua / .js 만 가능", Toast.LENGTH_SHORT).show(); return@setPositiveButton }
-                dest.writeText(bodyEt.text.toString()); render()
+                val body = bodyEt.text.toString()
+                dest.writeText(body)
+                toastResult(name, body, "추가: $name"); render()
             }.setNegativeButton("취소", null).show()
     }
 
@@ -170,7 +173,7 @@ class ScriptsActivity : AppCompatActivity() {
         val dest = destFor(name) ?: run { Toast.makeText(this, ".conf / .lua / .js 만 가능", Toast.LENGTH_SHORT).show(); return }
         try {
             dest.outputStream().use { out -> contentResolver.openInputStream(uri)?.use { it.copyTo(out) } }
-            Toast.makeText(this, "추가: $name", Toast.LENGTH_SHORT).show(); render()
+            toastResult(name, dest.readText(), "추가: $name"); render()
         } catch (e: Throwable) { Toast.makeText(this, "실패: ${e.message}", Toast.LENGTH_SHORT).show() }
     }
 
@@ -180,7 +183,7 @@ class ScriptsActivity : AppCompatActivity() {
         Toast.makeText(this, "다운로드 중…", Toast.LENGTH_SHORT).show()
         Thread {
             val ok = pullTo(url, dest)
-            ui { Toast.makeText(this, if (ok) "추가: $name" else "실패: $url", Toast.LENGTH_SHORT).show(); render() }
+            ui { if (ok) toastResult(name, dest.readText(), "추가: $name") else Toast.makeText(this, "실패: $url", Toast.LENGTH_SHORT).show(); render() }
         }.start()
     }
 
@@ -205,6 +208,47 @@ class ScriptsActivity : AppCompatActivity() {
         val body = con.inputStream.bufferedReader().use { it.readText() }
         con.disconnect(); dest.writeText(body); true
     } catch (_: Throwable) { false }
+
+    // 30: 등록 정합성 검증 — null=정상, 아니면 경고 문구(토스트). aurora_bridge.lua 등록 명령과 동기화.
+    private val auroraCmds = setOf("aurora-thumb", "aurora-lock", "aurora-pip", "aurora-menu", "aurora-exit")
+    private fun validateRegistration(name: String, text: String): String? {
+        val low = name.lowercase()
+        when {
+            low.endsWith(".lua") || low.endsWith(".js") ->
+                return if (text.isBlank()) "⚠ 빈 스크립트: $name" else null
+            low == "mpv.conf" -> return null                       // 옵션 파일 — 키 검증 안 함
+            low == "input.conf" -> { /* 아래 키바인딩 검증 */ }
+            low.endsWith(".conf") ->
+                return "⚠ mpv 는 input.conf / mpv.conf 만 읽음 — '$name' 은 미반영"
+            else -> return null
+        }
+        // input.conf 키바인딩 파싱 — 중복 키(충돌) + aurora 오타
+        val seen = HashMap<String, Int>()
+        val dups = LinkedHashSet<String>()
+        val badAurora = LinkedHashSet<String>()
+        for (rawLine in text.lines()) {
+            val line = rawLine.trim()
+            if (line.isEmpty() || line.startsWith("#")) continue
+            val key = line.split(Regex("\\s+"), 2).first().trim()
+            if (key.isEmpty()) continue
+            val rest = line.removePrefix(key).trim()
+            seen[key] = (seen[key] ?: 0) + 1
+            if (seen[key] == 2) dups.add(key)
+            Regex("script-message\\s+(aurora-\\S+)").find(rest)?.let {
+                if (it.groupValues[1] !in auroraCmds) badAurora.add(it.groupValues[1])
+            }
+        }
+        val msgs = ArrayList<String>()
+        if (dups.isNotEmpty()) msgs.add("키 충돌 ${dups.size}건(${dups.joinToString(",")}) — 마지막만 적용됨")
+        if (badAurora.isNotEmpty()) msgs.add("미등록 aurora 명령: ${badAurora.joinToString(",")}")
+        return if (msgs.isEmpty()) null else "⚠ " + msgs.joinToString(" / ")
+    }
+
+    // 저장 후 검증 토스트 — 경고면 LONG, 정상이면 기본 문구 SHORT.
+    private fun toastResult(name: String, text: String, okMsg: String) {
+        val warn = validateRegistration(name, text)
+        Toast.makeText(this, warn ?: okMsg, if (warn != null) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
+    }
 
     private fun displayName(uri: Uri): String {
         try {
