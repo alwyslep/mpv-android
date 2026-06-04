@@ -40,6 +40,7 @@ class FeaturesActivity : AppCompatActivity() {
 
     private val cfgDir: File by lazy { Utils.mpvConfigDir() }
     private val mpvConf: File by lazy { File(cfgDir, "mpv.conf") }
+    private val prefs by lazy { getSharedPreferences("media_library", MODE_PRIVATE) }
     private lateinit var listLl: LinearLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,15 +65,16 @@ class FeaturesActivity : AppCompatActivity() {
 
     private fun render() {
         listLl.removeAllViews()
-        val confText = if (mpvConf.exists()) mpvConf.readText() else ""
+        ensureLuaLoaded()   // 32-B: 노출 lua 는 항상 로드(mpv.conf 보정) — on/off 는 feat_* prefs 로
 
         sectionHeader("재생 기능")
         if (!mpvConf.exists())
             hint("mpv.conf 없음 — 아래 '원본 파일 관리'에서 GitHub 동기화 후 사용")
         for (f in features) {
             val installed = File(cfgDir, "scripts/${f.file}").exists()
-            featureRow(f.title, f.desc, installed, scriptEnabled(confText, f.file)) { on ->
-                setScriptEnabled(f.file, on)
+            val stem = f.file.removeSuffix(".lua")
+            featureRow(f.title, f.desc, installed, prefs.getBoolean("feat_$stem", true)) { on ->
+                prefs.edit().putBoolean("feat_$stem", on).apply()
                 Toast.makeText(this, (if (on) "켬" else "끔") + " — 다음 재생부터 적용", Toast.LENGTH_SHORT).show()
             }
         }
@@ -127,23 +129,21 @@ class FeaturesActivity : AppCompatActivity() {
         listLl.addView(box)
     }
 
-    // mpv.conf 의 `script=...<file>` 줄이 비주석(활성)인가
-    private fun scriptEnabled(confText: String, file: String): Boolean =
-        confText.lines().any { val l = it.trim(); !l.startsWith("#") && l.startsWith("script=") && l.endsWith("/$file") }
-
-    // 해당 줄 주석/해제 토글 후 mpv.conf 재작성. 줄이 없고 켜는 경우 새로 추가.
-    private fun setScriptEnabled(file: String, on: Boolean) {
+    // 32-B: 노출 lua 는 항상 로드돼야 user-data 런타임 토글이 동작 → mpv.conf 에서 주석된 노출 lua 활성화(1회 보정).
+    //   (on/off 는 더 이상 script= 주석이 아니라 feat_* prefs 로 제어. deprecated 3개는 목록에 없어 건드리지 않음.)
+    private fun ensureLuaLoaded() {
         if (!mpvConf.exists()) return
         val lines = mpvConf.readText().lines().toMutableList()
-        var found = false
-        for (i in lines.indices) {
-            val bare = lines[i].trim().removePrefix("#").trim()
-            if (bare.startsWith("script=") && bare.endsWith("/$file")) {
-                lines[i] = (if (on) "" else "#") + "script=/storage/emulated/0/mpv/scripts/$file"
-                found = true
+        var changed = false
+        for (f in features) {
+            for (i in lines.indices) {
+                val raw = lines[i].trim()
+                val bare = raw.removePrefix("#").trim()
+                if (raw.startsWith("#") && bare.startsWith("script=") && bare.endsWith("/${f.file}")) {
+                    lines[i] = "script=/storage/emulated/0/mpv/scripts/${f.file}"; changed = true
+                }
             }
         }
-        if (!found && on) lines.add("script=/storage/emulated/0/mpv/scripts/$file")
-        mpvConf.writeText(lines.joinToString("\n"))
+        if (changed) mpvConf.writeText(lines.joinToString("\n"))
     }
 }

@@ -36,7 +36,11 @@ local function fmt_time(t)
     return string.format("%02d:%02d", m, s)
 end
 
+-- 32-B: 네이티브(FeaturesActivity)가 user-data/aurora/feat/progress_bar 로 on/off 전달 → 런타임 토글.
+local enabled = true
+
 local function draw()
+    if not enabled then return end
     local pos = mp.get_property_number("time-pos")
     local dur = mp.get_property_number("duration")
     local osd_w, osd_h = mp.get_osd_size()
@@ -105,6 +109,16 @@ local function draw()
     overlay.data = table.concat(parts, "\n")
     overlay:update()
 end
+
+-- 32-B: 기능 on/off observe — off 면 오버레이 즉시 제거, on 이면 다시 그림.
+mp.observe_property("user-data/aurora/feat/progress_bar", "string", function(_, val)
+    enabled = (val ~= "false")
+    if not enabled then
+        if overlay.data ~= "" then overlay.data = ""; overlay:update() end
+    else
+        draw()
+    end
+end)
 
 -- 0.25초 주기 갱신 (시킹 즉시성 + 가벼움 균형)
 local timer = mp.add_periodic_timer(0.25, draw)
