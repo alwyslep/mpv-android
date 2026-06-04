@@ -11,8 +11,8 @@
     <Preference
         app:iconSpaceReserved="false"
         app:key="manage_scripts"
-        android:title="mpv 설정 · 스크립트 관리"
-        android:summary="mpv.conf·input.conf·스크립트(.lua/.js) — URL/파일/직접입력 추가, 편집·토글·삭제, GitHub 동기화 (/sdcard/mpv)" />
+        android:title="재생 기능 · 스크립트"
+        android:summary="기능별 켜기/끄기(단축키 포함) → 원본 파일(.conf/.lua/.js) 관리·GitHub 동기화" />
 
     <Preference
         app:iconSpaceReserved="false"

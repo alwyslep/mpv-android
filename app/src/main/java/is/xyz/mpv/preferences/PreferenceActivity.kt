@@ -257,7 +257,7 @@ class PreferenceActivity : AppCompatActivity(),
         override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
             setPreferencesFromResource(R.xml.pref_advanced, rootKey)
             findPreference<Preference>("manage_scripts")?.setOnPreferenceClickListener {
-                startActivity(android.content.Intent(requireContext(), `is`.xyz.mpv.ScriptsActivity::class.java))
+                startActivity(android.content.Intent(requireContext(), `is`.xyz.mpv.FeaturesActivity::class.java))  // 32: 1층(기능 레이어)
                 true
             }
             findPreference<Preference>("data_backup")?.setOnPreferenceClickListener {
