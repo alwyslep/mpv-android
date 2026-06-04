@@ -273,21 +273,48 @@ class PreferenceActivity : AppCompatActivity(),
             preferenceManager.sharedPreferencesName = "media_library"
             setPreferencesFromResource(R.xml.pref_media_library, rootKey)
             findPreference<Preference>("action_rebuild_index")?.setOnPreferenceClickListener {
-                `is`.xyz.mpv.SearchIndex.clear()
-                android.widget.Toast.makeText(requireContext(), "검색 인덱스를 비웠습니다 (다음 검색 시 재인덱싱)", android.widget.Toast.LENGTH_SHORT).show()
-                true
+                confirmDanger("검색 인덱스 재생성", "검색 인덱스를 비웁니다. 다음 검색 시 다시 만들어집니다.", "재생성") {
+                    `is`.xyz.mpv.SearchIndex.clear(); toast("검색 인덱스를 비웠습니다")
+                }; true
             }
             findPreference<Preference>("action_clear_trees")?.setOnPreferenceClickListener {
-                `is`.xyz.mpv.SafTrees.clear(requireContext())
-                `is`.xyz.mpv.SearchIndex.clear()
-                android.widget.Toast.makeText(requireContext(), "등록된 폴더를 초기화했습니다", android.widget.Toast.LENGTH_SHORT).show()
-                true
+                confirmDanger("등록 폴더 초기화", "등록된 외부 폴더(USB/SD)를 모두 해제합니다. 다시 'FAB 폴더 열기'로 등록해야 합니다.", "초기화") {
+                    `is`.xyz.mpv.SafTrees.clear(requireContext()); `is`.xyz.mpv.SearchIndex.clear(); toast("등록된 폴더를 초기화했습니다")
+                }; true
             }
             findPreference<Preference>("action_clear_thumbs")?.setOnPreferenceClickListener {
-                `is`.xyz.mpv.ThumbLoader.clearCache(requireContext())
-                android.widget.Toast.makeText(requireContext(), "썸네일 캐시를 비웠습니다", android.widget.Toast.LENGTH_SHORT).show()
-                true
+                confirmDanger("썸네일 캐시 비우기", "썸네일 디스크 캐시를 모두 삭제합니다. 표시 시 다시 생성됩니다.", "비우기") {
+                    `is`.xyz.mpv.ThumbLoader.clearCache(requireContext()); toast("썸네일 캐시를 비웠습니다")
+                }; true
             }
+        }
+
+        private fun toast(m: String) = android.widget.Toast.makeText(requireContext(), m, android.widget.Toast.LENGTH_SHORT).show()
+
+        // 17: 위험 액션 3중 안전장치 — ①경고 다이얼로그 ②체크박스 ③키워드 입력.
+        private fun confirmDanger(title: String, warning: String, keyword: String, action: () -> Unit) {
+            val ctx = requireContext()
+            androidx.appcompat.app.AlertDialog.Builder(ctx)
+                .setTitle("⚠ $title")
+                .setMessage("$warning\n\n오클릭 방지 — 계속하려면 2단계 확인이 필요합니다.")
+                .setNegativeButton("취소", null)
+                .setPositiveButton("계속") { _, _ ->
+                    val ll = android.widget.LinearLayout(ctx).apply {
+                        orientation = android.widget.LinearLayout.VERTICAL; setPadding(56, 28, 56, 8)
+                    }
+                    val cb = android.widget.CheckBox(ctx).apply { text = "되돌릴 수 없음을 이해했습니다" }
+                    val et = android.widget.EditText(ctx).apply { hint = "확인: '$keyword' 입력" }
+                    ll.addView(cb); ll.addView(et)
+                    val d = androidx.appcompat.app.AlertDialog.Builder(ctx).setTitle(title).setView(ll)
+                        .setNegativeButton("취소", null).setPositiveButton("실행", null).create()
+                    d.setOnShowListener {
+                        d.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                            if (cb.isChecked && et.text.toString().trim() == keyword) { action(); d.dismiss() }
+                            else toast("체크 + '$keyword' 입력이 필요합니다")
+                        }
+                    }
+                    d.show()
+                }.show()
         }
     }
 }
