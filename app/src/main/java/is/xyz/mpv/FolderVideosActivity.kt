@@ -51,11 +51,15 @@ class FolderVideosActivity : AppCompatActivity() {
         toggleItem = toolbar.menu.add(0, 1, 0, getString(R.string.toggle_view)).apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 2, 1, getString(R.string.qs_title)).apply {
+        toolbar.menu.add(0, 7, 1, "정렬").apply {
+            setIcon(R.drawable.ic_sort_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.menu.add(0, 2, 2, getString(R.string.qs_title)).apply {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 3, 2, "선택(임베드)").apply {
+        toolbar.menu.add(0, 3, 3, "선택(임베드)").apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
         }
         toolbar.menu.add(0, 4, 3, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
@@ -74,6 +78,7 @@ class FolderVideosActivity : AppCompatActivity() {
                 2 -> QuickSettings.show(this) {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
+                7 -> SortDialog.show(this, "folder", false) { reload() }
                 3 -> selCtl.enter(showEmbed = true, showMove = false)
                 4 -> FilterSheet.show(this) { reload() }
                 5 -> selCtl.enter(showEmbed = false, showMove = true)
@@ -95,7 +100,7 @@ class FolderVideosActivity : AppCompatActivity() {
 
     private fun reload() {
         Thread {
-            val list = LibPrefs.sortVids(this, MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
+            val list = LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
                 .filter { FilterEngine.passes(this, it) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread

@@ -38,6 +38,14 @@
             android:singleLine="true" />
 
         <ImageButton
+            android:id="@+id/sort"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_sort_24"
+            android:contentDescription="정렬" />
+
+        <ImageButton
             android:id="@+id/qs"
             android:layout_width="48dp"
             android:layout_height="48dp"

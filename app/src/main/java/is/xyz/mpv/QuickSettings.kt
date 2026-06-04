@@ -27,8 +27,6 @@ object QuickSettings {
         var pFavOnly = LibPrefs.favOnly(ctx)
         var pShowFav = LibPrefs.showFav(ctx)
         var pGrid = LibPrefs.grid(ctx)
-        var pSort = LibPrefs.sortKey(ctx)
-        var pAsc = LibPrefs.sortAsc(ctx)
         var pDur = LibPrefs.showDur(ctx)
         var pExt = LibPrefs.showExt(ctx)
         var pPath = LibPrefs.showPath(ctx)
@@ -97,41 +95,7 @@ object QuickSettings {
             if (on) pCoverAlign = when (id) { R.id.ca_left -> "left"; R.id.ca_right -> "right"; else -> "center" }
         }
 
-        // 정렬 아이콘 셀
-        val primary = MaterialColors.getColor(v, androidx.appcompat.R.attr.colorPrimary, 0)
-        val variant = MaterialColors.getColor(v, com.google.android.material.R.attr.colorOnSurfaceVariant, 0)
-        val cells = listOf(
-            "name" to v.findViewById<LinearLayout>(R.id.sc_name),
-            "length" to v.findViewById<LinearLayout>(R.id.sc_length),
-            "date" to v.findViewById<LinearLayout>(R.id.sc_date),
-            "size" to v.findViewById<LinearLayout>(R.id.sc_size),
-            "path" to v.findViewById<LinearLayout>(R.id.sc_path),
-            "rating" to v.findViewById<LinearLayout>(R.id.sc_rating)
-        )
-        fun paint() {
-            for ((key, cell) in cells) {
-                val sel = key == pSort
-                val ic = cell.getChildAt(0) as ImageView
-                val lbl = cell.getChildAt(1) as TextView
-                if (sel) {
-                    ic.setBackgroundResource(R.drawable.bg_sort_circle)
-                    ic.backgroundTintList = ColorStateList.valueOf(primary)
-                    ic.setColorFilter(Color.WHITE)
-                } else {
-                    ic.setBackgroundResource(0)
-                    ic.setColorFilter(variant)
-                }
-                lbl.setTextColor(if (sel) primary else variant)
-                lbl.setTypeface(null, if (sel) Typeface.BOLD else Typeface.NORMAL)
-            }
-        }
-        for ((key, cell) in cells) cell.setOnClickListener { pSort = key; paint() }
-        paint()
-
-        // 정렬 순서
-        val grpOrder = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_order)
-        grpOrder.check(if (pAsc) R.id.btn_asc else R.id.btn_desc)
-        grpOrder.addOnButtonCheckedListener { _, id, on -> if (on) pAsc = id == R.id.btn_asc }
+        // 26: 정렬은 빠른설정에서 제거 — 각 화면(scope)별 정렬 버튼(SortDialog)으로 분리.
 
         // 필드
         bindChip(v.findViewById(R.id.chip_f_dur), pDur) { pDur = it }
@@ -152,7 +116,6 @@ object QuickSettings {
             LibPrefs.setFavOnly(ctx, pFavOnly)
             LibPrefs.setField(ctx, "show_fav", pShowFav)
             LibPrefs.setGrid(ctx, pGrid)
-            LibPrefs.setSort(ctx, pSort, pAsc)
             LibPrefs.setField(ctx, "show_dur", pDur)
             LibPrefs.setField(ctx, "show_ext", pExt)
             LibPrefs.setField(ctx, "show_path", pPath)

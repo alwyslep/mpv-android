@@ -214,7 +214,7 @@ object MediaLibrary {
     }
 
     // dir 직속 하위폴더(영상 보유) + dir 직속 영상.
-    fun treeChildren(vids: List<Vid>, dir: String): List<TreeEntry> {
+    fun treeChildren(ctx: Context, vids: List<Vid>, dir: String, scope: String = "home_tree"): List<TreeEntry> {
         val prefix = if (dir.isEmpty() || dir == "/") "/" else "$dir/"
         val dirs = sortedSetOf<String>()
         val files = ArrayList<Vid>()
@@ -229,7 +229,7 @@ object MediaLibrary {
         }
         val out = ArrayList<TreeEntry>()
         for (d in dirs) out.add(TreeEntry(File(d).name, d, null))
-        for (v in files.sortedBy { it.name.lowercase() }) out.add(TreeEntry(v.name, null, v))
+        for (v in LibPrefs.sortVids(ctx, scope, files)) out.add(TreeEntry(v.name, null, v))  // 26: 트리 영상도 정렬 적용
         return out
     }
 }
@@ -278,11 +278,12 @@ object LibPrefs {
     fun viewMode(ctx: Context): String = p(ctx).getString("view_mode", "folder") ?: "folder"
     fun setViewMode(ctx: Context, v: String) = p(ctx).edit().putString("view_mode", v).apply()
 
-    // name(제목) | length(길이) | date(날짜) | size(크기) | path(위치)
-    fun sortKey(ctx: Context): String = p(ctx).getString("sort_key", "name") ?: "name"
-    fun sortAsc(ctx: Context) = p(ctx).getBoolean("sort_asc", true)
-    fun setSort(ctx: Context, key: String, asc: Boolean) =
-        p(ctx).edit().putString("sort_key", key).putBoolean("sort_asc", asc).apply()
+    // 26: 정렬은 화면(scope)별 독립. key=name|length|date|size|path|rating|progress|favorite
+    //   scope: home_folders / home_videos / home_tree / folder / saf / search
+    fun sortKey(ctx: Context, scope: String): String = p(ctx).getString("sort_key_$scope", "name") ?: "name"
+    fun sortAsc(ctx: Context, scope: String) = p(ctx).getBoolean("sort_asc_$scope", true)
+    fun setSort(ctx: Context, scope: String, key: String, asc: Boolean) =
+        p(ctx).edit().putString("sort_key_$scope", key).putBoolean("sort_asc_$scope", asc).apply()
 
     fun showDur(ctx: Context) = p(ctx).getBoolean("show_dur", true)        // 길이
     fun showExt(ctx: Context) = p(ctx).getBoolean("show_ext", false)       // 파일형식
@@ -361,32 +362,43 @@ object LibPrefs {
     }
 
     private fun <T> sortGeneric(
-        ctx: Context, list: List<T>,
+        ctx: Context, scope: String, list: List<T>,
         name: (T) -> String, date: (T) -> Long, size: (T) -> Long,
-        length: (T) -> Long, path: (T) -> String, rating: (T) -> Int
+        length: (T) -> Long, path: (T) -> String, rating: (T) -> Int,
+        progress: (T) -> Float, fav: (T) -> Boolean
     ): List<T> {
-        val cmp = when (sortKey(ctx)) {
+        val cmp = when (sortKey(ctx, scope)) {
             "date" -> compareBy<T> { date(it) }
             "size" -> compareBy<T> { size(it) }
             "length" -> compareBy<T> { length(it) }
             "path" -> compareBy<T> { path(it).lowercase() }
             "rating" -> compareBy<T> { rating(it) }
+            "progress" -> compareBy<T> { progress(it) }
+            "favorite" -> compareBy<T> { if (fav(it)) 1 else 0 }
             else -> compareBy<T> { name(it).lowercase() }
         }
         val s = list.sortedWith(cmp)
-        return if (sortAsc(ctx)) s else s.reversed()
+        return if (sortAsc(ctx, scope)) s else s.reversed()
     }
 
-    fun sortVids(ctx: Context, l: List<Vid>): List<Vid> =
-        sortGeneric(ctx, l, { it.name }, { it.dateModified }, { it.size }, { it.durationMs }, { it.folderPath },
-            { Ratings.get(ctx, it.uri.toString(), it.name) })
+    fun sortVids(ctx: Context, scope: String, l: List<Vid>): List<Vid> =
+        sortGeneric(ctx, scope, l, { it.name }, { it.dateModified }, { it.size }, { it.durationMs }, { it.folderPath },
+            { Ratings.get(ctx, it.uri.toString(), it.name) },
+            { Progress.percent(ctx, it.uri.toString(), it.name) },
+            { Favorites.has(ctx, it.uri.toString(), it.name) })
 
-    fun sortFolds(ctx: Context, l: List<Fold>): List<Fold> =
-        sortGeneric(ctx, l, { it.name }, { it.rep?.dateModified ?: 0L }, { it.count.toLong() },
-            { it.rep?.durationMs ?: 0L }, { it.path }, { 0 })
+    fun sortFolds(ctx: Context, scope: String, l: List<Fold>): List<Fold> =
+        sortGeneric(ctx, scope, l, { it.name }, { it.rep?.dateModified ?: 0L }, { it.count.toLong() },
+            { it.rep?.durationMs ?: 0L }, { it.path }, { 0 }, { 0f }, { false })
 
-    fun sortSaf(ctx: Context, l: List<SafEntry>): List<SafEntry> =
-        sortGeneric(ctx, l, { it.name }, { 0L }, { it.size }, { 0L }, { it.name }, { 0 })
+    fun sortSaf(ctx: Context, scope: String, l: List<SafEntry>): List<SafEntry> =
+        sortGeneric(ctx, scope, l, { it.name }, { 0L }, { it.size }, { 0L }, { it.name }, { 0 }, { 0f }, { false })
+
+    fun sortSearch(ctx: Context, l: List<SearchItem>): List<SearchItem> =
+        sortGeneric(ctx, "search", l, { it.name }, { 0L }, { it.size }, { it.durationMs }, { it.folder },
+            { Ratings.get(ctx, it.uri.toString(), it.name) },
+            { Progress.percent(ctx, it.uri.toString(), it.name) },
+            { Favorites.has(ctx, it.uri.toString(), it.name) })
 }
 
 // 사용자가 '폴더 열기'로 권한 준 SAF 트리 uri 들 — 통합 검색 인덱싱 대상.

@@ -67,7 +67,11 @@ class SafBrowserActivity : AppCompatActivity() {
         toggleItem = toolbar.menu.add(0, 1, 0, getString(R.string.toggle_view)).apply {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 2, 1, getString(R.string.qs_title)).apply {
+        toolbar.menu.add(0, 7, 1, "정렬").apply {
+            setIcon(R.drawable.ic_sort_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.menu.add(0, 2, 2, getString(R.string.qs_title)).apply {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
@@ -83,6 +87,7 @@ class SafBrowserActivity : AppCompatActivity() {
                 2 -> QuickSettings.show(this) {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
+                7 -> SortDialog.show(this, "saf", false) { reload() }
             }
             true
         }
@@ -134,7 +139,7 @@ class SafBrowserActivity : AppCompatActivity() {
         } catch (_: Throwable) {
         }
         val dirs = out.filter { it.isDir }.sortedBy { it.name.lowercase() }
-        val vids = LibPrefs.sortSaf(this, out.filter { !it.isDir })
+        val vids = LibPrefs.sortSaf(this, "saf", out.filter { !it.isDir })
         return dirs + vids
     }
 

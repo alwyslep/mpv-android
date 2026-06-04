@@ -85,11 +85,15 @@ class MediaLibraryActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_people_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 3, 2, getString(R.string.qs_title)).apply {
+        toolbar.menu.add(0, 9, 2, "정렬").apply {
+            setIcon(R.drawable.ic_sort_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        }
+        toolbar.menu.add(0, 3, 3, getString(R.string.qs_title)).apply {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 1, 2, getString(R.string.lbl_settings)).apply {
+        toolbar.menu.add(0, 1, 4, getString(R.string.lbl_settings)).apply {
             setIcon(R.drawable.ic_settings_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
@@ -104,6 +108,11 @@ class MediaLibraryActivity : AppCompatActivity() {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
                 4 -> startActivity(Intent(this, BrowseActivity::class.java))
                 3 -> QuickSettings.show(this) { load() }
+                9 -> {
+                    val m = LibPrefs.viewMode(this)
+                    val sc = when (m) { "videos" -> "home_videos"; "tree" -> "home_tree"; else -> "home_folders" }
+                    SortDialog.show(this, sc, m == "folder") { load() }
+                }
                 1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
                 5 -> selCtl.enter(showEmbed = true, showMove = false)
                 6 -> FilterSheet.show(this) { load() }
@@ -190,7 +199,7 @@ class MediaLibraryActivity : AppCompatActivity() {
             if (!seeded) { Utils.seedConfig(this); seeded = true }   // 번들 기본 스크립트/conf 복원(없을 때만)
             val allVids = MediaLibrary.queryVideos(this)
             if (mode == "videos") {
-                val vids = LibPrefs.sortVids(this, allVids).filter { FilterEngine.passes(this, it) }
+                val vids = LibPrefs.sortVids(this, "home_videos", allVids).filter { FilterEngine.passes(this, it) }
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     homeVids = vids.map { it.uri.toString() to it.name }
@@ -204,7 +213,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 }
             } else if (mode == "tree") {
                 val root = MediaLibrary.treeRoot(allVids)
-                val children = MediaLibrary.treeChildren(allVids, root)
+                val children = MediaLibrary.treeChildren(this, allVids, root)
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     empty.visibility = if (children.isEmpty()) View.VISIBLE else View.GONE
@@ -233,7 +242,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 }
             } else {
                 // folder
-                val folds = LibPrefs.sortFolds(this, MediaLibrary.folders(allVids))
+                val folds = LibPrefs.sortFolds(this, "home_folders", MediaLibrary.folders(allVids))
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     empty.visibility = if (folds.isEmpty()) View.VISIBLE else View.GONE

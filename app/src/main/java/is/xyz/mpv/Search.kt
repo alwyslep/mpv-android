@@ -152,6 +152,9 @@ class SearchActivity : AppCompatActivity() {
                 runQuery()
             }
         }
+        findViewById<ImageButton>(R.id.sort).setOnClickListener {
+            SortDialog.show(this, "search", false) { runQuery() }   // 26: 검색 결과 정렬
+        }
 
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEARCH) { runQuery(); true } else false
@@ -206,9 +209,10 @@ class SearchActivity : AppCompatActivity() {
             val m = ThumbLoader.cachedMeta(item.uri.toString()) ?: return@filter false
             m[0].lowercase().contains(q) || m[1].lowercase().contains(q)
         }.take(500).toList()
-        results = res
-        adapter.update(res)
-        status.text = getString(R.string.search_results, input.text, res.size)
+        val sorted = LibPrefs.sortSearch(this, res)   // 26: 검색 결과도 정렬 적용
+        results = sorted
+        adapter.update(sorted)
+        status.text = getString(R.string.search_results, input.text, sorted.size)
     }
 
     private fun play(item: SearchItem) {
