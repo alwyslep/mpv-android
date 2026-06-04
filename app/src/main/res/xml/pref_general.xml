@@ -9,20 +9,20 @@
         android:hint=""
         android:title="@string/pref_default_file_manager_path_title" />
 
-    <EditTextPreference
-        android:defaultValue="eng"
+    <is.xyz.mpv.preferences.DropdownListPreference
+        android:defaultValue="jpn"
         android:key="default_audio_language"
         app:iconSpaceReserved="false"
-        app:useSimpleSummaryProvider="true"
-        android:dialogMessage="@string/pref_default_audio_language_message"
+        android:entries="@array/audio_language_pref_entries"
+        android:entryValues="@array/audio_language_pref_values"
         android:title="@string/pref_default_audio_language_title" />
 
-    <EditTextPreference
-        android:defaultValue="eng"
+    <is.xyz.mpv.preferences.DropdownListPreference
+        android:defaultValue="kor"
         app:iconSpaceReserved="false"
         android:key="default_subtitle_language"
-        app:useSimpleSummaryProvider="true"
-        android:dialogMessage="@string/pref_default_subtitle_language_message"
+        android:entries="@array/subtitle_language_pref_entries"
+        android:entryValues="@array/subtitle_language_pref_values"
         android:title="@string/pref_default_subtitle_language_title" />
 
     <SwitchPreferenceCompat
