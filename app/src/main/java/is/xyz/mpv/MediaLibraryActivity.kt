@@ -59,6 +59,7 @@ class MediaLibraryActivity : AppCompatActivity() {
 
     // 재생 결과(위치/길이) 기록 — 이어보기·진행률
     private var pendingUri: String? = null
+    private var scrollState: android.os.Parcelable? = null   // 31: 스크롤 위치 — onPause 저장 + Bundle 영속화(Activity 파괴 대비)
     private var homeVids: List<Pair<String, String>> = emptyList()  // 자동 다음재생용 (uri, name)
     private var playIndex = -1
     private val playLauncher =
@@ -75,6 +76,8 @@ class MediaLibraryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media_library)
         AuroraDrawable.apply(this)
+        @Suppress("DEPRECATION")
+        savedInstanceState?.getParcelable<android.os.Parcelable>("ml_scroll")?.let { scrollState = it }  // 31: 파괴→재생성 복원
 
         val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
         toolbar.menu.add(0, 2, 0, getString(R.string.lbl_search)).apply {
@@ -142,6 +145,16 @@ class MediaLibraryActivity : AppCompatActivity() {
         if (hasMediaAccess()) load()
     }
 
+    override fun onPause() {
+        super.onPause()   // 31: 재생/이탈 전 스크롤 위치 저장
+        recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)   // 31: Activity 파괴 대비 영속화
+        scrollState?.let { outState.putParcelable("ml_scroll", it) }
+    }
+
     private fun setupFab() {
         fabMenu = findViewById(R.id.fab_menu)
         findViewById<FloatingActionButton>(R.id.fab_main).setOnClickListener {
@@ -186,7 +199,11 @@ class MediaLibraryActivity : AppCompatActivity() {
     private fun load() {
         val mode = LibPrefs.viewMode(this)
         val grid = LibPrefs.grid(this)
-        val savedScroll = recycler.layoutManager?.onSaveInstanceState()  // 0+1: 스크롤 위치 보존(재생 복귀·갱신 시)
+        // 31: 어댑터에 아이템이 있을 때만 현재 위치로 갱신(재생성 직후 빈 LM 이 0 으로 덮어쓰는 것 방지).
+        //     필드 기반 → onPause 저장 + Bundle 복원 모두 활용. 메뉴 액션(정렬/필터) 시엔 현재 위치 유지.
+        if ((recycler.adapter?.itemCount ?: 0) > 0)
+            recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
+        val savedScroll = scrollState
         val showSel = mode == "videos"   // 선택/이동은 영상 평면 모드만 (폴더/트리는 폴더 진입 후)
         selMenuItem?.isVisible = showSel
         moveMenuItem?.isVisible = showSel
