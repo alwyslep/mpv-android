@@ -38,7 +38,7 @@
             android:layout_height="4dp"
             android:layout_gravity="bottom"
             android:max="100"
-            android:progressTint="#FFB300"
+            android:progressTint="#00FF00"
             android:progressBackgroundTint="#33FFFFFF"
             android:visibility="gone" />
         <TextView

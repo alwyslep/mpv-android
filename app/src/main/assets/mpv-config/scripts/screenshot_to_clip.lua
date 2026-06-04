@@ -27,7 +27,9 @@ local function take()
     end
 end
 
-mp.register_script_message("screenshot-clip-take", take)
+-- 32-B: FeaturesActivity on/off (user-data) — off 면 키 무시
+local function feat_off() return mp.get_property("user-data/aurora/feat/screenshot_to_clip", "true") == "false" end
+mp.register_script_message("screenshot-clip-take", function() if not feat_off() then take() end end)
 
 mp.msg.info("screenshot_to_clip.lua loaded")
 

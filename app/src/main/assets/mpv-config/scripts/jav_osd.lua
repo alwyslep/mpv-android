@@ -86,7 +86,11 @@ local function refreshCache()
     lastMeta = readMeta()
 end
 
+-- 32-B: FeaturesActivity on/off (user-data) — off 면 자동표시·키 모두 차단
+local function feat_off() return mp.get_property("user-data/aurora/feat/jav_osd", "true") == "false" end
+
 local function show(duration)
+    if feat_off() then return end
     refreshCache()
     mp.osd_message(buildOsd(lastCode, lastMeta), duration)
 end
@@ -147,10 +151,11 @@ mp.register_event("file-loaded", function()
     if persistent then show(2) else show(3) end
 end)
 
-mp.register_script_message("jav-osd-show", showOnce)
-mp.register_script_message("jav-osd-toggle-persistent", togglePersistent)
-mp.register_script_message("jav-copy-code", copyCode)
-mp.register_script_message("jav-copy-meta", copyMeta)
+local function gated(fn) return function(...) if not feat_off() then fn(...) end end end
+mp.register_script_message("jav-osd-show", gated(showOnce))
+mp.register_script_message("jav-osd-toggle-persistent", gated(togglePersistent))
+mp.register_script_message("jav-copy-code", gated(copyCode))
+mp.register_script_message("jav-copy-meta", gated(copyMeta))
 
 -- soul_manager 등록
 mp.commandv("script-message", "soul-register", "jav_osd", "1.0.1",

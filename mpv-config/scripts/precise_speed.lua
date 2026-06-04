@@ -36,9 +36,12 @@ local function reset()
     show(1.0)
 end
 
-mp.register_script_message("precise-speed-up", up)
-mp.register_script_message("precise-speed-down", down)
-mp.register_script_message("precise-speed-reset", reset)
+-- 32-B: FeaturesActivity on/off (user-data) — off 면 키 무시
+local function feat_off() return mp.get_property("user-data/aurora/feat/precise_speed", "true") == "false" end
+local function gated(fn) return function(...) if not feat_off() then fn(...) end end end
+mp.register_script_message("precise-speed-up", gated(up))
+mp.register_script_message("precise-speed-down", gated(down))
+mp.register_script_message("precise-speed-reset", gated(reset))
 
 mp.msg.info("precise_speed.lua loaded")
 

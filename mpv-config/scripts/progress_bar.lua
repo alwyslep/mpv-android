@@ -116,14 +116,6 @@ local function draw()
     overlay:update()
 end
 
--- [DEBUG v77] user-data 전달 확인용 — 화면 좌상단에 feat 값 항상 표시. 원인 확정 후 제거.
-local dbg_ov = mp.create_osd_overlay("ass-events")
-mp.add_periodic_timer(0.5, function()
-    local v = mp.get_property("user-data/aurora/feat/progress_bar", "NIL")
-    dbg_ov.data = string.format("{\\an7\\pos(12,90)\\fs30\\bord2\\1c&H00FF00&}PB feat=%s", tostring(v))
-    dbg_ov:update()
-end)
-
 -- 0.25초 주기 갱신 (시킹 즉시성 + 가벼움 균형)
 local timer = mp.add_periodic_timer(0.25, draw)
 

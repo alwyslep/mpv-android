@@ -167,12 +167,15 @@ end
 
 load_db()
 
-mp.register_script_message("bookmark-add", add)
-mp.register_script_message("bookmark-list", list)
-mp.register_script_message("bookmark-remove-last", removeLast)
-mp.register_script_message("bookmark-clear", clearAll)
-mp.register_script_message("bookmark-next", nextMark)
-mp.register_script_message("bookmark-prev", prevMark)
+-- 32-B: FeaturesActivity on/off (user-data) — off 면 키 무시
+local function feat_off() return mp.get_property("user-data/aurora/feat/bookmarks", "true") == "false" end
+local function gated(fn) return function(...) if not feat_off() then fn(...) end end end
+mp.register_script_message("bookmark-add", gated(add))
+mp.register_script_message("bookmark-list", gated(list))
+mp.register_script_message("bookmark-remove-last", gated(removeLast))
+mp.register_script_message("bookmark-clear", gated(clearAll))
+mp.register_script_message("bookmark-next", gated(nextMark))
+mp.register_script_message("bookmark-prev", gated(prevMark))
 
 local cnt = 0
 for _ in pairs(db) do cnt = cnt + 1 end
