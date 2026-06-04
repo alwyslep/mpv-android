@@ -116,7 +116,13 @@ class VideoAdapter(
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
         h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
         run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
-        // 4: 실제 height(MediaStore v.height) < hub 기대 → 빨강+⚠ (저화질/부분 다운, SAF height=0 은 skip)
+        // B-60: 절대 임계 — 로컬 height < 720p 면 저화질 즉시 경고(전 파일, hub 재크롤 불필요)
+        if (v.height in 1..719 && res.isNotEmpty()) {
+            h.meta.setTextColor(0xFFFF5252.toInt())
+            val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+            h.meta.text = "${v.height}p ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+        }
+        // 4: 실제 height(MediaStore v.height) < hub 기대 → 빨강+⚠ (저화질/부분 다운, SAF height=0 은 skip). hub 있으면 더 정밀(화살표).
         if (v.height > 0 && res.isNotEmpty()) {
             val resKey = v.uri.toString()
             h.meta.tag = resKey
