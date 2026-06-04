@@ -14,7 +14,7 @@ import `is`.xyz.mpv.R
  * 21: ListPreference 를 인라인 토글그룹(세그먼트)으로 — 팝업 대신 버튼 N선택.
  * entries/entryValues(ListPreference attr) 그대로 사용. 빠른설정 토글그룹과 같은 UX.
  */
-class SegmentListPreference(context: Context, attrs: AttributeSet?) : ListPreference(context, attrs) {
+open class SegmentListPreference(context: Context, attrs: AttributeSet?) : ListPreference(context, attrs) {
     init {
         layoutResource = R.layout.pref_segment
         isSelectable = false   // 행 클릭(팝업) 비활성 — 버튼으로만

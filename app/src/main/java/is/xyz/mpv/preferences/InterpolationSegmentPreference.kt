@@ -25,7 +25,7 @@ class InterpolationSegmentPreference(context: Context, attrs: AttributeSet?) :
             ?.putString(
                 "video_sync",
                 if (on) "display-resample"
-                else resources.getString(R.string.pref_video_interpolation_sync_default)
+                else context.resources.getString(R.string.pref_video_interpolation_sync_default)
             )
             ?.apply()
     }
