@@ -202,9 +202,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             playBtn.setOnClickListener { player.cyclePause() }
             cycleDecoderBtn.setOnClickListener { player.cycleHwdec() }
             cycleSpeedBtn.setOnClickListener { cycleSpeed() }
-            topLockBtn.setOnClickListener { lockUI() }
-            topPiPBtn.setOnClickListener { goIntoPiP() }
-            topMenuBtn.setOnClickListener { openTopMenu() }
+            topLockBtn.setOnClickListener { showToast("화면 잠금 (오작동 방지 — 다시 탭해 해제)"); lockUI() }
+            topPiPBtn.setOnClickListener { showToast("작은 창으로 (PiP)"); goIntoPiP() }
+            topMenuBtn.setOnClickListener { openTopMenu() }   // 더보기 메뉴(자막·오디오·챕터·고급 등)
             unlockBtn.setOnClickListener { unlockUI() }
             playbackDurationTxt.setOnClickListener {
                 useTimeRemaining = !useTimeRemaining
@@ -1397,8 +1397,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             restoreState: StateRestoreCallback) {
         lateinit var dialog: AlertDialog
 
-        // 24: 다크 테마 팝업(영상 위 라이트 방지)
-        val builder = com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.DarkPopupDialog)
+        // 24: 다크 테마 팝업(영상 위 라이트 방지). AppCompat 다이얼로그 — 커스텀 버튼 뷰 호환.
+        val builder = AlertDialog.Builder(this, R.style.DarkPopupDialog)
         val dialogView = LayoutInflater.from(builder.context).inflate(layoutRes, null)
 
         for (button in buttons) {
