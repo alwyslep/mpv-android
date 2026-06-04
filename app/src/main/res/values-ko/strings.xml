@@ -45,7 +45,7 @@
     <string name="pref_player_video_zoom">기본 화면비 / 줌</string>
     <string name="pref_player_autoplay">자동 다음 재생</string>
     <string name="pref_player_autoplay_summary">폴더 순서로 영상이 끝나면 다음 영상 자동 재생</string>
-    <string name="pref_default_file_manager_path_title">기본 파일 관리자 경로</string>
+    <string name="pref_default_file_manager_path_title">파일 선택기 시작 경로</string>
     <string name="pref_material_you_theming_title">Material You</string>
     <string name="pref_material_you_theming_summary">동적 색상 사용</string>
     <string name="pref_default_audio_language_title">기본 오디오 언어</string>

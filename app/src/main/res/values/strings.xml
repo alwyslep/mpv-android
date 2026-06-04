@@ -126,7 +126,7 @@
     <string name="pref_player_autoplay">Auto-play next</string>
     <string name="pref_player_autoplay_summary">Play next video in folder when one finishes</string>
 
-    <string name="pref_default_file_manager_path_title">Default file manager path</string>
+    <string name="pref_default_file_manager_path_title">File picker start path</string>
     <string name="pref_default_file_manager_path_summary" translatable="false">%s</string>
 
     <string name="pref_material_you_theming_title">Material You</string>

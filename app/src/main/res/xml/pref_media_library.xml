@@ -1,18 +1,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <SwitchPreferenceCompat
-        app:key="video_grid"
-        app:defaultValue="true"
-        app:title="@string/pref_ml_grid" />
-
-    <ListPreference
-        app:key="view_mode"
-        app:defaultValue="folder"
-        app:entries="@array/ml_viewmode_entries"
-        app:entryValues="@array/ml_viewmode_values"
-        app:title="@string/pref_ml_viewmode"
-        app:useSimpleSummaryProvider="true" />
+    <!-- 18: 그리드·보기모드는 빠른설정(⊞)과 중복 → 제거. 빠른설정에서 변경 시 같은 키에 영구 저장됨. -->
 
     <Preference
         app:key="action_rebuild_index"
