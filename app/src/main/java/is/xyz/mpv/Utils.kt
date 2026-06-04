@@ -114,26 +114,41 @@ internal object Utils {
      * **대상 파일이 없을 때만** 복사 → 사용자가 수정·삭제 후 다시 넣은 커스텀은 보존,
      * /sdcard/mpv 통째 삭제 시엔 기본 세트 자동 복원. 하위 디렉토리(scripts/) 재귀.
      */
+    // B-61: 번들 버전(assets/mpv-config/config_version) > 기기(.seed_version) 면 번들 갱신.
+    //   scripts(.lua/.js)·mpv.conf 는 덮어쓰기(앱 제공·갱신 필요), input.conf 는 사용자 단축키 커스텀 보존(없을 때만).
     fun seedConfig(context: Context) {
-        seedDir(context.assets, "mpv-config", mpvConfigDir().also { it.mkdirs() }.path)
+        val dst = mpvConfigDir().also { it.mkdirs() }
+        val bundleVer = assetConfigVersion(context.assets)
+        val verFile = File(dst, ".seed_version")
+        val devVer = verFile.takeIf { it.exists() }?.runCatching { readText().trim().toInt() }?.getOrNull() ?: 0
+        val upgrade = bundleVer > devVer
+        seedDir(context.assets, "mpv-config", dst.path, upgrade)
+        if (upgrade) runCatching { verFile.writeText(bundleVer.toString()) }
     }
 
-    private fun seedDir(am: AssetManager, assetPath: String, destDir: String) {
+    private fun assetConfigVersion(am: AssetManager): Int = try {
+        am.open("mpv-config/config_version").bufferedReader().use { it.readText().trim().toIntOrNull() ?: 0 }
+    } catch (_: Exception) { 0 }
+
+    private fun seedDir(am: AssetManager, assetPath: String, destDir: String, upgrade: Boolean) {
         val entries = am.list(assetPath) ?: return
         File(destDir).mkdirs()
         for (e in entries) {
+            if (e == "config_version") continue            // 버전 마커는 시드 제외
             val child = "$assetPath/$e"
             val sub = am.list(child)
             if (sub != null && sub.isNotEmpty()) {
-                seedDir(am, child, "$destDir/$e")          // 하위 디렉토리(scripts)
+                seedDir(am, child, "$destDir/$e", upgrade)  // 하위 디렉토리(scripts)
             } else {
                 val out = File(destDir, e)
-                if (!out.exists()) {                        // 없을 때만 — 사용자 커스텀 보존
+                val isScript = destDir.endsWith("/scripts")
+                val force = upgrade && (isScript || e == "mpv.conf")   // input.conf 는 사용자 커스텀 보존
+                if (force || !out.exists()) {
                     try {
                         am.open(child, AssetManager.ACCESS_STREAMING).use { ins ->
                             FileOutputStream(out).use { ins.copyTo(it) }
                         }
-                        Log.w(TAG, "Seeded config file: $child")
+                        Log.w(TAG, "Seeded config file: $child (force=$force)")
                     } catch (e2: IOException) {
                         Log.e(TAG, "Failed to seed: $child", e2)
                     }
