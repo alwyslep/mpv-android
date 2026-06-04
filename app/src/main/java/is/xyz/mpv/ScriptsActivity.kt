@@ -60,20 +60,22 @@ class ScriptsActivity : AppCompatActivity() {
         scroll.addView(listLl)
         root.addView(toolbar); root.addView(scroll)
         setContentView(root)
+        cleanupOff()   // 32: .off 잔재 정리
         render()
     }
 
     private fun confFiles() = cfgDir.listFiles { f -> f.isFile && f.name.endsWith(".conf") }?.sortedBy { it.name } ?: emptyList()
     private fun scriptFiles() = scriptsDir.listFiles { f ->
-        f.isFile && (f.name.endsWith(".lua") || f.name.endsWith(".js") || f.name.endsWith(".lua.off") || f.name.endsWith(".js.off"))
+        f.isFile && (f.name.endsWith(".lua") || f.name.endsWith(".js"))
     }?.sortedBy { it.name.lowercase() } ?: emptyList()
 
     private fun render() {
         listLl.removeAllViews()
+        emptyHint("기능 켜기/끄기는 이전 화면 '재생 기능'에서. 여기는 원본 파일 추가·편집·삭제만.")
         sectionHeader("설정 파일 (.conf) — /sdcard/mpv")
-        confFiles().let { if (it.isEmpty()) emptyHint("설정 파일 없음") else it.forEach { f -> row(f, isScript = false) } }
+        confFiles().let { if (it.isEmpty()) emptyHint("설정 파일 없음") else it.forEach { f -> row(f) } }
         sectionHeader("스크립트 (.lua / .js) — /sdcard/mpv/scripts")
-        scriptFiles().let { if (it.isEmpty()) emptyHint("스크립트 없음") else it.forEach { f -> row(f, isScript = true) } }
+        scriptFiles().let { if (it.isEmpty()) emptyHint("스크립트 없음") else it.forEach { f -> row(f) } }
     }
 
     private fun sectionHeader(t: String) = listLl.addView(TextView(this).apply {
@@ -81,16 +83,12 @@ class ScriptsActivity : AppCompatActivity() {
     })
     private fun emptyHint(t: String) = listLl.addView(TextView(this).apply { text = t; setPadding(16, 12, 8, 12); alpha = 0.6f })
 
-    private fun row(f: File, isScript: Boolean) {
-        val active = !f.name.endsWith(".off")
+    private fun row(f: File) {
         val rowLl = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; setPadding(0, 10, 0, 10)
         }
-        if (isScript) {
-            rowLl.addView(SwitchCompat(this).apply { isChecked = active; setOnCheckedChangeListener { _, c -> toggle(f, c) } })
-        }
         rowLl.addView(TextView(this).apply {
-            text = f.name.removeSuffix(".off"); textSize = 15f
+            text = f.name; textSize = 15f
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             setPadding(16, 0, 16, 0)
         })
@@ -106,10 +104,14 @@ class ScriptsActivity : AppCompatActivity() {
         listLl.addView(rowLl)
     }
 
-    private fun toggle(f: File, active: Boolean) {
-        val target = if (active) File(f.parentFile, f.name.removeSuffix(".off")) else File(f.parentFile, f.name + ".off")
-        if (f.name != target.name) f.renameTo(target)
-        render()
+    // 32: 1층 일원화 — 폐기된 .off 잔재 정리(원본 복원, 중복이면 삭제). on/off 는 1층 feat prefs.
+    private fun cleanupOff() {
+        for (d in arrayOf(cfgDir, scriptsDir)) {
+            d.listFiles { f -> f.isFile && f.name.endsWith(".off") }?.forEach { f ->
+                val orig = File(f.parentFile, f.name.removeSuffix(".off"))
+                if (orig.exists()) f.delete() else f.renameTo(orig)
+            }
+        }
     }
 
     // 직접입력/편집 공용 — 멀티라인 monospace 에디터
