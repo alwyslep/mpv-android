@@ -42,7 +42,11 @@ local function feat_off()
     return mp.get_property("user-data/aurora/feat/progress_bar", "true") == "false"
 end
 
+local _dbg = mp.create_osd_overlay("ass-events")
 local function draw()
+    local _v = mp.get_property("user-data/aurora/feat/progress_bar", "NIL")
+    _dbg.data = string.format("{\\an7\\pos(12,120)\\fs26\\bord2\\1c&H0000FF&}feat=%s off=%s", tostring(_v), tostring(_v == "false"))
+    _dbg:update()
     if feat_off() then
         if overlay.data ~= "" then overlay.data = ""; overlay:update() end
         return
