@@ -2100,6 +2100,24 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             for (n in arrayOf("jav_osd", "precise_speed", "bookmarks", "sub_style_toggle", "screenshot_to_clip", "progress_bar"))
                 MPVLib.command(arrayOf("set", "user-data/aurora/feat/$n", if (fp.getBoolean("feat_$n", true)) "true" else "false"))
 
+            // B-63(36): mpv.conf 의 # @feat 마커 옵션 중 feat_conf_*=false 면 `set <option> no` override (conf 파일 불변, SharedPrefs 영속)
+            try {
+                val conf = java.io.File(Utils.mpvConfigDir(), "mpv.conf")
+                if (conf.exists()) {
+                    val ls = conf.readText().lines()
+                    for (i in ls.indices) {
+                        val tt = ls[i].trim()
+                        if (!tt.startsWith("# @feat ")) continue
+                        val k = tt.removePrefix("# @feat ").substringBefore("|").trim()
+                        val ti = i + 1
+                        if (ti >= ls.size) continue
+                        val op = ls[ti].trim().removePrefix("#").substringBefore("=").trim()
+                        if (op.isNotEmpty() && !fp.getBoolean("feat_conf_$k", true))
+                            MPVLib.command(arrayOf("set", op, "no"))
+                    }
+                }
+            } catch (_: Exception) {}
+
             playbackHasStarted = true
         }
 

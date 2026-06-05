@@ -21,6 +21,8 @@ import java.io.File
  */
 class FeaturesActivity : AppCompatActivity() {
     private data class Feature(val file: String, val title: String, val desc: String)
+    // B-63(36): mpv.conf 의 "# @feat key|label|desc" 마커로 노출한 conf 옵션 (1층 토글)
+    private data class ConfFeature(val key: String, val label: String, val desc: String, val option: String, val enabled: Boolean)
 
     // 노출(사용자 기능) — mpv/앱 기본과 겹치지 않는 보완 기능
     private val features = listOf(
@@ -79,6 +81,16 @@ class FeaturesActivity : AppCompatActivity() {
             }
         }
 
+        // B-63(36): mpv.conf 의 # @feat 마커 옵션을 1층 토글로 (GUI 에 없는 고급 토글, input.conf 는 사용자 보존이라 제외)
+        val confFeats = parseConfFeatures()
+        if (confFeats.isNotEmpty()) {
+            sectionHeader("설정 (mpv.conf)")
+            for (cf in confFeats) featureRow(cf.label, cf.desc, true, cf.enabled) { on ->
+                prefs.edit().putBoolean("feat_conf_${cf.key}", on).apply()
+                Toast.makeText(this, (if (on) "켬" else "끔") + " — 다음 재생부터 적용", Toast.LENGTH_SHORT).show()
+            }
+        }
+
         sectionHeader("관리")
         linkRow("⚙  원본 파일 관리 (.conf / .lua / .js · GitHub 동기화)") {
             startActivity(Intent(this, ScriptsActivity::class.java))
@@ -127,6 +139,29 @@ class FeaturesActivity : AppCompatActivity() {
         box.addView(TextView(this).apply { text = title; textSize = 15f })
         box.addView(TextView(this).apply { text = why; textSize = 12f })
         listLl.addView(box)
+    }
+
+    // B-63(36): mpv.conf 의 "# @feat key|label|desc" 마커 + 다음 줄(대상 옵션)에서 옵션명 추출.
+    //   토글 상태는 feat_conf_<key> SharedPrefs(영속) — conf 파일은 안 건드림(config_version 갱신에도 유지).
+    //   적용은 MPVActivity 파일 로드 시 OFF 면 `set <option> no` (lua feat_* 와 동일 패턴).
+    private fun parseConfFeatures(): List<ConfFeature> {
+        if (!mpvConf.exists()) return emptyList()
+        val lines = mpvConf.readText().lines()
+        val out = ArrayList<ConfFeature>()
+        for (i in lines.indices) {
+            val t = lines[i].trim()
+            if (!t.startsWith("# @feat ")) continue
+            val spec = t.removePrefix("# @feat ").split("|")
+            if (spec.size < 2) continue
+            val ti = i + 1
+            if (ti >= lines.size) continue
+            val opt = lines[ti].trim().removePrefix("#").substringBefore("=").trim()
+            if (opt.isEmpty()) continue
+            val key = spec[0].trim()
+            out.add(ConfFeature(key, spec[1].trim(), spec.getOrElse(2) { "" }.trim(),
+                opt, prefs.getBoolean("feat_conf_$key", true)))
+        }
+        return out
     }
 
     // 32-B: 노출 lua 는 항상 로드돼야 user-data 런타임 토글이 동작 → mpv.conf 에서 주석된 노출 lua 활성화(1회 보정).
