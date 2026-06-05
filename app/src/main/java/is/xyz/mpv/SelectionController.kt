@@ -137,10 +137,11 @@ class SelectionController(
         val a = sel ?: return
         val items = a.selected.toList().mapNotNull { u ->
             val name = vidOf(u)?.name ?: return@mapNotNull null
-            val code = Regex("([A-Za-z]{2,7}-\\d{2,5})").find(name)?.value?.uppercase() ?: return@mapNotNull null
+            // 품번 추출 실패(xhamster 등 비품번)여도 제외하지 않고 빈 code 로 포함 → JEmbed 가 remux-only 처리.
+            val code = Regex("([A-Za-z]{2,7}-\\d{2,5})").find(name)?.value?.uppercase() ?: ""
             Uri.parse(u) to code
         }
-        if (items.isEmpty()) { toast("선택 없음 / 품번 추출 실패"); return }
+        if (items.isEmpty()) { toast("선택 없음"); return }
         val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
         val ll = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
         val tv = TextView(act)

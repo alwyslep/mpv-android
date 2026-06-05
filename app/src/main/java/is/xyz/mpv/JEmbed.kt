@@ -41,24 +41,31 @@ object JEmbed {
 
     fun embed(ctx: Context, uri: Uri, code: String, done: (Boolean, String) -> Unit) {
         val app = ctx.applicationContext
-        if (code.isBlank()) { done(false, "품번 없음 — 파일명/임베드에서 추출 실패"); return }
+        if (code.isBlank()) {
+            // 품번 없음(xhamster 등 비품번 파일) → remux-only: TS면 mp4 변환만, 임베드(메타)는 생략.
+            Thread { runEmbedOne(app, uri, "", null, done) }.start()
+            return
+        }
         Library.fetch(app, code) { rec ->
             if (rec == null) { ui { done(false, "hub 메타 없음: $code") }; return@fetch }
-            Thread {
-                val msg = try {
-                    val m = processOne(app, uri, code, rec)
-                    if (m.contains("✓")) {
-                        // 내부저장소: remux/embed 로 파일이 바뀌었으니 MediaStore 즉시 갱신(홈에서 사라짐 방지)
-                        val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
-                        val nm = p?.let { File(it).name } ?: uri.lastPathSegment
-                        ThumbLoader.invalidate(app, uri, nm)   // 27: 파일명(diskKey) 전달 — 디스크 옛 썸네일까지 삭제
-                        if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
-                    }
-                    m
-                } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
-                ui { done(msg.contains("✓"), msg) }
-            }.start()
+            Thread { runEmbedOne(app, uri, code, rec, done) }.start()
         }
+    }
+
+    // 단건 처리 + 성공 시 MediaStore/썸네일 갱신(공통). rec==null 이면 remux-only(임베드 생략).
+    private fun runEmbedOne(app: Context, uri: Uri, code: String, rec: JSONObject?, done: (Boolean, String) -> Unit) {
+        val msg = try {
+            val m = processOne(app, uri, code, rec)
+            if (m.contains("✓")) {
+                // remux/embed 로 파일이 바뀌었으니 MediaStore 즉시 갱신(홈에서 사라짐 방지)
+                val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
+                val nm = p?.let { File(it).name } ?: uri.lastPathSegment
+                ThumbLoader.invalidate(app, uri, nm)   // 27: 파일명(diskKey) 전달 — 디스크 옛 썸네일까지 삭제
+                if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
+            }
+            m
+        } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
+        ui { done(msg.contains("✓"), msg) }
     }
 
     // 배치 임베드 — 선택된 영상들을 순차 처리. onProgress(현재idx, 총, 품번, 단계, %), onDone(성공,실패,실패목록).
@@ -77,12 +84,13 @@ object JEmbed {
             for ((i, pair) in items.withIndex()) {
                 if (cancel()) break   // graceful: 현재 작품 시작 전 중단 (진행 중 작품은 끝까지)
                 val (uri, code) = pair
-                ui { onProgress(i, items.size, code, "준비", 0) }
-                if (code.isBlank()) { fails.add("$code: 품번 없음"); ui { onItemDone(uri, false) }; continue }
-                val rec = Library.fetchSync(app, code)
-                if (rec == null) { fails.add("$code: hub 메타 없음"); ui { onItemDone(uri, false) }; continue }
+                val label = code.ifBlank { uri.lastPathSegment ?: "?" }
+                ui { onProgress(i, items.size, label, "준비", 0) }
+                // 품번 없으면 remux-only(rec=null), 있으면 hub 메타 fetch.
+                val rec = if (code.isBlank()) null else Library.fetchSync(app, code)
+                if (code.isNotBlank() && rec == null) { fails.add("$code: hub 메타 없음"); ui { onItemDone(uri, false) }; continue }
                 val msg = try {
-                    processOne(app, uri, code, rec) { stage, pct -> ui { onProgress(i, items.size, code, stage, pct) } }
+                    processOne(app, uri, code, rec) { stage, pct -> ui { onProgress(i, items.size, label, stage, pct) } }
                 } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
                 if (msg.contains("✓")) {
                     ok++
@@ -91,14 +99,15 @@ object JEmbed {
                     ThumbLoader.invalidate(app, uri, nm)   // 27: 파일명(diskKey) 전달 — 디스크 옛 썸네일까지 삭제
                     if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
                     ui { onItemDone(uri, true) }   // 이 작품 완료 → 해당 타일 썸네일 즉시 반영
-                } else { fails.add("$code: $msg"); ui { onItemDone(uri, false) } }
+                } else { fails.add("$label: $msg"); ui { onItemDone(uri, false) } }
             }
             ui { onDone(ok, fails.size, fails) }
         }.start()
     }
 
-    private fun processOne(ctx: Context, uri: Uri, code: String, rec: JSONObject,
+    private fun processOne(ctx: Context, uri: Uri, code: String, rec: JSONObject?,
                            onProgress: ((String, Int) -> Unit)? = null): String {
+        val embedSkip = rec == null || code.isBlank()   // 품번/메타 없으면 remux 만 하고 임베드 생략
         // ── 내부저장소(File path, 쓰기 가능) ──
         val path = if (uri.scheme == "file") uri.path else pathFromMediaStore(ctx, uri)
         if (path != null && File(path).canWrite()) {
@@ -112,8 +121,9 @@ object JEmbed {
                 if (!File(tmp).renameTo(File(path))) { File(tmp).copyTo(File(path), true); File(tmp).delete() }
                 pre = "TS→mp4 remux + "
             }
+            if (embedSkip) return if (pre.isBlank()) "이미 mp4 — remux 불필요(품번없음)" else "✓ ${pre}임베드 생략(품번없음)"
             onProgress?.invoke("embed", 0)
-            RandomAccessFile(path, "rw").use { return pre + embedAtomRw(RafRw(it), code, rec) }
+            RandomAccessFile(path, "rw").use { return pre + embedAtomRw(RafRw(it), code, rec!!) }
         }
         // ── 외부저장소(SAF content uri) ──
         val ts = ctx.contentResolver.openFileDescriptor(uri, "r")?.use {
@@ -123,14 +133,15 @@ object JEmbed {
             if (Build.VERSION.SDK_INT < 26) return "외부 TS remux 는 Android 8+ 필요"
             return remuxSaf(ctx, uri, code, rec, onProgress)
         }
+        if (embedSkip) return "이미 mp4 — remux 불필요(품번없음)"
         onProgress?.invoke("embed", 0)
-        ctx.contentResolver.openFileDescriptor(uri, "rw")?.use { return embedAtomRw(OsRw(it.fileDescriptor), code, rec) }
+        ctx.contentResolver.openFileDescriptor(uri, "rw")?.use { return embedAtomRw(OsRw(it.fileDescriptor), code, rec!!) }
         return "SAF fd 쓰기 열기 실패(권한?)"
     }
 
     // 외부 TS → mp4 remux (SAF): 같은 폴더에 새 mp4 문서 생성→remux(fd)→원본 삭제→원본명 rename→embed.
     @RequiresApi(26)
-    private fun remuxSaf(ctx: Context, uri: Uri, code: String, rec: JSONObject,
+    private fun remuxSaf(ctx: Context, uri: Uri, code: String, rec: JSONObject?,
                          onProgress: ((String, Int) -> Unit)? = null): String {
         val resolver = ctx.contentResolver
         val docId = DocumentsContract.getDocumentId(uri)
@@ -153,6 +164,7 @@ object JEmbed {
         if (!rmsg.startsWith("✓")) { runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; return "remux 실패: $rmsg" }
         runCatching { DocumentsContract.deleteDocument(resolver, uri) }
         val finalDoc = runCatching { DocumentsContract.renameDocument(resolver, newDoc, origName) }.getOrNull() ?: newDoc
+        if (rec == null || code.isBlank()) return "✓ TS→mp4 remux(SAF) — 임베드 생략(품번없음)"
         onProgress?.invoke("embed", 0)
         resolver.openFileDescriptor(finalDoc, "rw")?.use {
             return "TS→mp4 remux(SAF) + " + embedAtomRw(OsRw(it.fileDescriptor), code, rec)
