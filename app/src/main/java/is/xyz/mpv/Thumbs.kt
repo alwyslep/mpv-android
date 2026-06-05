@@ -136,16 +136,19 @@ object ThumbLoader {
 
     // 4 해상도: 실제 파일 height(MediaStore v.height) vs hub 기대 height. 의미있게 낮으면 cb(기대height).
     //   품번은 codeOf(캐시 우선). hub 맵 없거나(오프라인)·기대값 없거나·낮지 않으면 조용히 무시. MMR 불필요.
-    fun checkResMismatch(ctx: Context, uri: Uri, localHeight: Int, cb: (Int) -> Unit) {
-        if (localHeight <= 0) return
+    // B-60: localShort=로컬 짧은변 min(W,H). hubRaw=기대(양수 가로 height·음수 세로 -짧은변).
+    //   abs(hubRaw)=실질 기대화질(짧은변)이라 세로/가로 통일 비교. cb 는 hubRaw 부호 유지(↕ 표기용).
+    fun checkResMismatch(ctx: Context, uri: Uri, localShort: Int, cb: (Int) -> Unit) {
+        if (localShort <= 0) return
         val app = ctx.applicationContext
         exec.execute {
             val code = codeOf(app, uri.toString()) ?: return@execute
-            val hubH = ResolutionHub.get(code) ?: return@execute
-            if (hubH <= 0) return@execute
-            // 실제가 기대의 90% 미만이면 저화질/부분(인코딩 리사이즈 오차 10% 허용). 높을 땐 마커 안 함.
-            if (localHeight < hubH - maxOf(0, hubH / 10)) {
-                android.os.Handler(android.os.Looper.getMainLooper()).post { cb(hubH) }
+            val hubRaw = ResolutionHub.get(code) ?: return@execute
+            if (hubRaw == 0 || hubRaw == -1) return@execute   // 0·추출실패(-1) skip
+            val expShort = kotlin.math.abs(hubRaw)            // 음수 세로·양수 가로 → 짧은변(실질화질)
+            // 실제가 기대의 90% 미만이면 저화질/부분(리사이즈 오차 10% 허용). 높을 땐 마커 안 함.
+            if (localShort < expShort - maxOf(0, expShort / 10)) {
+                android.os.Handler(android.os.Looper.getMainLooper()).post { cb(hubRaw) }
             }
         }
     }

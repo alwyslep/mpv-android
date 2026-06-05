@@ -111,26 +111,31 @@ class VideoAdapter(
             lp.height = LibPrefs.gridCoverHeightPx(ctx)
             h.thumbBox.layoutParams = lp
         }
-        val res = if (v.height > 0 && LibPrefs.showRes(ctx)) "${v.height}p" else ""
+        // B-60: 화질=짧은변 min(W,H) (세로영상 정확 — 480x842는 480p). 세로(W<H)는 ↕ 표기로 가로와 구분.
+        val localShort = if (v.width > 0 && v.height > 0) minOf(v.width, v.height) else v.height
+        val isPortrait = v.width in 1 until v.height
+        fun resTag(n: Int) = if (isPortrait) "↕${n}p" else "${n}p"
+        val res = if (localShort > 0 && LibPrefs.showRes(ctx)) resTag(localShort) else ""
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
         h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
         run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
-        // B-60: 절대 임계 — 로컬 height < 720p 면 저화질 즉시 경고(전 파일, hub 재크롤 불필요)
-        if (v.height in 1..719 && res.isNotEmpty()) {
+        // B-60: 절대 임계 — 짧은변 < 720p 면 저화질 즉시 경고(세로영상도 정확: 480x842=480p 경고됨)
+        if (localShort in 1..719 && res.isNotEmpty()) {
             h.meta.setTextColor(0xFFFF5252.toInt())
             val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
-            h.meta.text = "${v.height}p ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+            h.meta.text = "${resTag(localShort)} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
         }
-        // 4: 실제 height(MediaStore v.height) < hub 기대 → 빨강+⚠ (저화질/부분 다운, SAF height=0 은 skip). hub 있으면 더 정밀(화살표).
-        if (v.height > 0 && res.isNotEmpty()) {
+        // 4: 로컬 짧은변 < hub 기대(abs) → 빨강+⚠ (SAF height=0 은 skip). hubRaw<0=세로 → ↕ 표기.
+        if (localShort > 0 && res.isNotEmpty()) {
             val resKey = v.uri.toString()
             h.meta.tag = resKey
-            ThumbLoader.checkResMismatch(ctx, v.uri, v.height) { hubH ->
+            ThumbLoader.checkResMismatch(ctx, v.uri, localShort) { hubRaw ->
                 if (h.meta.tag == resKey) {
                     h.meta.setTextColor(0xFFFF5252.toInt())
                     val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
-                    h.meta.text = "${v.height}p→${hubH}p ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+                    val expStr = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
+                    h.meta.text = "${resTag(localShort)}→${expStr} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
                 }
             }
         }
