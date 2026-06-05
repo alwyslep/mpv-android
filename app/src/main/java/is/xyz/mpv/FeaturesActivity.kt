@@ -75,9 +75,20 @@ class FeaturesActivity : AppCompatActivity() {
         for (f in features) {
             val installed = File(cfgDir, "scripts/${f.file}").exists()
             val stem = f.file.removeSuffix(".lua")
-            featureRow(f.title, f.desc, installed, prefs.getBoolean("feat_$stem", true)) { on ->
-                prefs.edit().putBoolean("feat_$stem", on).apply()
-                Toast.makeText(this, (if (on) "켬" else "끔") + " — 다음 재생부터 적용", Toast.LENGTH_SHORT).show()
+            val subs = if (installed) scanLuaFeatures(f.file) else emptyList()
+            if (subs.size >= 2) {
+                // B-63(37): 다기능 lua — 그룹 헤더 + 하위 기능별 토글(feat_<stem>_<id>). lua 는 user-data/aurora/feat/<stem>/<id> 로 읽음.
+                groupHeader(f.title)
+                for ((id, label, desc) in subs)
+                    featureRow(label, desc, installed, prefs.getBoolean("feat_${stem}_$id", true)) { on ->
+                        prefs.edit().putBoolean("feat_${stem}_$id", on).apply()
+                        Toast.makeText(this, (if (on) "켬" else "끔") + " — 다음 재생부터 적용", Toast.LENGTH_SHORT).show()
+                    }
+            } else {
+                featureRow(f.title, f.desc, installed, prefs.getBoolean("feat_$stem", true)) { on ->
+                    prefs.edit().putBoolean("feat_$stem", on).apply()
+                    Toast.makeText(this, (if (on) "켬" else "끔") + " — 다음 재생부터 적용", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -140,6 +151,29 @@ class FeaturesActivity : AppCompatActivity() {
         box.addView(TextView(this).apply { text = why; textSize = 12f })
         listLl.addView(box)
     }
+
+    // B-63(37): lua 상단 40줄의 "-- @feature id|label|desc" 메타 스캔 (다기능 lua 그룹화 인프라).
+    //   한 lua 에 2개 이상이면 1층에서 그룹(하위 토글)으로 노출. 없거나 1개면 기존 단일 feat_<stem>.
+    //   lua 측은 get_property_native("user-data/aurora/feat/<stem>/<id>") 로 각 하위기능 on/off 읽음.
+    private fun scanLuaFeatures(file: String): List<Triple<String, String, String>> {
+        val f = File(cfgDir, "scripts/$file")
+        if (!f.exists()) return emptyList()
+        val out = ArrayList<Triple<String, String, String>>()
+        try {
+            for (line in f.readText().lineSequence().take(40)) {
+                val t = line.trim()
+                if (!t.startsWith("-- @feature ")) continue
+                val spec = t.removePrefix("-- @feature ").split("|")
+                if (spec.size >= 2) out.add(Triple(spec[0].trim(), spec[1].trim(), spec.getOrElse(2) { "" }.trim()))
+            }
+        } catch (_: Exception) {}
+        return out
+    }
+
+    private fun groupHeader(t: String) = listLl.addView(TextView(this).apply {
+        text = "▸ $t"; setPadding(dp(4), dp(14), dp(4), dp(4)); textSize = 14f
+        setTypeface(typeface, android.graphics.Typeface.BOLD)
+    })
 
     // B-63(36): mpv.conf 의 "# @feat key|label|desc" 마커 + 다음 줄(대상 옵션)에서 옵션명 추출.
     //   토글 상태는 feat_conf_<key> SharedPrefs(영속) — conf 파일은 안 건드림(config_version 갱신에도 유지).

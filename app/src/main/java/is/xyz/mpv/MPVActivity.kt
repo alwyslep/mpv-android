@@ -2100,6 +2100,21 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             for (n in arrayOf("jav_osd", "precise_speed", "bookmarks", "sub_style_toggle", "screenshot_to_clip", "progress_bar"))
                 MPVLib.command(arrayOf("set", "user-data/aurora/feat/$n", if (fp.getBoolean("feat_$n", true)) "true" else "false"))
 
+            // B-63(37): 다기능 lua(-- @feature id|...) 하위 기능 → user-data/aurora/feat/<stem>/<id> (lua 가 get_property_native 로 읽음)
+            try {
+                java.io.File(Utils.mpvConfigDir(), "scripts").listFiles { fl -> fl.name.endsWith(".lua") }?.forEach { lf ->
+                    val stem = lf.name.removeSuffix(".lua")
+                    lf.readText().lineSequence().take(40).forEach { line ->
+                        val t = line.trim()
+                        if (t.startsWith("-- @feature ")) {
+                            val id = t.removePrefix("-- @feature ").substringBefore("|").trim()
+                            if (id.isNotEmpty())
+                                MPVLib.command(arrayOf("set", "user-data/aurora/feat/$stem/$id", if (fp.getBoolean("feat_${stem}_$id", true)) "true" else "false"))
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
             // B-63(36): mpv.conf 의 # @feat 마커 옵션 중 feat_conf_*=false 면 `set <option> no` override (conf 파일 불변, SharedPrefs 영속)
             try {
                 val conf = java.io.File(Utils.mpvConfigDir(), "mpv.conf")
