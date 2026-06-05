@@ -71,15 +71,31 @@ class VideoDetailActivity : AppCompatActivity() {
             .map { findViewById<android.widget.ImageView>(it) }
     }
 
+    private var _embedding = false   // B-63(35): 임베드 중 = cover_size SeekBar 를 진행바로 차용(크기조절 가드)
     private fun doEmbedPoc() {
         val cv = findViewById<TextView>(R.id.code).text?.toString()?.trim().orEmpty()
         val code = if (cv.isNotBlank()) cv
                    else Regex("([A-Za-z]{2,7}-\\d{2,5})").find(fallbackName)?.value?.uppercase().orEmpty()
-        Toast.makeText(this, "임베드 시도: ${code.ifBlank { "?" }}", Toast.LENGTH_SHORT).show()
-        JEmbed.embed(this, Uri.parse(uriStr), code) { ok, msg ->
-            Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
-            if (ok) load()
-        }
+        Toast.makeText(this, "임베드 시도: ${code.ifBlank { "원본(remux)" }}", Toast.LENGTH_SHORT).show()
+        // 진행을 커버 확대 슬라이더(cover_size)에 차용 — remux 0~70%, embed 70~100%. 완료 후 원복.
+        val sb = findViewById<android.widget.SeekBar>(R.id.cover_size)
+        val savedMax = sb.max; val savedProg = sb.progress
+        _embedding = true; sb.max = 100; sb.progress = 0
+        JEmbed.embedBatch(this, listOf(Uri.parse(uriStr) to code),
+            onProgress = { _, _, _, stage, pct -> runOnUiThread {
+                sb.progress = when (stage) {
+                    "remux" -> (pct * 7 / 10).coerceIn(0, 70)
+                    "embed" -> (70 + pct * 3 / 10).coerceIn(70, 100)
+                    else -> sb.progress
+                }
+            } },
+            onDone = { ok, fail, fails -> runOnUiThread {
+                _embedding = false; sb.max = savedMax; sb.progress = savedProg
+                val msg = if (fail == 0) "임베드 완료 ($ok)" else "실패 $fail: ${fails.firstOrNull().orEmpty()}"
+                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+                if (ok > 0) load()
+            } }
+        )
     }
 
     private fun setupFavRating() {
@@ -279,7 +295,7 @@ class VideoDetailActivity : AppCompatActivity() {
         var h = LibPrefs.detailCoverHeight(this).coerceIn(200, 600)
         apply(h); sb.max = 400; sb.progress = (h - 200).coerceIn(0, 400)
         sb.setOnSeekBarChangeListener(object : android.widget.SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(s: android.widget.SeekBar, p: Int, u: Boolean) { h = 200 + p; apply(h) }
+            override fun onProgressChanged(s: android.widget.SeekBar, p: Int, u: Boolean) { if (_embedding) return; h = 200 + p; apply(h) }
             override fun onStartTrackingTouch(s: android.widget.SeekBar) {}
             override fun onStopTrackingTouch(s: android.widget.SeekBar) { LibPrefs.setDetailCoverHeight(this@VideoDetailActivity, h) }
         })

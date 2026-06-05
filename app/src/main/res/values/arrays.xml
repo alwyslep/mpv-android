@@ -279,33 +279,34 @@
     </string-array>
 
     <!-- 20: 기본 오디오/자막 언어 프리셋. value ""=자동(mpv 기본 선택) -->
+    <!-- B-63(33): 2자리(ISO 639-1)+3자리(639-2) 코드 다중 — mpv 가 폴백으로 둘 다 매칭(ko 영상·kor 영상 모두) -->
     <string-array name="audio_language_pref_entries">
-        <item>일본어 (jpn)</item>
-        <item>영어 (eng)</item>
-        <item>한국어 (kor)</item>
-        <item>중국어 (chi)</item>
+        <item>일본어 (ja/jpn)</item>
+        <item>영어 (en/eng)</item>
+        <item>한국어 (ko/kor)</item>
+        <item>중국어 (zh/chi)</item>
         <item>자동 / 원본</item>
     </string-array>
     <string-array name="audio_language_pref_values" translatable="false">
-        <item>jpn</item>
-        <item>eng</item>
-        <item>kor</item>
-        <item>chi</item>
+        <item>ja,jpn</item>
+        <item>en,eng</item>
+        <item>ko,kor</item>
+        <item>zh,chi</item>
         <item></item>
     </string-array>
 
     <string-array name="subtitle_language_pref_entries">
-        <item>한국어 (kor)</item>
-        <item>영어 (eng)</item>
-        <item>일본어 (jpn)</item>
-        <item>한국어→영어 (kor,eng)</item>
+        <item>한국어 (ko/kor)</item>
+        <item>영어 (en/eng)</item>
+        <item>일본어 (ja/jpn)</item>
+        <item>한국어→영어 (ko/kor → en/eng)</item>
         <item>자동 / 끄기</item>
     </string-array>
     <string-array name="subtitle_language_pref_values" translatable="false">
-        <item>kor</item>
-        <item>eng</item>
-        <item>jpn</item>
-        <item>kor,eng</item>
+        <item>ko,kor</item>
+        <item>en,eng</item>
+        <item>ja,jpn</item>
+        <item>ko,kor,en,eng</item>
         <item></item>
     </string-array>
 </resources>

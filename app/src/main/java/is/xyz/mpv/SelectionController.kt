@@ -118,7 +118,11 @@ class SelectionController(
         a.refreshSelection(); update()
     }
 
-    fun update() { selCount.text = "${sel?.selected?.size ?: 0}개 선택" }
+    fun update() {  // B-63(34): 선택수/총수 표기
+        val n = sel?.selected?.size ?: 0
+        val total = sel?.selectableVids()?.size ?: 0
+        selCount.text = "$n / $total 선택"
+    }
 
     private fun vidOf(u: String): Vid? = sel?.selectableVids()?.find { it.uri.toString() == u }
     private fun toast(m: String) = Toast.makeText(act, m, Toast.LENGTH_SHORT).show()
