@@ -14,6 +14,15 @@
         app:navigationIcon="@drawable/ic_arrow_back"
         app:titleTextColor="?attr/colorOnSurface" />
 
+    <!-- B-64(45): 필터/로드 진행 인디케이터(얇은 가로 바) -->
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/loading_bar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:indeterminate="true"
+        android:visibility="gone"
+        app:trackThickness="3dp" />
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler"
         android:layout_width="match_parent"

@@ -100,12 +100,13 @@ class MediaLibraryActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_settings_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        // B-64(39): ⋮ 안 4개를 툴바 밖으로(아이콘+ALWAYS). 선택/이동/썸네일은 videos 모드만 isVisible.
         selMenuItem = toolbar.menu.add(0, 5, 3, "선택(임베드)").apply {
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            setIcon(R.drawable.ic_check_circle_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 6, 4, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
-        moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
-        thumbMenuItem = toolbar.menu.add(0, 8, 6, "썸네일 지정").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        toolbar.menu.add(0, 6, 4, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        thumbMenuItem = toolbar.menu.add(0, 8, 6, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))

@@ -251,6 +251,14 @@ class SelectionController(
                 this.text = text; textSize = 15f; setPadding(8, 26, 8, 26); setOnClickListener { onClick() }
             })
         }
+        // B-64(46): 새 폴더 만들기 — 이름 입력 다이얼로그
+        fun newFolder(onCreate: (String) -> Unit) {
+            val et = android.widget.EditText(act).apply { hint = "폴더 이름" }
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(act)
+                .setTitle("새 폴더 만들기").setView(et)
+                .setPositiveButton("만들기") { _, _ -> et.text.toString().trim().takeIf { it.isNotEmpty() }?.let(onCreate) }
+                .setNegativeButton("취소", null).show()
+        }
         fun render() {
             listLl.removeAllViews()
             when (mode) {
@@ -265,6 +273,7 @@ class SelectionController(
                 1 -> {
                     val cur = curFile!!; pathTv.text = cur.absolutePath; moveBtn.visibility = View.VISIBLE
                     addRow("⬆  ..") { val p = cur.parentFile; if (p != null) curFile = p else mode = 0; render() }
+                    addRow("➕  새 폴더 만들기") { newFolder { n -> val nd = File(cur, n); if (nd.mkdir()) curFile = nd else toast("폴더 생성 실패"); render() } }
                     cur.listFiles()?.filter { it.isDirectory }?.sortedBy { it.name.lowercase() }?.forEach { d ->
                         addRow("📁  ${d.name}") { curFile = d; render() }
                     }
@@ -272,6 +281,7 @@ class SelectionController(
                 2 -> {
                     val cur = curDoc!!; pathTv.text = cur.name ?: "외부저장소"; moveBtn.visibility = View.VISIBLE
                     addRow("⬆  ..") { val p = cur.parentFile; if (p != null) curDoc = p else mode = 0; render() }
+                    addRow("➕  새 폴더 만들기") { newFolder { n -> val nd = cur.createDirectory(n); if (nd != null) curDoc = nd else toast("폴더 생성 실패"); render() } }
                     cur.listFiles().filter { it.isDirectory }.sortedBy { (it.name ?: "").lowercase() }.forEach { d ->
                         addRow("📁  ${d.name}") { curDoc = d; render() }
                     }

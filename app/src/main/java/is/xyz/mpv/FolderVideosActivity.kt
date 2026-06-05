@@ -62,12 +62,13 @@ class FolderVideosActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        // B-64(39): ⋮ 안 4개를 툴바 밖으로(아이콘+ALWAYS)
         toolbar.menu.add(0, 3, 3, "선택(임베드)").apply {
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            setIcon(R.drawable.ic_check_circle_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 4, 3, "필터").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
-        toolbar.menu.add(0, 5, 4, "이동").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
-        toolbar.menu.add(0, 6, 5, "썸네일 지정").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER) }
+        toolbar.menu.add(0, 4, 3, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        toolbar.menu.add(0, 5, 4, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        toolbar.menu.add(0, 6, 5, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         MetaHub.fetchAsync(this)
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
@@ -102,6 +103,7 @@ class FolderVideosActivity : AppCompatActivity() {
     }
 
     private fun reload() {
+        findViewById<View>(R.id.loading_bar)?.visibility = View.VISIBLE   // B-64(45): 필터/로드 진행 표시
         Thread {
             val list = LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
                 .filter { FilterEngine.passes(this, it) }
@@ -110,6 +112,7 @@ class FolderVideosActivity : AppCompatActivity() {
                 vids = list
                 rebuild()
                 updateTitle()
+                findViewById<View>(R.id.loading_bar)?.visibility = View.GONE
             }
         }.start()
     }
