@@ -190,7 +190,7 @@
     <string name="search_indexing">인덱싱 중…</string>
     <string name="search_index_prompt">색인 %1$d개 · 검색어를 입력하세요</string>
     <string name="search_results">‘%1$s’ — %2$d개</string>
-    <string name="n_videos">%1$d 동영상</string>
+    <string name="n_videos">%1$,d 동영상</string>
     <string name="action_details">상세 보기</string>
     <string name="action_unfav">찜 해제</string>
     <string name="action_fav">찜 하기</string>

@@ -74,7 +74,7 @@ class SelectionController(
         }
         ll.addView(seek)
         MaterialAlertDialogBuilder(act)
-            .setTitle("장면 썸네일 (${vids.size}개)").setView(ll)
+            .setTitle("장면 썸네일 (${"%,d".format(vids.size)}개)").setView(ll)
             .setPositiveButton("적용") { _, _ ->
                 val pct = seek.progress
                 Thread {   // 커버 유무 판정에 MMR 가능 → 백그라운드
@@ -98,7 +98,7 @@ class SelectionController(
                     ThumbLoader.invalidate(act, v.uri); sel?.notifyItem(v.uri.toString())
                 }
                 exit(); onReload()
-                Toast.makeText(act, "썸네일 해제: ${vids.size}개", Toast.LENGTH_SHORT).show()
+                Toast.makeText(act, "썸네일 해제: ${"%,d".format(vids.size)}개", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("취소", null).show()
     }
@@ -121,7 +121,7 @@ class SelectionController(
     fun update() {  // B-63(34): 선택수/총수 표기
         val n = sel?.selected?.size ?: 0
         val total = sel?.selectableVids()?.size ?: 0
-        selCount.text = "$n / $total 선택"
+        selCount.text = "${"%,d".format(n)} / ${"%,d".format(total)} 선택"  // B-64(44): 천단위 콤마
     }
 
     private fun vidOf(u: String): Vid? = sel?.selectableVids()?.find { it.uri.toString() == u }
@@ -155,14 +155,14 @@ class SelectionController(
         val btnCancel = MaterialButton(act, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "중단" }
         ll.addView(tv); ll.addView(pbAll); ll.addView(lblOne); ll.addView(pbOne); ll.addView(btnCancel)
         val dlg = MaterialAlertDialogBuilder(act)
-            .setTitle("임베드 중 (${items.size}개)").setView(ll).setCancelable(false).create()
+            .setTitle("임베드 중 (${"%,d".format(items.size)}개)").setView(ll).setCancelable(false).create()
         btnCancel.setOnClickListener {
             cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 작품 완료 후)"
         }
         dlg.show(); nonModal(dlg)
         JEmbed.embedBatch(act, items,
             onProgress = { idx, total, code, stage, pct ->
-                tv.text = "전체 ${idx + 1}/$total"
+                tv.text = "전체 ${"%,d".format(idx + 1)}/${"%,d".format(total)}"
                 pbAll.progress = idx
                 lblOne.text = "$code   $stage   $pct%"
                 pbOne.progress = if (stage == "remux") pct else if (stage == "embed") 100 else 0
@@ -200,10 +200,10 @@ class SelectionController(
         val btnCancel = MaterialButton(act, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "중단" }
         ll.addView(tv); ll.addView(pb); ll.addView(btnCancel)
         val dlg = MaterialAlertDialogBuilder(act)
-            .setTitle("이동 중 (${items.size}개)").setView(ll).setCancelable(false).create()
+            .setTitle("이동 중 (${"%,d".format(items.size)}개)").setView(ll).setCancelable(false).create()
         btnCancel.setOnClickListener { cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 파일 완료 후)" }
         dlg.show(); nonModal(dlg)
-        mover({ idx, _, name -> tv.text = "${idx + 1}/${items.size}   $name"; pb.progress = idx },
+        mover({ idx, _, name -> tv.text = "${"%,d".format(idx + 1)}/${"%,d".format(items.size)}   $name"; pb.progress = idx },
             { ok, fail, fails ->
                 dlg.dismiss(); exit(); onReload()
                 val head = if (cancelled.get()) "중단됨" else "이동 완료"

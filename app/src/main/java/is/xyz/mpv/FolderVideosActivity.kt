@@ -117,7 +117,7 @@ class FolderVideosActivity : AppCompatActivity() {
     // B-63(34): 폴더명 옆에 총 영상 개수를 작게(회색) 표시. (선택 모드 개수는 SelectionController.update)
     private fun updateTitle() {
         val name = intent.getStringExtra("name") ?: getString(R.string.qs_folder)
-        val suffix = "   ${vids.size}편"
+        val suffix = "   ${"%,d".format(vids.size)}편"   // B-64(44): 천단위 콤마
         val sp = android.text.SpannableString(name + suffix)
         val s = name.length; val e = name.length + suffix.length
         sp.setSpan(android.text.style.RelativeSizeSpan(0.72f), s, e, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
