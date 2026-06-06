@@ -135,6 +135,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         }
 
         recycler = findViewById(R.id.recycler)
+        Utils.mirrorChildrenForLeftScrollbar(recycler)  // 49: 좌측 스크롤바(XML scaleX=-1 보완)
         recycler.layoutManager = LinearLayoutManager(this)
         empty = findViewById(R.id.empty)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById(R.id.sel_count)) { load() }

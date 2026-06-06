@@ -187,6 +187,17 @@ internal object Utils {
             item.tooltipText = if (LibPrefs.showTooltips(ctx)) text else null
     }
 
+    // 49: 좌측 스크롤바. RecyclerView 를 scaleX=-1 로 수평반전(스크롤바가 좌측으로)하고,
+    // 각 자식 뷰를 다시 -1 로 재반전해 콘텐츠는 정상 LTR 유지. layoutManager 순서·터치 보존.
+    // 호출 측에서 rv.scaleX = -1f(또는 XML scaleX=-1) 이미 적용 가정 → 여기선 자식만 반전.
+    fun mirrorChildrenForLeftScrollbar(rv: androidx.recyclerview.widget.RecyclerView) {
+        rv.addOnChildAttachStateChangeListener(
+            object : androidx.recyclerview.widget.RecyclerView.OnChildAttachStateChangeListener {
+                override fun onChildViewAttachedToWindow(view: android.view.View) { view.scaleX = -1f }
+                override fun onChildViewDetachedFromWindow(view: android.view.View) {}
+            })
+    }
+
     fun prettyTime(d: Int, sign: Boolean = false): String {
         if (sign)
             return (if (d >= 0) "+" else "-") + prettyTime(abs(d))

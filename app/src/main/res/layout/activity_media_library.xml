@@ -31,7 +31,8 @@
                 android:paddingBottom="96dp"
                 android:scrollbars="vertical"
                 android:scrollbarStyle="outsideOverlay"
-                android:fadeScrollbars="false" />
+                android:fadeScrollbars="false"
+                android:scaleX="-1" /><!-- 49: 좌측 스크롤바(이중미러, itemView 재반전) -->
 
             <TextView
                 android:id="@+id/empty"

@@ -30,7 +30,8 @@
         android:layout_weight="1"
         android:scrollbars="vertical"
         android:scrollbarStyle="outsideOverlay"
-        android:fadeScrollbars="false" />
+        android:fadeScrollbars="false"
+        android:scaleX="-1" /><!-- 49: 좌측 스크롤바(이중미러) -->
 
     <!-- jembed: 선택모드 액션바 -->
     <LinearLayout

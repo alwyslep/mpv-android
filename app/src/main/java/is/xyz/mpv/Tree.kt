@@ -96,6 +96,7 @@ class TreeActivity : AppCompatActivity() {
         }
 
         recycler = findViewById(R.id.recycler)
+        recycler.scaleX = -1f; Utils.mirrorChildrenForLeftScrollbar(recycler)  // 49: 좌측 스크롤바
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
         findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }
         findViewById<View>(R.id.sel_thumb).setOnClickListener { selCtl.thumbBatch() }
