@@ -74,9 +74,9 @@ object FilterSheet {
         ll.addView(metaRow(ctx, "장르", fg) { MetaHub.genres })
 
         val btns = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, 28, 0, 0) }
-        val reset = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "초기화" }
+        val reset = MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "초기화"; Utils.tip(this, "모든 필터 조건 초기화") }  // B-64(47)
         val apply = MaterialButton(ctx).apply {
-            text = "적용"; layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            text = "적용"; Utils.tip(this, "선택한 필터를 목록에 적용"); layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
         }
         btns.addView(reset); btns.addView(apply)
 

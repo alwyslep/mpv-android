@@ -109,6 +109,8 @@ object QuickSettings {
 
         val dlg = MaterialAlertDialogBuilder(act).setView(v).create()
 
+        Utils.tip(v.findViewById(R.id.btn_cancel), "변경 취소하고 닫기")   // B-64(47)
+        Utils.tip(v.findViewById(R.id.btn_done), "변경 사항 적용하고 닫기")
         v.findViewById<MaterialButton>(R.id.btn_cancel).setOnClickListener { dlg.dismiss() }
         v.findViewById<MaterialButton>(R.id.btn_done).setOnClickListener {
             LibPrefs.setViewMode(ctx, pMode)
