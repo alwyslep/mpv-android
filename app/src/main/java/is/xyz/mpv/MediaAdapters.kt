@@ -90,6 +90,7 @@ class VideoAdapter(
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
         val badge: TextView = v.findViewById(R.id.badge)
+        val resBadge: TextView = v.findViewById(R.id.res_badge)
         val check: CheckBox? = v.findViewById(R.id.check)
     }
 
@@ -112,42 +113,43 @@ class VideoAdapter(
             h.thumbBox.layoutParams = lp
         }
         // B-60: 화질=짧은변 min(W,H) (세로영상 정확 — 480x842는 480p). 세로(W<H)는 ↕ 표기로 가로와 구분.
+        // 표시는 글자줄(meta) 대신 **썸네일 위 배지(res_badge)** — 저화질/불일치 마커도 배지에서.
         val localShort = if (v.width > 0 && v.height > 0) minOf(v.width, v.height) else v.height
         val isPortrait = v.width in 1 until v.height
         fun resTag(n: Int) = if (isPortrait) "↕${n}p" else "${n}p"
-        val res = if (localShort > 0 && LibPrefs.showRes(ctx)) resTag(localShort) else ""
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
-        h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        h.meta.text = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
         run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
-        // 48: MediaStore height=0(임베드 remux/SAF) → 로컬 화질 미상 → hub /resolutions 값으로 보강 표시.
-        if (res.isEmpty() && localShort <= 0 && LibPrefs.showRes(ctx)) {
-            val rKey = v.uri.toString()
-            h.meta.tag = rKey
-            ThumbLoader.fetchHubRes(ctx, v.uri) { hubRaw ->
-                if (h.meta.tag == rKey) {
-                    val rs = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
-                    val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
-                    h.meta.text = if (tail.isNotEmpty()) "$rs  ·  $tail" else rs
+        // 해상도 배지(썸네일 위). badgeDark=기본, badgeRed=저화질/불일치 경고.
+        val rb = h.resBadge
+        val rKey = v.uri.toString()
+        rb.tag = rKey
+        val badgeDark = 0x99000000.toInt(); val badgeRed = 0xCCD32F2F.toInt()
+        if (!LibPrefs.showRes(ctx)) {
+            rb.visibility = View.GONE
+        } else if (localShort > 0) {
+            rb.visibility = View.VISIBLE
+            rb.setBackgroundColor(badgeDark)
+            rb.text = resTag(localShort)
+            // 절대 임계: 짧은변 < 720p → 저화질 경고(빨강+⚠)
+            if (localShort in 1..719) { rb.setBackgroundColor(badgeRed); rb.text = "${resTag(localShort)} ⚠" }
+            // hub 기대(abs)보다 낮으면 빨강 + →기대 ⚠ (비동기, tag 가드)
+            ThumbLoader.checkResMismatch(ctx, v.uri, localShort) { hubRaw ->
+                if (rb.tag == rKey) {
+                    rb.setBackgroundColor(badgeRed)
+                    val expStr = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
+                    rb.text = "${resTag(localShort)}→$expStr ⚠"
                 }
             }
-        }
-        // B-60: 절대 임계 — 짧은변 < 720p 면 저화질 즉시 경고(세로영상도 정확: 480x842=480p 경고됨)
-        if (localShort in 1..719 && res.isNotEmpty()) {
-            h.meta.setTextColor(0xFFFF5252.toInt())
-            val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
-            h.meta.text = "${resTag(localShort)} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
-        }
-        // 4: 로컬 짧은변 < hub 기대(abs) → 빨강+⚠ (SAF height=0 은 skip). hubRaw<0=세로 → ↕ 표기.
-        if (localShort > 0 && res.isNotEmpty()) {
-            val resKey = v.uri.toString()
-            h.meta.tag = resKey
-            ThumbLoader.checkResMismatch(ctx, v.uri, localShort) { hubRaw ->
-                if (h.meta.tag == resKey) {
-                    h.meta.setTextColor(0xFFFF5252.toInt())
-                    val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
-                    val expStr = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
-                    h.meta.text = "${resTag(localShort)}→${expStr} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+        } else {
+            // MediaStore height=0(임베드 remux/SAF) → hub /resolutions 값으로 표시(마커 아님)
+            rb.visibility = View.GONE
+            ThumbLoader.fetchHubRes(ctx, v.uri) { hubRaw ->
+                if (rb.tag == rKey) {
+                    rb.visibility = View.VISIBLE
+                    rb.setBackgroundColor(badgeDark)
+                    rb.text = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
                 }
             }
         }

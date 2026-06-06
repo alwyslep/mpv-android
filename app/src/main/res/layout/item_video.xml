@@ -35,6 +35,22 @@
             android:text=""
             android:textColor="#FFFFFF"
             android:textSize="11sp" />
+        <!-- 해상도 배지 — 글자줄 대신 썸네일 위 좌하단 -->
+        <TextView
+            android:id="@+id/res_badge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:layout_margin="4dp"
+            android:background="#99000000"
+            android:paddingStart="5dp"
+            android:paddingEnd="5dp"
+            android:paddingTop="1dp"
+            android:paddingBottom="1dp"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:visibility="gone" />
         <ProgressBar
             android:id="@+id/progress"
             style="?android:attr/progressBarStyleHorizontal"
