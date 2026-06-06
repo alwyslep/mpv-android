@@ -231,13 +231,42 @@ class TreeAdapter(
             val v = e.vid!!
             val ctx = h.itemView.context
             h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
-            val res = if (v.height > 0 && LibPrefs.showRes(ctx)) "${v.height}p" else ""
+            // B-64(48): videos 모드와 동일 — 짧은변 해상도+세로↕, 절대임계/hub 불일치 마커
+            val localShort = if (v.width > 0 && v.height > 0) minOf(v.width, v.height) else v.height
+            val isPortrait = v.width in 1 until v.height
+            fun resTag(n: Int) = if (isPortrait) "↕${n}p" else "${n}p"
+            val res = if (localShort > 0 && LibPrefs.showRes(ctx)) resTag(localShort) else ""
             val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
             val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
             h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+            run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
+            if (localShort in 1..719 && res.isNotEmpty()) {
+                h.meta.setTextColor(0xFFFF5252.toInt())
+                val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                h.meta.text = "${resTag(localShort)} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+            }
+            if (localShort > 0 && res.isNotEmpty()) {
+                val resKey = v.uri.toString(); h.meta.tag = resKey
+                ThumbLoader.checkResMismatch(ctx, v.uri, localShort) { hubRaw ->
+                    if (h.meta.tag == resKey) {
+                        h.meta.setTextColor(0xFFFF5252.toInt())
+                        val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                        val expStr = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
+                        h.meta.text = "${resTag(localShort)}→${expStr} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+                    }
+                }
+            }
             if (LibPrefs.showDur(ctx) && v.durationMs > 0) {
                 h.dur.visibility = View.VISIBLE
                 h.dur.text = MediaLibrary.fmtDur(v.durationMs)
+                h.dur.setTextColor(0xFFFFFFFF.toInt())
+                val durKey = v.uri.toString(); h.dur.tag = durKey
+                ThumbLoader.checkDurMismatch(ctx, v.uri, v.durationMs) { mismatch ->
+                    if (mismatch && h.dur.tag == durKey) {
+                        h.dur.setTextColor(0xFFFF5252.toInt())
+                        h.dur.text = MediaLibrary.fmtDur(v.durationMs) + " ⚠"
+                    }
+                }
             } else {
                 h.dur.visibility = View.GONE
             }
