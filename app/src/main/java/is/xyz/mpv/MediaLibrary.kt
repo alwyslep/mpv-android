@@ -537,7 +537,7 @@ object MetaHub {
 // 세 화면(videos/folder/tree)이 .filter { FilterEngine.passes(ctx, vid) } 하나로 적용.
 object FilterEngine {
     private const val PREFS = "media_library"
-    private val CODE = Regex("((?:FC2-)?[A-Za-z]{2,7}-\\d{2,8})")  // B-64(43): FC2-PPV 긴 품번 충돌 수정(Thumbs.CODE 와 통일)
+    private val CODE = Regex("((?:[A-Za-z0-9]{2,4}-)?[A-Za-z]{2,7}-\\d{1,8})")  // B-64(43): 2-세그먼트 prefix(FC2-PPV/XXX-AV) 일반화(Thumbs.CODE 와 통일)
 
     fun anyActive(ctx: Context): Boolean {
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)

@@ -30,8 +30,8 @@ data class CachedVideo(
 // 1: 캐시 안정 키 — 품번(파일명 정규식) ?: 파일명(확장자 제외) ?: uri. 경로/이동/임베딩 무관.
 //    같은 품번/파일명이면 이동·재다운로드해도 같은 캐시 공유(재캐싱 방지).
 object MediaKey {
-    // B-64(43): FC2-PPV-{최대8자리} 등 긴 숫자 품번 — \d{2,5} 가 앞 5자리만 잡아 인접 품번이 같은 키로 충돌(폴더뷰 동일 커버)하던 것 수정. FC2- prefix 허용 + 숫자 8자리까지.
-    private val CODE = Regex("((?:FC2-)?[A-Za-z]{2,7}-\\d{2,8})")
+    // B-64(43): 2-세그먼트 prefix(FC2-PPV, XXX-AV 등) + 긴 숫자 품번. \d{2,5}·FC2-하드코딩이 부분만 잡아 충돌하던 것 → prefix 일반화([A-Za-z0-9]{2,4}-)?+문자라벨+숫자8자리. 일반 품번(MIDE-850)은 backtrack 으로 안전.
+    private val CODE = Regex("((?:[A-Za-z0-9]{2,4}-)?[A-Za-z]{2,7}-\\d{1,8})")
     fun of(uri: String, name: String?): String {
         if (!name.isNullOrEmpty()) {
             CODE.find(name)?.value?.uppercase()?.let { return "code:$it" }
