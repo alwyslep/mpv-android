@@ -154,6 +154,18 @@ object ThumbLoader {
         }
     }
 
+    // 48: MediaStore height=0(임베드 remux/SAF 외부저장소)일 때 hub /resolutions 값으로 화질 표시(마커 아님).
+    // mismatch 비교 없이 hubRaw(양수=가로height·음수=세로 -짧은변) 그대로 콜백.
+    fun fetchHubRes(ctx: Context, uri: Uri, cb: (Int) -> Unit) {
+        val app = ctx.applicationContext
+        exec.execute {
+            val code = codeOf(app, uri.toString()) ?: return@execute
+            val hubRaw = ResolutionHub.get(code) ?: return@execute
+            if (hubRaw == 0 || hubRaw == -1) return@execute
+            android.os.Handler(android.os.Looper.getMainLooper()).post { cb(hubRaw) }
+        }
+    }
+
     // 임베드 커버 '이미지'가 실제로 있는지 (메타 유무와 무관). 장면 썸네일 제외 판정용 — MMR 직접.
     fun hasCover(ctx: Context, uri: Uri): Boolean = try {
         val mmr = MediaMetadataRetriever()

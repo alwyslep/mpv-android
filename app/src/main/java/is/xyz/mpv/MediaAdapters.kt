@@ -120,6 +120,18 @@ class VideoAdapter(
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
         h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
         run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
+        // 48: MediaStore height=0(임베드 remux/SAF) → 로컬 화질 미상 → hub /resolutions 값으로 보강 표시.
+        if (res.isEmpty() && localShort <= 0 && LibPrefs.showRes(ctx)) {
+            val rKey = v.uri.toString()
+            h.meta.tag = rKey
+            ThumbLoader.fetchHubRes(ctx, v.uri) { hubRaw ->
+                if (h.meta.tag == rKey) {
+                    val rs = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
+                    val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                    h.meta.text = if (tail.isNotEmpty()) "$rs  ·  $tail" else rs
+                }
+            }
+        }
         // B-60: 절대 임계 — 짧은변 < 720p 면 저화질 즉시 경고(세로영상도 정확: 480x842=480p 경고됨)
         if (localShort in 1..719 && res.isNotEmpty()) {
             h.meta.setTextColor(0xFFFF5252.toInt())
