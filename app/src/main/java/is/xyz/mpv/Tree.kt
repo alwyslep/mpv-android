@@ -214,6 +214,7 @@ class TreeAdapter(
         val code: TextView = v.findViewById(R.id.code)
         val title: TextView = v.findViewById(R.id.title)
         val meta: TextView = v.findViewById(R.id.meta)
+        val resBadge: TextView = v.findViewById(R.id.res_badge)
         val check: android.widget.CheckBox? = v.findViewById(R.id.check)
     }
 
@@ -240,28 +241,39 @@ class TreeAdapter(
             val v = e.vid!!
             val ctx = h.itemView.context
             h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
-            // B-64(48): videos 모드와 동일 — 짧은변 해상도+세로↕, 절대임계/hub 불일치 마커
+            // B-64(48): 해상도를 글자줄 대신 썸네일 위 배지(res_badge)로 — videos 모드와 통일.
             val localShort = if (v.width > 0 && v.height > 0) minOf(v.width, v.height) else v.height
             val isPortrait = v.width in 1 until v.height
             fun resTag(n: Int) = if (isPortrait) "↕${n}p" else "${n}p"
-            val res = if (localShort > 0 && LibPrefs.showRes(ctx)) resTag(localShort) else ""
             val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
             val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
-            h.meta.text = listOf(res, sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+            h.meta.text = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
             run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
-            if (localShort in 1..719 && res.isNotEmpty()) {
-                h.meta.setTextColor(0xFFFF5252.toInt())
-                val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
-                h.meta.text = "${resTag(localShort)} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
-            }
-            if (localShort > 0 && res.isNotEmpty()) {
-                val resKey = v.uri.toString(); h.meta.tag = resKey
+            val rb = h.resBadge
+            val rKey = v.uri.toString()
+            rb.tag = rKey
+            val badgeDark = 0x99000000.toInt(); val badgeRed = 0xCCD32F2F.toInt()
+            if (!LibPrefs.showRes(ctx)) {
+                rb.visibility = View.GONE
+            } else if (localShort > 0) {
+                rb.visibility = View.VISIBLE
+                rb.setBackgroundColor(badgeDark)
+                rb.text = resTag(localShort)
+                if (localShort in 1..719) { rb.setBackgroundColor(badgeRed); rb.text = "${resTag(localShort)} ⚠" }
                 ThumbLoader.checkResMismatch(ctx, v.uri, localShort) { hubRaw ->
-                    if (h.meta.tag == resKey) {
-                        h.meta.setTextColor(0xFFFF5252.toInt())
-                        val tail = listOf(sz, ext).filter { it.isNotEmpty() }.joinToString("  ·  ")
+                    if (rb.tag == rKey) {
+                        rb.setBackgroundColor(badgeRed)
                         val expStr = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
-                        h.meta.text = "${resTag(localShort)}→${expStr} ⚠" + (if (tail.isNotEmpty()) "  ·  $tail" else "")
+                        rb.text = "${resTag(localShort)}→$expStr ⚠"
+                    }
+                }
+            } else {
+                rb.visibility = View.GONE
+                ThumbLoader.fetchHubRes(ctx, v.uri) { hubRaw ->
+                    if (rb.tag == rKey) {
+                        rb.visibility = View.VISIBLE
+                        rb.setBackgroundColor(badgeDark)
+                        rb.text = if (hubRaw < 0) "↕${-hubRaw}p" else "${hubRaw}p"
                     }
                 }
             }
