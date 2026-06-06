@@ -69,6 +69,13 @@ class FolderVideosActivity : AppCompatActivity() {
         toolbar.menu.add(0, 4, 3, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         toolbar.menu.add(0, 5, 4, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         toolbar.menu.add(0, 6, 5, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        // B-64(47): 메뉴 툴팁 일괄
+        mapOf(
+            1 to "그리드/목록 보기 전환", 7 to "정렬 기준·오름/내림차순 변경",
+            2 to "표시 항목·커버 크기 등 빠른 설정", 3 to "여러 영상을 골라 일괄 임베드/이동/썸네일 지정",
+            4 to "해상도·상태·확장자·메타 조건으로 필터", 5 to "선택 영상을 다른 폴더로 이동",
+            6 to "선택 영상의 썸네일 위치를 일괄 지정"
+        ).forEach { (mid, t) -> toolbar.menu.findItem(mid)?.let { Utils.tipItem(it, this, t) } }
         MetaHub.fetchAsync(this)
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->

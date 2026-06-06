@@ -107,6 +107,14 @@ class MediaLibraryActivity : AppCompatActivity() {
         toolbar.menu.add(0, 6, 4, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         thumbMenuItem = toolbar.menu.add(0, 8, 6, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        // B-64(47): 메뉴 툴팁(상세 사용법) — 일괄 적용(long-press·마우스 hover)
+        mapOf(
+            2 to "품번·제목으로 검색", 4 to "배우·스튜디오·시리즈·장르로 분류 보기",
+            9 to "정렬 기준·오름/내림차순 변경", 3 to "표시 항목·커버 크기 등 빠른 설정",
+            1 to "앱 설정 화면", 5 to "여러 영상을 골라 일괄 임베드/이동/썸네일 지정 (videos 모드)",
+            6 to "해상도·상태·확장자·메타 조건으로 목록 필터", 7 to "선택한 영상을 다른 폴더로 이동",
+            8 to "선택 영상의 썸네일 위치를 일괄 지정"
+        ).forEach { (mid, t) -> toolbar.menu.findItem(mid)?.let { Utils.tipItem(it, this, t) } }
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))

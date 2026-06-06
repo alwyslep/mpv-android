@@ -40,6 +40,14 @@
         android:summary="@string/pref_playlist_exit_warning_summary"
         android:title="@string/pref_playlist_exit_warning_title" />
 
+    <!-- B-64(47): 버튼 툴팁 on/off -->
+    <SwitchPreferenceCompat
+        android:defaultValue="true"
+        app:iconSpaceReserved="false"
+        android:key="show_tooltips"
+        android:summary="버튼·메뉴를 길게 누르거나 마우스를 올리면 사용법 툴팁 표시"
+        android:title="버튼 툴팁" />
+
     <!-- B-57 v3: 동적 오로라 배경. entries 는 AuroraPresets(SSOT)에서 코드 주입(UIPreference). -->
     <PreferenceCategory
         app:iconSpaceReserved="false"

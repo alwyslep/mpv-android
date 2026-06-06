@@ -176,6 +176,17 @@ internal object Utils {
                 context.resources.displayMetrics).toInt()
     }
 
+    // B-64(47): 버튼/아이콘에 툴팁(long-press + 마우스 hover). showTooltips off 면 미설정.
+    fun tip(view: android.view.View, text: CharSequence) {
+        androidx.appcompat.widget.TooltipCompat.setTooltipText(
+            view, if (LibPrefs.showTooltips(view.context)) text else null)
+    }
+    // 툴바 MenuItem 툴팁(상세 사용법). API26+ 만 tooltipText 지원.
+    fun tipItem(item: android.view.MenuItem, ctx: Context, text: CharSequence) {
+        if (android.os.Build.VERSION.SDK_INT >= 26)
+            item.tooltipText = if (LibPrefs.showTooltips(ctx)) text else null
+    }
+
     fun prettyTime(d: Int, sign: Boolean = false): String {
         if (sign)
             return (if (d >= 0) "+" else "-") + prettyTime(abs(d))

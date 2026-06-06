@@ -292,6 +292,7 @@ object LibPrefs {
     fun showRes(ctx: Context) = p(ctx).getBoolean("show_res", true)        // 해상도
     fun showSize(ctx: Context) = p(ctx).getBoolean("show_size", true)      // 크기
     fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 썸네일
+    fun showTooltips(ctx: Context) = p(ctx).getBoolean("show_tooltips", true)  // B-64(47): 버튼 툴팁 on/off
     fun setField(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 
     // 시청 상태 필터: all | unwatched | watching | watched
