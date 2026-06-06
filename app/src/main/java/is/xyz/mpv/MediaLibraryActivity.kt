@@ -183,6 +183,11 @@ class MediaLibraryActivity : AppCompatActivity() {
         findViewById<ExtendedFloatingActionButton>(R.id.fab_recent).setOnClickListener {
             fabMenu.visibility = View.GONE; showRecents()
         }
+        // B-64(47): FAB 툴팁
+        Utils.tip(findViewById(R.id.fab_main), "추가 메뉴 열기/닫기")
+        Utils.tip(findViewById(R.id.fab_url), "URL 직접 입력해 열기")
+        Utils.tip(findViewById(R.id.fab_local), "폴더 열기 — USB/SD 등 외부저장소 SAF 등록")
+        Utils.tip(findViewById(R.id.fab_recent), "최근 연 항목")
     }
 
     private fun hasMediaAccess(): Boolean {
