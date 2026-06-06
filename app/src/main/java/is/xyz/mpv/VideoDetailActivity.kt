@@ -43,7 +43,7 @@ class VideoDetailActivity : AppCompatActivity() {
         toolbar.title = getString(R.string.detail_info)
         toolbar.setNavigationOnClickListener { finish() }
         // jembed PoC: 메타 임베드 트리거(내부저장소 한정)
-        toolbar.menu.add(0, 99, 0, "임베드(PoC)").setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
+        toolbar.menu.add(0, 99, 0, "임베드(PoC)").apply { setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS); Utils.tipItem(this, this@VideoDetailActivity, "이 영상에 hub 메타·커버를 임베드 (품번 없으면 remux만)") }  // B-64(47)
         toolbar.setOnMenuItemClickListener { mi ->
             if (mi.itemId == 99) { doEmbedPoc(); true } else false
         }
@@ -56,6 +56,9 @@ class VideoDetailActivity : AppCompatActivity() {
         findViewById<MaterialButton>(R.id.btn_resume).setOnClickListener {
             playLauncher.launch(Playback.intentFor(this, uriStr, fallbackName, resume = true))
         }
+        Utils.tip(findViewById(R.id.btn_play), "처음부터 재생")      // B-64(47)
+        Utils.tip(findViewById(R.id.btn_resume), "마지막 위치부터 이어보기")
+        Utils.tip(findViewById(R.id.fav_btn), "즐겨찾기 추가/해제")
         updateResumeButton()
 
         load()

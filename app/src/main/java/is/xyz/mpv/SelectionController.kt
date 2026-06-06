@@ -41,7 +41,15 @@ class SelectionController(
     var sel: SelectableVids? = null
         private set
 
-    fun bind(a: SelectableVids) { sel = a; a.onSelectionChanged = { update() } }
+    fun bind(a: SelectableVids) {
+        sel = a; a.onSelectionChanged = { update() }
+        // B-64(47): 선택바 버튼 툴팁
+        mapOf(
+            R.id.sel_all to "현재 목록 전체 선택/해제", R.id.sel_embed to "선택 영상에 hub 메타·커버 임베드(품번 없으면 remux만)",
+            R.id.sel_move to "선택 영상을 다른 폴더로 이동", R.id.sel_thumb to "선택 영상의 썸네일 위치를 일괄 지정",
+            R.id.sel_cancel to "선택 모드 종료"
+        ).forEach { (id, t) -> selBar.findViewById<View>(id)?.let { Utils.tip(it, t) } }
+    }
     fun unbind() { sel = null }
 
     val isActive: Boolean get() = sel?.selectionMode == true
