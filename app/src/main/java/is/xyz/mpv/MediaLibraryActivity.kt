@@ -41,7 +41,8 @@ class MediaLibraryActivity : AppCompatActivity() {
         9 to "정렬 기준·오름/내림차순 변경", 3 to "표시 항목·커버 크기 등 빠른 설정",
         1 to "앱 설정 화면", 5 to "여러 영상을 골라 일괄 임베드/이동/썸네일 지정 (videos 모드)",
         6 to "해상도·상태·확장자·메타 조건으로 목록 필터", 7 to "선택한 영상을 다른 폴더로 이동",
-        8 to "선택 영상의 썸네일 위치를 일괄 지정"
+        8 to "선택 영상의 썸네일 위치를 일괄 지정",
+        10 to "현재 목록에서 커버 없는 영상에 hub 커버를 일괄 임베드(있으면 건너뜀)"
     )
 
     // 로컬/USB 폴더 1개 선택 → 내 SAF 타일 브라우저로 진입(OS 선택기 대신).
@@ -117,6 +118,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         toolbar.menu.add(0, 6, 4, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         thumbMenuItem = toolbar.menu.add(0, 8, 6, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        toolbar.menu.add(0, 10, 7, "커버 보강(없는 것만)").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)   // B-52 A
         // 55: 메뉴 툴팁(상세 사용법) — 커스텀 툴팁(다크그린/주황, long-press·마우스 hover). load()서도 재부착(가시성 토글 대비).
         Utils.tipMenu(toolbar, menuTips)
         toolbar.setOnMenuItemClickListener { item ->
@@ -134,6 +136,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 6 -> FilterSheet.show(this) { load() }
                 7 -> selCtl.enter(showEmbed = false, showMove = true)
                 8 -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)
+                10 -> coverFixAll()
             }
             true
         }
@@ -310,6 +313,18 @@ class MediaLibraryActivity : AppCompatActivity() {
         tint(9, LibPrefs.sortActive(this))
         tint(3, LibPrefs.quickActive(this))
         tint(6, LibPrefs.filterActive(this))
+    }
+
+    // B-52 A: 현재 목록(videos/tree) 영상 중 커버 없는 것만 hub 커버 재임베드(JEmbed skipIfHasCover).
+    private fun coverFixAll() {
+        val items = homeVids.map { (u, n) -> Uri.parse(u) to (JavCode.extract(n) ?: "") }
+        if (items.isEmpty()) { Toast.makeText(this, "영상 목록에서 사용하세요(폴더 모드 아님)", Toast.LENGTH_SHORT).show(); return }
+        AlertDialog.Builder(this)
+            .setTitle("커버 보강")
+            .setMessage("현재 목록 ${"%,d".format(items.size)}개 중 커버 없는 영상에 hub 커버를 임베드합니다(이미 있으면 건너뜀).")
+            .setNegativeButton(getString(R.string.dialog_cancel), null)
+            .setPositiveButton("진행") { _, _ -> selCtl.coverFixBatch(items) }
+            .show()
     }
 
     private fun play(uri: String, title: String) {

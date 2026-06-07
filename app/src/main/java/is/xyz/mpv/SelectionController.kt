@@ -154,6 +154,16 @@ class SelectionController(
             Uri.parse(u) to code
         }
         if (items.isEmpty()) { toast("선택 없음"); return }
+        runEmbed(items, skipIfHasCover = false, titlePrefix = "임베드")
+    }
+
+    // B-52 A: 커버 보강 — 주어진 영상들 중 covr 없는 것만 hub 커버 재임베드(검증된 JEmbed 경로 재사용).
+    fun coverFixBatch(items: List<Pair<Uri, String>>) {
+        if (items.isEmpty()) { toast("대상 없음"); return }
+        runEmbed(items, skipIfHasCover = true, titlePrefix = "커버 보강")
+    }
+
+    private fun runEmbed(items: List<Pair<Uri, String>>, skipIfHasCover: Boolean, titlePrefix: String) {
         val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
         val ll = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
         val tv = TextView(act)
@@ -163,7 +173,7 @@ class SelectionController(
         val btnCancel = MaterialButton(act, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "중단" }
         ll.addView(tv); ll.addView(pbAll); ll.addView(lblOne); ll.addView(pbOne); ll.addView(btnCancel)
         val dlg = MaterialAlertDialogBuilder(act)
-            .setTitle("임베드 중 (${"%,d".format(items.size)}개)").setView(ll).setCancelable(false).create()
+            .setTitle("$titlePrefix 중 (${"%,d".format(items.size)}개)").setView(ll).setCancelable(false).create()
         btnCancel.setOnClickListener {
             cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 작품 완료 후)"
         }
@@ -183,7 +193,8 @@ class SelectionController(
                 Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
             },
             cancel = { cancelled.get() },
-            onItemDone = { uri, success -> if (success) sel?.notifyItem(uri.toString()) })   // 작품별 썸네일 즉시 반영
+            onItemDone = { uri, success -> if (success) sel?.notifyItem(uri.toString()) },   // 작품별 썸네일 즉시 반영
+            skipIfHasCover = skipIfHasCover)
     }
 
     // ─── 배치 이동 ───
