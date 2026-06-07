@@ -72,6 +72,12 @@ class AboutActivity : AppCompatActivity(), MPVLib.LogObserver {
              변경이력 (최신순)
             ════════════════════════════════
 
+            [v74] 임베드 force — 메타 못 받아도 포기 안 함 (52)
+             · 과거: hub 메타 fetch 실패 시 통째 skip(remux 조차 안 함)
+             · 이제 TS 는 remux 만이라도 진행(재생가능 mp4 확보, 메타 나중 재임베드)
+             · '메타 일시실패'(receiver 못 닿음)와 '진짜 메타 없음'을 구분 표시
+             · 짝: receiver v0.43 /library 인덱스 푸시다운(부하 1.6s→sub-ms 근본수정)
+
             [v73] 임베드 메타 조회 자동 재시도 (52)
              · 트리거 순간 receiver 가 첫 조회를 흘려 '메타 없음'→remux 도 skip 되던
                간헐 수정 — 손으로 '다시 임베드' 하던 동작을 코드가 자동화

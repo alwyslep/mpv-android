@@ -89,10 +89,19 @@ object JEmbed {
                 ui { onProgress(i, items.size, label, "준비", 0) }
                 // 품번 없으면 remux-only(rec=null), 있으면 hub 메타 fetch.
                 val rec = if (code.isBlank()) null else Library.fetchSync(app, code)
-                if (code.isNotBlank() && rec == null) { fails.add("$code: hub 메타 없음"); ui { onItemDone(uri, false) }; continue }
-                val msg = try {
-                    processOne(app, uri, code, rec, skipIfHasCover) { stage, pct -> ui { onProgress(i, items.size, label, stage, pct) } }
-                } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }
+                // force(v74): 메타 못 받아도 통째 포기하지 않음(과거: rec==null → continue, remux 도 skip).
+                //   processOne 에 rec=null 을 넘기면 TS 는 remux 만이라도 진행(재생가능 mp4 확보, 메타는
+                //   나중 재임베드 가능). null=일시 실패(예외)·EMPTY_REC=진짜 없음을 메시지로 구분 표시.
+                val recForEmbed = if (rec === Library.EMPTY_REC) null else rec
+                val metaNote = when {
+                    code.isBlank() -> ""
+                    rec == null -> " ⚠메타 일시실패(나중 재임베드)"
+                    rec === Library.EMPTY_REC -> " (hub 메타 없음)"
+                    else -> ""
+                }
+                val msg = (try {
+                    processOne(app, uri, code, recForEmbed, skipIfHasCover) { stage, pct -> ui { onProgress(i, items.size, label, stage, pct) } }
+                } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }) + metaNote
                 if (msg.startsWith("⊘")) { ok++; continue }   // 커버 이미 있음 — skip(재썸네일 불필요)
                 if (msg.contains("✓")) {
                     ok++
@@ -144,7 +153,10 @@ object JEmbed {
                 if (!File(tmp).renameTo(File(path))) { File(tmp).copyTo(File(path), true); File(tmp).delete() }
                 pre = "TS→mp4 remux + "
             }
-            if (embedSkip) return if (pre.isBlank()) "이미 mp4 — remux 불필요(품번없음)" else "✓ ${pre}임베드 생략(품번없음)"
+            if (embedSkip) {
+                val why = if (code.isBlank()) "품번없음" else "메타없음"
+                return if (pre.isBlank()) "이미 mp4 — remux 불필요($why)" else "✓ ${pre}임베드 생략($why)"
+            }
             onProgress?.invoke("embed", 0)
             RandomAccessFile(path, "rw").use { return pre + embedAtomRw(RafRw(it), code, rec!!) }
         }
@@ -156,7 +168,7 @@ object JEmbed {
             if (Build.VERSION.SDK_INT < 26) return "외부 TS remux 는 Android 8+ 필요"
             return remuxSaf(ctx, uri, code, rec, onProgress)
         }
-        if (embedSkip) return "이미 mp4 — remux 불필요(품번없음)"
+        if (embedSkip) return "이미 mp4 — remux 불필요(" + (if (code.isBlank()) "품번없음" else "메타없음") + ")"
         onProgress?.invoke("embed", 0)
         ctx.contentResolver.openFileDescriptor(uri, "rw")?.use { return embedAtomRw(OsRw(it.fileDescriptor), code, rec!!) }
         return "SAF fd 쓰기 열기 실패(권한?)"
@@ -187,7 +199,7 @@ object JEmbed {
         if (!rmsg.startsWith("✓")) { runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; return "remux 실패: $rmsg" }
         runCatching { DocumentsContract.deleteDocument(resolver, uri) }
         val finalDoc = runCatching { DocumentsContract.renameDocument(resolver, newDoc, origName) }.getOrNull() ?: newDoc
-        if (rec == null || code.isBlank()) return "✓ TS→mp4 remux(SAF) — 임베드 생략(품번없음)"
+        if (rec == null || code.isBlank()) return "✓ TS→mp4 remux(SAF) — 임베드 생략(" + (if (code.isBlank()) "품번없음" else "메타없음") + ")"
         onProgress?.invoke("embed", 0)
         resolver.openFileDescriptor(finalDoc, "rw")?.use {
             return "TS→mp4 remux(SAF) + " + embedAtomRw(OsRw(it.fileDescriptor), code, rec)

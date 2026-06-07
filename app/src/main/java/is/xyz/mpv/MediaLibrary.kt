@@ -841,24 +841,30 @@ object Library {
         }.start()
     }
 
+    // 배치(jembed) 용 동기 조회 sentinel — 조회는 성공했으나 그 code 의 메타가 없음(rows 빈).
+    //   fetchSync 반환: null=일시 실패(예외·재시도 소진), EMPTY_REC=진짜 메타 없음, 그 외=메타 rec.
+    //   JEmbed force(v74): 일시실패 vs 진짜없음 구분 → TS 면 remux 만이라도 진행(통째 포기 방지).
+    val EMPTY_REC: JSONObject = JSONObject()
+
     // 배치(jembed) 용 동기 조회 — 이미 백그라운드 스레드에서 호출 가정.
-    // connect 3s/read 8s + 자동 재시도 1회: 임베드 트리거 순간 receiver 가 sqlite 경합/콜드로
-    // 첫 호출을 흘리는 간헐(증상: 첫 임베드 '메타 없음'→remux 도 skip, 손으로 다시 하면 성공)을
-    // 코드가 흡수. 단 'rows 비어있음'(진짜 메타 없음)은 정상 경로라 재시도하지 않음(예외만 재시도).
+    // connect 3s/read 8s + 백오프 재시도 3회: 임베드 트리거 순간 receiver 가 첫 호출을 흘리는
+    // 간헐(증상: 첫 임베드 '메타 없음'→remux 도 skip, 손으로 다시 하면 성공)을 흡수.
+    // receiver v0.43 푸시다운으로 응답 sub-ms 라 평소 1회면 충분(근본수정), 재시도는 보험.
     fun fetchSync(ctx: Context, code: String): JSONObject? {
         val url = URL(LibPrefs.hubUrl(ctx).trimEnd('/') +
             "/library?limit=1&code=" + URLEncoder.encode(code, "UTF-8"))
-        repeat(2) { attempt ->
+        repeat(3) { attempt ->
             try {
                 val con = url.openConnection() as HttpURLConnection
                 con.connectTimeout = 3000; con.readTimeout = 8000
                 val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
                 con.disconnect()
-                return JSONObject(text).optJSONArray("rows")?.let { if (it.length() > 0) it.getJSONObject(0) else null }
+                val arr = JSONObject(text).optJSONArray("rows")
+                return if (arr != null && arr.length() > 0) arr.getJSONObject(0) else EMPTY_REC
             } catch (_: Throwable) {
-                if (attempt == 0) try { Thread.sleep(600) } catch (_: InterruptedException) {}
+                if (attempt < 2) try { Thread.sleep(600L * (attempt + 1)) } catch (_: InterruptedException) {}
             }
         }
-        return null
+        return null   // 예외 소진 = 일시 실패(receiver 닿지 않음)
     }
 }
