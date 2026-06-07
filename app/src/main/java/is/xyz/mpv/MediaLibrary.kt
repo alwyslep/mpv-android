@@ -842,15 +842,23 @@ object Library {
     }
 
     // 배치(jembed) 용 동기 조회 — 이미 백그라운드 스레드에서 호출 가정.
-    // 임베드는 사용자 단발 트리거라 넉넉히: 다운로드 부하 시 receiver /library 가 sqlite
-    // 직렬화로 1.5초 초과 → 메타 fetch 실패 → "hub 메타 없음" 오판(B-52 A 후속). connect 3s/read 8s.
-    fun fetchSync(ctx: Context, code: String): JSONObject? = try {
+    // connect 3s/read 8s + 자동 재시도 1회: 임베드 트리거 순간 receiver 가 sqlite 경합/콜드로
+    // 첫 호출을 흘리는 간헐(증상: 첫 임베드 '메타 없음'→remux 도 skip, 손으로 다시 하면 성공)을
+    // 코드가 흡수. 단 'rows 비어있음'(진짜 메타 없음)은 정상 경로라 재시도하지 않음(예외만 재시도).
+    fun fetchSync(ctx: Context, code: String): JSONObject? {
         val url = URL(LibPrefs.hubUrl(ctx).trimEnd('/') +
             "/library?limit=1&code=" + URLEncoder.encode(code, "UTF-8"))
-        val con = url.openConnection() as HttpURLConnection
-        con.connectTimeout = 3000; con.readTimeout = 8000
-        val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-        con.disconnect()
-        JSONObject(text).optJSONArray("rows")?.let { if (it.length() > 0) it.getJSONObject(0) else null }
-    } catch (_: Throwable) { null }
+        repeat(2) { attempt ->
+            try {
+                val con = url.openConnection() as HttpURLConnection
+                con.connectTimeout = 3000; con.readTimeout = 8000
+                val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                con.disconnect()
+                return JSONObject(text).optJSONArray("rows")?.let { if (it.length() > 0) it.getJSONObject(0) else null }
+            } catch (_: Throwable) {
+                if (attempt == 0) try { Thread.sleep(600) } catch (_: InterruptedException) {}
+            }
+        }
+        return null
+    }
 }
