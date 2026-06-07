@@ -178,10 +178,10 @@
     <string name="scan_all">전체 스캔</string>
     <string name="scan_preparing">전체 스캔 준비…</string>
     <string name="scan_none">스캔할 영상 없음</string>
-    <string name="scan_progress">전체 스캔 %1$d/%2$d</string>
+    <string name="scan_progress">전체 스캔 %1$,d/%2$,d</string>
     <string name="browse_empty">아직 캐시된 메타 없음 — 영상을 둘러보면 채워집니다</string>
-    <string name="browse_count">%1$d개 · 본 작품 %2$d개 기준</string>
-    <string name="count_items">%1$d개</string>
+    <string name="browse_count">%1$,d개 · 본 작품 %2$,d개 기준</string>
+    <string name="count_items">%1$,d개</string>
     <string name="toggle_view">보기 전환</string>
     <string name="menu_classify">분류(배우/스튜디오)</string>
     <string name="lbl_search">검색</string>
@@ -191,8 +191,8 @@
     <string name="toast_no_recent">최근 재생 기록이 없습니다</string>
     <string name="search_prompt">검색어를 입력하세요</string>
     <string name="search_indexing">인덱싱 중…</string>
-    <string name="search_index_prompt">색인 %1$d개 · 검색어를 입력하세요</string>
-    <string name="search_results">‘%1$s’ — %2$d개</string>
+    <string name="search_index_prompt">색인 %1$,d개 · 검색어를 입력하세요</string>
+    <string name="search_results">‘%1$s’ — %2$,d개</string>
     <string name="n_videos">%1$,d 동영상</string>
     <string name="action_details">상세 보기</string>
     <string name="action_unfav">찜 해제</string>
