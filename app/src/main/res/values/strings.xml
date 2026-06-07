@@ -336,6 +336,7 @@
     <string name="action_unfav">Unfavorite</string>
     <string name="action_fav">Add to favorites</string>
     <string name="action_rate">Rate</string>
+    <string name="action_trash">Delete (to trash)</string>
     <string name="rating_none">No rating</string>
     <string name="toast_all_files_access">Allow \'All files access\' to use mpv config (/sdcard/mpv), then relaunch</string>
     <string name="lbl_settings">Settings</string>

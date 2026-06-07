@@ -202,7 +202,9 @@ class VideoAdapter(
             } else onClick(v)
         }
         h.itemView.setOnLongClickListener {
-            VideoActions.longPress(it, us, v.name) { notifyItemChanged(h.bindingAdapterPosition) }
+            VideoActions.longPress(it, us, v.name,
+                onChanged = { notifyItemChanged(h.bindingAdapterPosition) },
+                onRemoved = { removeItem(us) })   // 59: 삭제 후 타일 즉시 제거
             true
         }
     }

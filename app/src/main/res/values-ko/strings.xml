@@ -198,6 +198,7 @@
     <string name="action_unfav">찜 해제</string>
     <string name="action_fav">찜 하기</string>
     <string name="action_rate">평점 매기기</string>
+    <string name="action_trash">삭제 (휴지통으로)</string>
     <string name="rating_none">평점 없음</string>
     <string name="toast_all_files_access">mpv 설정(/sdcard/mpv) 사용을 위해 \'모든 파일 접근\'을 허용하고 다시 실행하세요</string>
     <string name="lbl_settings">설정</string>
