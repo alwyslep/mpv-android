@@ -102,7 +102,7 @@ class SearchAdapter(
         }
         h.itemView.setOnClickListener { onClick(item) }
         h.itemView.setOnLongClickListener {
-            VideoActions.longPress(it, item.uri.toString(), item.name) { notifyItemChanged(h.bindingAdapterPosition) }
+            VideoActions.longPress(it, item.uri.toString(), item.name, onChanged = { notifyItemChanged(h.bindingAdapterPosition) })
             true
         }
     }

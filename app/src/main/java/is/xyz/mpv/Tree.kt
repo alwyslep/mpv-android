@@ -310,7 +310,7 @@ class TreeAdapter(
                 } else onVideo(e)
             }
             h.itemView.setOnLongClickListener {
-                VideoActions.longPress(it, v.uri.toString(), v.name) { notifyItemChanged(h.bindingAdapterPosition) }
+                VideoActions.longPress(it, v.uri.toString(), v.name, onChanged = { notifyItemChanged(h.bindingAdapterPosition) })
                 true
             }
         }

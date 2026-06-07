@@ -270,7 +270,7 @@ class SafAdapter(
             }
             h.itemView.setOnClickListener { onVideo(e) }
             h.itemView.setOnLongClickListener {
-                VideoActions.longPress(it, e.uri.toString(), fallback) { notifyItemChanged(h.bindingAdapterPosition) }
+                VideoActions.longPress(it, e.uri.toString(), fallback, onChanged = { notifyItemChanged(h.bindingAdapterPosition) })
                 true
             }
         }
