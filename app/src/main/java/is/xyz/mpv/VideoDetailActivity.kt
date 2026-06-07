@@ -81,7 +81,7 @@ class VideoDetailActivity : AppCompatActivity() {
     private fun doEmbedPoc() {
         val cv = findViewById<TextView>(R.id.code).text?.toString()?.trim().orEmpty()
         val code = if (cv.isNotBlank()) cv
-                   else Regex("((?:[A-Za-z0-9]{2,4}-)?[A-Za-z]{2,7}-\\d{1,8})").find(fallbackName)?.value?.uppercase().orEmpty()  // B-64(43)
+                   else JavCode.extract(fallbackName).orEmpty()  // B-53: 공용 파서
         Toast.makeText(this, "임베드 시도: ${code.ifBlank { "원본(remux)" }}", Toast.LENGTH_SHORT).show()
         // 진행을 커버 확대 슬라이더(cover_size)에 차용 — remux 0~70%, embed 70~100%. 완료 후 원복.
         val sb = findViewById<android.widget.SeekBar>(R.id.cover_size)

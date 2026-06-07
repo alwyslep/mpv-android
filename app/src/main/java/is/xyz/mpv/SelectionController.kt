@@ -150,7 +150,7 @@ class SelectionController(
         val items = a.selected.toList().mapNotNull { u ->
             val name = vidOf(u)?.name ?: return@mapNotNull null
             // 품번 추출 실패(xhamster 등 비품번)여도 제외하지 않고 빈 code 로 포함 → JEmbed 가 remux-only 처리.
-            val code = Regex("((?:[A-Za-z0-9]{2,4}-)?[A-Za-z]{2,7}-\\d{1,8})").find(name)?.value?.uppercase() ?: ""  // B-64(43)
+            val code = JavCode.extract(name) ?: ""  // B-53: 공용 파서
             Uri.parse(u) to code
         }
         if (items.isEmpty()) { toast("선택 없음"); return }

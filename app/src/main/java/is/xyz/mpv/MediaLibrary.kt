@@ -561,7 +561,7 @@ object MetaHub {
 // 세 화면(videos/folder/tree)이 .filter { FilterEngine.passes(ctx, vid) } 하나로 적용.
 object FilterEngine {
     private const val PREFS = "media_library"
-    private val CODE = Regex("((?:[A-Za-z0-9]{2,4}-)?[A-Za-z]{2,7}-\\d{1,8})")  // B-64(43): 2-세그먼트 prefix(FC2-PPV/XXX-AV) 일반화(Thumbs.CODE 와 통일)
+    // B-53: 품번 인식 공용 JavCode 파서로 통일(docs/code_patterns.md)
 
     fun anyActive(ctx: Context): Boolean {
         val p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -582,7 +582,7 @@ object FilterEngine {
         if (resMax > 0 && (v.height <= 0 || v.height > resMax)) return false
         val exts = p.getStringSet("filter_ext", emptySet()) ?: emptySet()
         if (exts.isNotEmpty() && v.nameExt.substringAfterLast('.', "").uppercase() !in exts) return false
-        val code = CODE.find(v.name)?.value?.uppercase()
+        val code = JavCode.extract(v.name)
         if (p.getBoolean("filter_mismatch_res", false)) {
             val hubH = code?.let { ResolutionHub.get(it) } ?: return false
             if (!(v.height in 1 until (hubH - hubH / 10))) return false
