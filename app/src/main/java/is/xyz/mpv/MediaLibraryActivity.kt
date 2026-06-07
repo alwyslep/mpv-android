@@ -35,6 +35,14 @@ class MediaLibraryActivity : AppCompatActivity() {
     private var moveMenuItem: MenuItem? = null
     private var thumbMenuItem: MenuItem? = null
     private var seeded = false   // 번들 스크립트/conf 시드 1회 플래그
+    // 55: 툴바 메뉴 커스텀 툴팁 텍스트(가시성 토글되는 5/7/8 포함 — load()서 재부착)
+    private val menuTips: Map<Int, CharSequence> = mapOf(
+        2 to "품번·제목으로 검색", 4 to "배우·스튜디오·시리즈·장르로 분류 보기",
+        9 to "정렬 기준·오름/내림차순 변경", 3 to "표시 항목·커버 크기 등 빠른 설정",
+        1 to "앱 설정 화면", 5 to "여러 영상을 골라 일괄 임베드/이동/썸네일 지정 (videos 모드)",
+        6 to "해상도·상태·확장자·메타 조건으로 목록 필터", 7 to "선택한 영상을 다른 폴더로 이동",
+        8 to "선택 영상의 썸네일 위치를 일괄 지정"
+    )
 
     // 로컬/USB 폴더 1개 선택 → 내 SAF 타일 브라우저로 진입(OS 선택기 대신).
     private val openTree =
@@ -109,14 +117,8 @@ class MediaLibraryActivity : AppCompatActivity() {
         toolbar.menu.add(0, 6, 4, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         thumbMenuItem = toolbar.menu.add(0, 8, 6, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
-        // B-64(47): 메뉴 툴팁(상세 사용법) — 일괄 적용(long-press·마우스 hover)
-        mapOf(
-            2 to "품번·제목으로 검색", 4 to "배우·스튜디오·시리즈·장르로 분류 보기",
-            9 to "정렬 기준·오름/내림차순 변경", 3 to "표시 항목·커버 크기 등 빠른 설정",
-            1 to "앱 설정 화면", 5 to "여러 영상을 골라 일괄 임베드/이동/썸네일 지정 (videos 모드)",
-            6 to "해상도·상태·확장자·메타 조건으로 목록 필터", 7 to "선택한 영상을 다른 폴더로 이동",
-            8 to "선택 영상의 썸네일 위치를 일괄 지정"
-        ).forEach { (mid, t) -> toolbar.menu.findItem(mid)?.let { Utils.tipItem(it, this, t) } }
+        // 55: 메뉴 툴팁(상세 사용법) — 커스텀 툴팁(다크그린/주황, long-press·마우스 hover). load()서도 재부착(가시성 토글 대비).
+        Utils.tipMenu(toolbar, menuTips)
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 2 -> startActivity(Intent(this, SearchActivity::class.java))
@@ -227,6 +229,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         thumbMenuItem?.isVisible = showSel
         if (mode != "videos") { selCtl.exit(); selCtl.unbind() }
         applyIconTints()   // 54: 설정 걸린 툴바 아이콘 색 갱신(정렬·빠른설정·필터)
+        Utils.tipMenu(toolbar, menuTips)   // 55: 가시성 토글된 메뉴(선택/이동/썸네일)에도 커스텀 툴팁 재부착
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
         ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
         MetaHub.fetchAsync(this)       // 필터: hub 메타맵 1회 채움(메타 필터용)

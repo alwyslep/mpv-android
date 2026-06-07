@@ -176,15 +176,62 @@ internal object Utils {
                 context.resources.displayMetrics).toInt()
     }
 
-    // B-64(47): 버튼/아이콘에 툴팁(long-press + 마우스 hover). showTooltips off 면 미설정.
+    // 55: 커스텀 툴팁 — 시스템 툴팁(A13 에선 색 테마 불가)을 대체. 다크그린 배경 + 밝은 주황 글자.
+    //     long-press(터치) + 마우스 hover 모두 지원. showTooltips off 면 미설정.
+    private var tipPopup: android.widget.PopupWindow? = null
+
     fun tip(view: android.view.View, text: CharSequence) {
-        androidx.appcompat.widget.TooltipCompat.setTooltipText(
-            view, if (LibPrefs.showTooltips(view.context)) text else null)
+        androidx.appcompat.widget.TooltipCompat.setTooltipText(view, null)  // 시스템 툴팁 끔(커스텀으로 대체)
+        if (!LibPrefs.showTooltips(view.context)) {
+            view.setOnLongClickListener(null); view.setOnHoverListener(null); return
+        }
+        view.setOnLongClickListener { showTip(view, text); true }
+        view.setOnHoverListener { v, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_HOVER_ENTER -> showTip(v, text)
+                android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTip()
+            }
+            false
+        }
     }
-    // 툴바 MenuItem 툴팁(상세 사용법). API26+ 만 tooltipText 지원.
-    fun tipItem(item: android.view.MenuItem, ctx: Context, text: CharSequence) {
-        if (android.os.Build.VERSION.SDK_INT >= 26)
-            item.tooltipText = if (LibPrefs.showTooltips(ctx)) text else null
+
+    // 툴바 액션 아이콘은 menuItem.itemId 와 같은 id 의 뷰로 렌더 → 레이아웃 후 findViewById 로 커스텀 툴팁 부착.
+    fun tipMenu(toolbar: android.view.View, tips: Map<Int, CharSequence>) {
+        toolbar.post { for ((id, t) in tips) toolbar.findViewById<android.view.View>(id)?.let { tip(it, t) } }
+    }
+
+    private fun showTip(anchor: android.view.View, text: CharSequence) {
+        dismissTip()
+        val ctx = anchor.context
+        val padH = convertDp(ctx, 10f); val padV = convertDp(ctx, 6f)
+        val tv = android.widget.TextView(ctx).apply {
+            this.text = text
+            setTextColor(0xFFFFA726.toInt())   // 밝은 주황
+            textSize = 13f
+            setPadding(padH, padV, padH, padV)
+            background = android.graphics.drawable.GradientDrawable().apply {
+                cornerRadius = convertDp(ctx, 6f).toFloat()
+                setColor(0xFF1B5E20.toInt())   // 어두운 녹색
+            }
+        }
+        val pw = android.widget.PopupWindow(tv,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT).apply {
+            isOutsideTouchable = true; isFocusable = false
+            elevation = convertDp(ctx, 4f).toFloat()
+        }
+        tipPopup = pw
+        val loc = IntArray(2); anchor.getLocationOnScreen(loc)
+        try {
+            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START,
+                loc[0], loc[1] + anchor.height + convertDp(ctx, 2f))
+        } catch (_: Throwable) { tipPopup = null; return }
+        anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
+    }
+
+    private fun dismissTip() {
+        try { tipPopup?.dismiss() } catch (_: Throwable) {}
+        tipPopup = null
     }
 
     // 58: 라이브러리 화면 RTL 토글 적용. 각 라이브러리 액티비티 onCreate(setContentView 후) 호출.
