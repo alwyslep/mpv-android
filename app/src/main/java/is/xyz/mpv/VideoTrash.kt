@@ -17,10 +17,10 @@ object VideoTrash {
     private const val TRASH_DIR = ".mpv-trash"
     private const val REQ_TRASH = 0x7A5
 
-    fun confirmAndTrash(ctx: Context, uri: String, name: String, onRemoved: () -> Unit) {
+    fun confirmAndTrash(ctx: Context, uri: String, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
         val u = Uri.parse(uri)
         if (u.authority == MediaStore.AUTHORITY) mediaStoreTrash(ctx, u, name, onRemoved)
-        else safTrashConfirm(ctx, u, name, onRemoved)
+        else safTrashConfirm(ctx, u, name, onRemoved, onCancel)
     }
 
     // 내부 MediaStore — 시스템 휴지통 요청(확인창은 OS가 표시). 낙관적 제거 후 취소 시 다음 로드에 복귀.
@@ -47,11 +47,12 @@ object VideoTrash {
         }
     }
 
-    private fun safTrashConfirm(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
+    private fun safTrashConfirm(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
         MaterialAlertDialogBuilder(ctx)
             .setTitle(ctx.getString(R.string.action_trash))
             .setMessage("$name\n드라이브의 $TRASH_DIR 폴더로 이동합니다(복구 가능).")
-            .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
+            .setNegativeButton(ctx.getString(R.string.dialog_cancel)) { _, _ -> onCancel() }
+            .setOnCancelListener { onCancel() }   // 바깥 탭/뒤로 취소도 재개 콜백
             .setPositiveButton(ctx.getString(R.string.action_trash)) { _, _ -> safTrash(ctx, u, name, onRemoved) }
             .show()
     }

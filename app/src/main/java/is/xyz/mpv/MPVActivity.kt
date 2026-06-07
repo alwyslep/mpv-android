@@ -24,6 +24,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import android.os.*
 import android.preference.PreferenceManager.getDefaultSharedPreferences
+import android.provider.MediaStore
 import android.provider.Settings
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -1006,7 +1007,9 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             KeyEvent.KEYCODE_MENU -> openTopMenu()
             KeyEvent.KEYCODE_GUIDE -> openTopMenu()
             // B-68: 물리 DEL 키 → 일시정지 + 액션 시트(찜/평점/장면/휴지통/이동/상세). DeX 키보드.
-            KeyEvent.KEYCODE_FORWARD_DEL, KeyEvent.KEYCODE_DEL -> openActionMenu()
+            KeyEvent.KEYCODE_FORWARD_DEL -> openActionMenu()
+            // B-68: DeX Backspace — 재생 중엔 처음으로 되감기(메뉴 안에선 다이얼로그가 직접 '이전 메뉴' 처리).
+            KeyEvent.KEYCODE_DEL -> MPVLib.command(arrayOf("seek", "0", "absolute"))
             KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> player.cyclePause()
 
             // (overrides a default binding)
@@ -1561,11 +1564,12 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     //   휴지통=VideoTrash(내부 MediaStore 30일/외부 SAF .mpv-trash), 이동=JMove(SAF 폴더 picker).
     //   메뉴가 떠 있는 동안 일시정지(pauseForDialog), 닫으면 자동 재개. 하위 흐름(평점/휴지통/이동/상세)은
     //   consumed=true 로 인계해 각자 재개 시점을 관리(취소 시 stuck-pause 방지).
-    private fun openActionMenu() {
+    //   restore 파라미터: 하위 메뉴에서 'Backspace=이전 메뉴'로 돌아올 때 같은 일시정지 세션을 공유
+    //   (재개 없이 메뉴 간 이동). DEL 최초 호출은 인자 생략 → pauseForDialog() 신규 세션.
+    private fun openActionMenu(restore: StateRestoreCallback = pauseForDialog()) {
         val uri = playbackUri()
-        if (uri == null) { showToast("이 영상엔 액션을 쓸 수 없음 (uri 없음)"); return }
+        if (uri == null) { showToast("이 영상엔 액션을 쓸 수 없음 (uri 없음)"); restore(); return }
         val name = mediaName() ?: ""
-        val restore = pauseForDialog()
         var consumed = false
 
         val faved = Favorites.has(this, uri, name)
@@ -1584,13 +1588,17 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
                     0 -> { Favorites.toggle(this, uri, name); showToast(if (!faved) "찜 추가" else "찜 해제") }
                     1 -> { consumed = true; actionRatingMenu(uri, name, restore) }
                     2 -> setCurrentAsThumb()
-                    3 -> { consumed = true; restore(); actionTrashCurrent(uri, name) }
+                    3 -> { consumed = true; actionTrashCurrent(uri, name, restore) }   // 일시정지 유지(완료까지)
                     4 -> { consumed = true; restore(); actionMoveCurrent(uri, name) }
                     5 -> { consumed = true; restore(); VideoDetailActivity.open(this, uri, name) }
                 }
             }
             .setOnDismissListener { if (!consumed) restore() }
             .create()
+        // B-68: DeX Backspace = 이전 메뉴 — 최상위 액션 메뉴에선 메뉴 닫고 영상으로 복귀.
+        dialog.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_DEL && event.action == KeyEvent.ACTION_UP) { dialog.dismiss(); true } else false
+        }
         dialog.show()
     }
 
@@ -1598,19 +1606,43 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         val labels = arrayOf("★", "★★", "★★★", "★★★★", "★★★★★", getString(R.string.rating_none))
         val cur = Ratings.get(this, uri, name)
         val checked = if (cur in 1..5) cur - 1 else 5
-        AlertDialog.Builder(this, R.style.DarkPopupDialog)
+        var goBack = false
+        val d = AlertDialog.Builder(this, R.style.DarkPopupDialog)
             .setTitle(R.string.qs_rating)
-            .setSingleChoiceItems(labels, checked) { d, which ->
+            .setSingleChoiceItems(labels, checked) { dlg, which ->
                 Ratings.set(this, uri, name, if (which == 5) 0 else which + 1)
-                d.dismiss()
+                dlg.dismiss()
             }
-            .setOnDismissListener { restore() }
-            .create().show()
+            // Backspace → 이전(액션) 메뉴로, 그 외 닫힘 → 재개. 평점 선택 후엔 재개.
+            .setOnDismissListener { if (goBack) openActionMenu(restore) else restore() }
+            .create()
+        d.setOnKeyListener { _, keyCode, event ->
+            if (keyCode == KeyEvent.KEYCODE_DEL && event.action == KeyEvent.ACTION_UP) { goBack = true; d.dismiss(); true } else false
+        }
+        d.show()
     }
 
-    // 현재 재생 파일을 휴지통으로. 성공 시 다음 곡으로 넘기거나 종료(파일 사라짐 대비). 취소는 무시(이미 재생 복귀됨).
-    private fun actionTrashCurrent(uri: String, name: String) {
-        VideoTrash.confirmAndTrash(this, uri, name, onRemoved = { afterCurrentFileGone() })
+    // 현재 재생 파일을 휴지통으로. 완료(실제 제거)까지 일시정지 유지 → 제거 성공 시 다음 영상 advance,
+    //   취소 시 재개(restore). MediaStore(내부/SD)는 시스템 휴지통 결과(REQ)를 직접 관찰(낙관 종료 금지 —
+    //   옛 버그: 확인 전 finish 가 시스템 확인창을 취소시켜 파일이 안 옮겨짐). 외부 SAF 는 moveDocument.
+    private fun actionTrashCurrent(uri: String, name: String, restore: StateRestoreCallback) {
+        val u = Uri.parse(uri)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && u.authority == MediaStore.AUTHORITY) {
+            try {
+                val pi = MediaStore.createTrashRequest(contentResolver, listOf(u), true)
+                activityResultCallbacks[RCODE_TRASH] = cb@{ result, _ ->
+                    if (result == RESULT_OK) {
+                        runCatching { ThumbLoader.invalidate(this, u, name) }
+                        showToast("휴지통으로 이동: $name"); afterCurrentFileGone()
+                    } else restore()   // 취소 → 재개
+                }
+                startIntentSenderForResult(pi.intentSender, RCODE_TRASH, null, 0, 0, 0)
+            } catch (e: Exception) { showToast("삭제 실패: ${e.message}"); restore() }
+        } else {
+            VideoTrash.confirmAndTrash(this, uri, name,
+                onRemoved = { afterCurrentFileGone() },
+                onCancel = { restore() })
+        }
     }
 
     // 현재 재생 파일을 다른 폴더로. 시스템 폴더 picker(ACTION_OPEN_DOCUMENT_TREE) → JMove.moveToSaf.
@@ -2363,6 +2395,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         private const val RCODE_EXTERNAL_SUB = 1001
         private const val RCODE_LOAD_FILE = 1002
         private const val RCODE_MOVE_DEST = 1003   // B-68: DEL 액션 '폴더 이동' 대상 picker
+        private const val RCODE_TRASH = 1004       // B-68: MediaStore 시스템 휴지통 결과 관찰
         // action of result intent
         private const val RESULT_INTENT = "is.xyz.mpv.MPVActivity.result"
         // stream type used with AudioManager
