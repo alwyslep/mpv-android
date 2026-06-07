@@ -21,6 +21,7 @@ import android.graphics.drawable.Icon
 import android.util.Log
 import android.media.AudioManager
 import android.net.Uri
+import androidx.documentfile.provider.DocumentFile
 import android.os.*
 import android.preference.PreferenceManager.getDefaultSharedPreferences
 import android.provider.Settings
@@ -1001,6 +1002,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             KeyEvent.KEYCODE_INFO -> toggleControls()
             KeyEvent.KEYCODE_MENU -> openTopMenu()
             KeyEvent.KEYCODE_GUIDE -> openTopMenu()
+            // B-68: 물리 DEL 키 → 일시정지 + 액션 시트(찜/평점/장면/휴지통/이동/상세). DeX 키보드.
+            KeyEvent.KEYCODE_FORWARD_DEL, KeyEvent.KEYCODE_DEL -> openActionMenu()
             KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> player.cyclePause()
 
             // (overrides a default binding)
@@ -1547,6 +1550,94 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         LibPrefs.setCustomThumbPos(this, MediaKey.of(u, mediaName()), posSec * 1000L)
         ThumbLoader.invalidate(this, Uri.parse(u))
         showToast("현재 장면을 라이브러리 썸네일로 지정 (커버 없는 영상에 적용)")
+    }
+
+    // ─── B-68: 재생 중 DEL 액션 시트 ───
+    //   라이브러리 타일 액션(VideoActions/VideoTrash/JMove/Favorites/Ratings)을 재생 화면에서 호출.
+    //   uri=playbackUri()(content/SAF), name=mediaName(). 찜·평점은 ReviewSync 로 queue.sqlite(rv_*) 자동 push.
+    //   휴지통=VideoTrash(내부 MediaStore 30일/외부 SAF .mpv-trash), 이동=JMove(SAF 폴더 picker).
+    //   메뉴가 떠 있는 동안 일시정지(pauseForDialog), 닫으면 자동 재개. 하위 흐름(평점/휴지통/이동/상세)은
+    //   consumed=true 로 인계해 각자 재개 시점을 관리(취소 시 stuck-pause 방지).
+    private fun openActionMenu() {
+        val uri = playbackUri()
+        if (uri == null) { showToast("이 영상엔 액션을 쓸 수 없음 (uri 없음)"); return }
+        val name = mediaName() ?: ""
+        val restore = pauseForDialog()
+        var consumed = false
+
+        val faved = Favorites.has(this, uri, name)
+        val labels = arrayOf(
+            if (faved) "★  찜 해제" else "☆  찜",
+            "✪  평점 매기기",
+            "🖼  현재 장면을 썸네일로",
+            "🗑  휴지통으로 삭제",
+            "📁  다른 폴더로 이동",
+            "ℹ  상세 정보",
+        )
+        val dialog = AlertDialog.Builder(this, R.style.DarkPopupDialog)
+            .setTitle(if (name.isNotEmpty()) name else getString(R.string.action_details))
+            .setItems(labels) { _, which ->
+                when (which) {
+                    0 -> { Favorites.toggle(this, uri, name); showToast(if (!faved) "찜 추가" else "찜 해제") }
+                    1 -> { consumed = true; actionRatingMenu(uri, name, restore) }
+                    2 -> setCurrentAsThumb()
+                    3 -> { consumed = true; restore(); actionTrashCurrent(uri, name) }
+                    4 -> { consumed = true; restore(); actionMoveCurrent(uri, name) }
+                    5 -> { consumed = true; restore(); VideoDetailActivity.open(this, uri, name) }
+                }
+            }
+            .setOnDismissListener { if (!consumed) restore() }
+            .create()
+        dialog.show()
+    }
+
+    private fun actionRatingMenu(uri: String, name: String, restore: StateRestoreCallback) {
+        val labels = arrayOf("★", "★★", "★★★", "★★★★", "★★★★★", getString(R.string.rating_none))
+        val cur = Ratings.get(this, uri, name)
+        val checked = if (cur in 1..5) cur - 1 else 5
+        AlertDialog.Builder(this, R.style.DarkPopupDialog)
+            .setTitle(R.string.qs_rating)
+            .setSingleChoiceItems(labels, checked) { d, which ->
+                Ratings.set(this, uri, name, if (which == 5) 0 else which + 1)
+                d.dismiss()
+            }
+            .setOnDismissListener { restore() }
+            .create().show()
+    }
+
+    // 현재 재생 파일을 휴지통으로. 성공 시 다음 곡으로 넘기거나 종료(파일 사라짐 대비). 취소는 무시(이미 재생 복귀됨).
+    private fun actionTrashCurrent(uri: String, name: String) {
+        VideoTrash.confirmAndTrash(this, uri, name, onRemoved = { afterCurrentFileGone() })
+    }
+
+    // 현재 재생 파일을 다른 폴더로. 시스템 폴더 picker(ACTION_OPEN_DOCUMENT_TREE) → JMove.moveToSaf.
+    private fun actionMoveCurrent(uri: String, name: String) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+        }
+        activityResultCallbacks[RCODE_MOVE_DEST] = cb@{ result, data ->
+            val tree = if (result == RESULT_OK) data?.data else null
+            if (tree == null) { showToast("이동 취소"); return@cb }
+            runCatching {
+                contentResolver.takePersistableUriPermission(
+                    tree, Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+            }
+            val dest = DocumentFile.fromTreeUri(this, tree)
+            if (dest == null) { showToast("대상 폴더 열기 실패"); return@cb }
+            showToast("이동 중: $name")
+            JMove.moveToSaf(this, listOf(Uri.parse(uri) to name), dest,
+                onProgress = { _, _, _ -> },
+                onDone = { ok, _, fails ->
+                    if (ok > 0) { showToast("이동 완료: $name"); afterCurrentFileGone() }
+                    else showToast("이동 실패: ${fails.firstOrNull() ?: ""}")
+                })
+        }
+        startActivityForResult(intent, RCODE_MOVE_DEST)
+    }
+
+    // 현재 재생 파일이 사라짐(휴지통/이동) → 플레이리스트 다음으로, 없으면 종료.
+    private fun afterCurrentFileGone() {
+        if (psc.playlistCount - psc.playlistPos - 1 > 0) playlistNext() else finish()
     }
 
     private fun openAdvancedMenu(restoreState: StateRestoreCallback) {
@@ -2264,6 +2355,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         private const val RCODE_EXTERNAL_AUDIO = 1000
         private const val RCODE_EXTERNAL_SUB = 1001
         private const val RCODE_LOAD_FILE = 1002
+        private const val RCODE_MOVE_DEST = 1003   // B-68: DEL 액션 '폴더 이동' 대상 picker
         // action of result intent
         private const val RESULT_INTENT = "is.xyz.mpv.MPVActivity.result"
         // stream type used with AudioManager
