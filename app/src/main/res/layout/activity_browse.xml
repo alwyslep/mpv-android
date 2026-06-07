@@ -19,6 +19,9 @@
         <com.google.android.material.button.MaterialButton android:id="@+id/dim_series"
             style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content" android:text="@string/lbl_series" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/dim_genre"
+            style="?attr/materialButtonOutlinedStyle" android:layout_width="0dp" android:layout_weight="1"
+            android:layout_height="wrap_content" android:text="@string/lbl_genre" />
     </com.google.android.material.button.MaterialButtonToggleGroup>
     <TextView android:id="@+id/status" android:layout_width="match_parent" android:layout_height="wrap_content"
         android:paddingStart="16dp" android:paddingEnd="16dp" android:paddingBottom="4dp"

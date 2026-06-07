@@ -24,7 +24,8 @@ import java.util.concurrent.Executors
 //   RecyclerView 재사용 경합은 View.tag 로 막는다.
 data class CachedVideo(
     val uri: String, val code: String, val title: String, val dur: Long?,
-    val artist: String, val studio: String, val series: String
+    val artist: String, val studio: String, val series: String,
+    val genre: String = ""   // 57b: 장르 원자화(분류 genre 차원·상세 칩)
 )
 
 // 1: 캐시 안정 키 — 품번(파일명 정규식) ?: 파일명(확장자 제외) ?: uri. 경로/이동/임베딩 무관.
@@ -79,7 +80,9 @@ object ThumbLoader {
     fun indexMeta(ctx: Context, uri: Uri, fallbackName: String) {
         val key = uri.toString()
         val hk = hashKey(key)
-        if (File(cacheDir(ctx), "$hk.txt").exists()) return
+        val f = File(cacheDir(ctx), "$hk.txt")
+        // 57b: 구포맷(7필드, genre 없음)이면 재읽어 genre 백필. 신포맷(8필드)이면 skip.
+        if (f.exists() && (try { f.readText().split('\n').size } catch (_: Throwable) { 8 }) >= 8) return
         val mmr = MediaMetadataRetriever()
         try {
             mmr.setDataSource(ctx, uri)
@@ -89,7 +92,8 @@ object ThumbLoader {
             val art = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim().orEmpty()
             val stu = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)?.trim().orEmpty()
             val ser = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim().orEmpty()
-            saveDiskMeta(ctx, hk, key, meta, dur, art, stu, ser)
+            val gen = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)?.trim().orEmpty()
+            saveDiskMeta(ctx, hk, key, meta, dur, art, stu, ser, gen)
         } catch (_: Throwable) {
         } finally {
             try { mmr.release() } catch (_: Throwable) {}
@@ -217,7 +221,7 @@ object ThumbLoader {
             // ② 부족분만 MMR — 이때 배우/스튜디오/시리즈도 함께 추출해 7필드 캐시
             if (bmp == null || meta == null || (needDur && dur == null)) {
                 var freshBmp = false
-                var art = ""; var stu = ""; var ser = ""
+                var art = ""; var stu = ""; var ser = ""; var gen = ""
                 val customUs = if (customMs >= 0) customMs * 1000 else -1L  // 5: 사용자 지정 썸네일 위치(커버 무시)
                 val mmr = MediaMetadataRetriever()
                 try {
@@ -236,13 +240,14 @@ object ThumbLoader {
                     art = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)?.trim().orEmpty()
                     stu = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)?.trim().orEmpty()
                     ser = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)?.trim().orEmpty()
+                    gen = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)?.trim().orEmpty()
                     if (bmp == null) { bmp = scaledFrame(mmr, if (customUs >= 0) customUs else 3_000_000L); freshBmp = bmp != null }  // 5: 지정 위치 or 3초 프레임
                 } catch (_: Throwable) {
                 } finally {
                     try { mmr.release() } catch (_: Throwable) {}
                 }
                 if (freshBmp) bmp?.let { saveDiskBmp(ctx, hk, it) }
-                meta?.let { saveDiskMeta(ctx, hk, key, it, dur, art, stu, ser) }
+                meta?.let { saveDiskMeta(ctx, hk, key, it, dur, art, stu, ser, gen) }
             }
 
             if (bmp != null) bmpCache.put(key, bmp!!)
@@ -357,10 +362,10 @@ object ThumbLoader {
         return Triple(c.code, c.title, c.dur)
     }
 
-    private fun saveDiskMeta(ctx: Context, hk: String, uri: String, meta: Array<String>, dur: Long?, artist: String, studio: String, series: String) {
+    private fun saveDiskMeta(ctx: Context, hk: String, uri: String, meta: Array<String>, dur: Long?, artist: String, studio: String, series: String, genre: String = "") {
         try {
             File(cacheDir(ctx), "$hk.txt").writeText(
-                listOf(uri, meta[0], meta[1], (dur?.toString() ?: "?"), artist, studio, series).joinToString("\n")
+                listOf(uri, meta[0], meta[1], (dur?.toString() ?: "?"), artist, studio, series, genre).joinToString("\n")
             )
         } catch (_: Throwable) {
         }
@@ -370,8 +375,8 @@ object ThumbLoader {
         if (!f.exists()) return null
         return try {
             val p = f.readText().split('\n')
-            if (p.size < 7) null
-            else CachedVideo(p[0], p[1], p[2], if (p[3] == "?") null else p[3].toLongOrNull(), p[4], p[5], p[6])
+            if (p.size < 7) null   // 57b: genre 는 8번째(구캐시 7필드는 genre="" 로 하위호환)
+            else CachedVideo(p[0], p[1], p[2], if (p[3] == "?") null else p[3].toLongOrNull(), p[4], p[5], p[6], p.getOrNull(7) ?: "")
         } catch (_: Throwable) {
             null
         }

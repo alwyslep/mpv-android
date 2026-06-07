@@ -1,5 +1,7 @@
 package `is`.xyz.mpv
 
+import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -58,18 +60,27 @@ class BrowseActivity : AppCompatActivity() {
             override fun handleOnBackPressed() = onBack()
         })
 
+        // 57b: 상세보기 칩 딥링크 — dim/name 받으면 로드 후 바로 그 엔티티 작품목록으로.
+        val deepDim = intent.getStringExtra("browse_dim")
+        val deepName = intent.getStringExtra("browse_name")
+        if (deepDim != null) dim = deepDim
+
         val grp = findViewById<MaterialButtonToggleGroup>(R.id.grp_dim)
-        grp.check(R.id.dim_actor)
+        grp.check(when (dim) { "studio" -> R.id.dim_studio; "series" -> R.id.dim_series; "genre" -> R.id.dim_genre; else -> R.id.dim_actor })
         grp.addOnButtonCheckedListener { _, id, on ->
             if (!on) return@addOnButtonCheckedListener
-            dim = when (id) { R.id.dim_studio -> "studio"; R.id.dim_series -> "series"; else -> "actor" }
+            dim = when (id) { R.id.dim_studio -> "studio"; R.id.dim_series -> "series"; R.id.dim_genre -> "genre"; else -> "actor" }
             inVideos = false
             showNames()
         }
 
         Thread {
             val list = ThumbLoader.readAllCachedMeta(this)
-            runOnUiThread { if (!isFinishing) { all = list; showNames() } }
+            runOnUiThread {
+                if (isFinishing) return@runOnUiThread
+                all = list
+                if (deepName != null) showVideos(deepName) else showNames()
+            }
         }.start()
     }
 
@@ -117,6 +128,7 @@ class BrowseActivity : AppCompatActivity() {
     private fun keyOf(c: CachedVideo): String = when (dim) {
         "studio" -> c.studio
         "series" -> c.series
+        "genre" -> c.genre
         else -> c.artist
     }
     // 57: 원자화 — ©ART/aART/©alb 는 jav_dl·JEmbed 가 ", " 로 join(다중 배우 등). 개별 엔티티로 분해해
@@ -126,7 +138,7 @@ class BrowseActivity : AppCompatActivity() {
 
     private fun showNames() {
         inVideos = false
-        toolbar.title = when (dim) { "studio" -> getString(R.string.lbl_studio); "series" -> getString(R.string.lbl_series); else -> getString(R.string.lbl_actress) }
+        toolbar.title = when (dim) { "studio" -> getString(R.string.lbl_studio); "series" -> getString(R.string.lbl_series); "genre" -> getString(R.string.lbl_genre); else -> getString(R.string.lbl_actress) }
         val groups = LinkedHashMap<String, Int>()
         for (c in all) {
             for (k in keysOf(c)) groups[k] = (groups[k] ?: 0) + 1  // 57: 작품을 각 엔티티에 재연결(원자화)
@@ -159,6 +171,17 @@ class BrowseActivity : AppCompatActivity() {
         playIndex = browseItems.indexOfFirst { it.uri == item.uri }
         pendingUri = item.uri.toString()
         playLauncher.launch(Playback.intentFor(this, item.uri.toString(), item.name))
+    }
+
+    companion object {
+        // 57b: 상세보기 칩 클릭 → 그 배우/장르/스튜디오/시리즈의 모든 작품 목록으로 진입.
+        fun open(ctx: Context, dim: String, name: String) {
+            ctx.startActivity(
+                Intent(ctx, BrowseActivity::class.java)
+                    .putExtra("browse_dim", dim)
+                    .putExtra("browse_name", name)
+            )
+        }
     }
 
     class NameAdapter(

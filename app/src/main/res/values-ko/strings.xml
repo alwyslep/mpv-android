@@ -142,6 +142,7 @@
     <string name="lbl_actress">배우</string>
     <string name="lbl_studio">스튜디오</string>
     <string name="lbl_series">시리즈</string>
+    <string name="lbl_genre">장르</string>
     <string name="lbl_search_hint">동영상·폴더 검색 (품번/제목)</string>
     <string name="lbl_back">뒤로</string>
     <string name="lbl_play_from_start">처음부터 재생</string>

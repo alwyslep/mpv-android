@@ -16,6 +16,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.chip.Chip
+import com.google.android.material.chip.ChipGroup
 
 // P2 (JAV 메타): 영상 상세화면 — 임베드 커버 + 품번/제목 + 배우/시리즈/스튜디오/장르/날짜
 //   + 기술정보(해상도/길이/크기/경로). MMR 로 컨테이너 태그 추출. 길게 누르면 진입.
@@ -197,10 +199,11 @@ class VideoDetailActivity : AppCompatActivity() {
         val box = findViewById<LinearLayout>(R.id.meta_container)
         box.removeAllViews()
         // 이모지 표지(context_core.md §1 사용자 표시 규약) — 라벨 빠른 식별.
-        addRow(box, getString(R.string.detail_actress), m["artist"])
-        addRow(box, getString(R.string.detail_series), m["album"])
-        addRow(box, getString(R.string.detail_studio), m["albumartist"])
-        addRow(box, getString(R.string.detail_genre), m["genre"])
+        // 57b: 배우/시리즈/스튜디오/장르 = 원자화 클릭 칩 → 그 엔티티의 모든 작품(Browse 딥링크)
+        addChipRow(box, getString(R.string.detail_actress), m["artist"], "actor")
+        addChipRow(box, getString(R.string.detail_series), m["album"], "series")
+        addChipRow(box, getString(R.string.detail_studio), m["albumartist"], "studio")
+        addChipRow(box, getString(R.string.detail_genre), m["genre"], "genre")
         addRow(box, getString(R.string.detail_date), m["date"])
         addRow(box, getString(R.string.detail_duration), if (durMs > 0) MediaLibrary.fmtDur(durMs) else null)
         addRow(box, getString(R.string.detail_resolution), if (w > 0 && h > 0) "${w}×${h}" else null)
@@ -262,6 +265,40 @@ class VideoDetailActivity : AppCompatActivity() {
             textSize = 14f
             setLineSpacing(dp(3).toFloat(), 1f)
         })
+    }
+
+    // 57b: 원자화 클릭 칩 행 — ", " join 값을 개별 칩으로, 탭하면 그 엔티티의 모든 작품(Browse).
+    private fun addChipRow(box: LinearLayout, label: String, value: String?, dim: String) {
+        val atoms = value?.split(", ")?.map { it.trim() }?.filter { it.isNotEmpty() }?.distinct().orEmpty()
+        if (atoms.isEmpty()) return
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, dp(5), 0, dp(5))
+        }
+        val l = TextView(this).apply {
+            text = label
+            setTextColor(0xFF9E9E9E.toInt())
+            textSize = 13f
+            width = dp(86)
+            gravity = Gravity.TOP
+        }
+        val chips = ChipGroup(this).apply {
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            chipSpacingVertical = dp(2)
+        }
+        for (a in atoms) {
+            chips.addView(Chip(this).apply {
+                text = a
+                isCheckable = false
+                isClickable = true
+                setEnsureMinTouchTargetSize(false)
+                textSize = 13f
+                setOnClickListener { BrowseActivity.open(this@VideoDetailActivity, dim, a) }
+            })
+        }
+        row.addView(l)
+        row.addView(chips)
+        box.addView(row)
     }
 
     private fun addRow(box: LinearLayout, label: String, value: String?) {

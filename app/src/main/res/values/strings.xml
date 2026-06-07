@@ -281,6 +281,7 @@
     <string name="lbl_actress">Actress</string>
     <string name="lbl_studio">Studio</string>
     <string name="lbl_series">Series</string>
+    <string name="lbl_genre">Genre</string>
     <string name="lbl_search_hint">Search videos/folders (code/title)</string>
     <string name="lbl_back">Back</string>
     <string name="lbl_play_from_start">Play from start</string>
