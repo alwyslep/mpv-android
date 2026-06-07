@@ -842,11 +842,13 @@ object Library {
     }
 
     // 배치(jembed) 용 동기 조회 — 이미 백그라운드 스레드에서 호출 가정.
+    // 임베드는 사용자 단발 트리거라 넉넉히: 다운로드 부하 시 receiver /library 가 sqlite
+    // 직렬화로 1.5초 초과 → 메타 fetch 실패 → "hub 메타 없음" 오판(B-52 A 후속). connect 3s/read 8s.
     fun fetchSync(ctx: Context, code: String): JSONObject? = try {
         val url = URL(LibPrefs.hubUrl(ctx).trimEnd('/') +
             "/library?limit=1&code=" + URLEncoder.encode(code, "UTF-8"))
         val con = url.openConnection() as HttpURLConnection
-        con.connectTimeout = 1500; con.readTimeout = 1500
+        con.connectTimeout = 3000; con.readTimeout = 8000
         val text = con.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         con.disconnect()
         JSONObject(text).optJSONArray("rows")?.let { if (it.length() > 0) it.getJSONObject(0) else null }
