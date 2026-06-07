@@ -76,7 +76,12 @@ class MediaLibraryActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
-            if (u != null && Playback.shouldAdvance(this, u, homeVids.find { it.first == u }?.second) && playIndex + 1 in homeVids.indices) {
+            // B-68: 삭제/이동으로 제거됐으면 다음 영상으로 advance.
+            val rmNext = if (Playback.wasRemoved(res.data) && u != null) {
+                val i = homeVids.indexOfFirst { it.first == u }; if (i >= 0) homeVids.getOrNull(i + 1) else null
+            } else null
+            if (rmNext != null) play(rmNext.first, rmNext.second)
+            else if (u != null && Playback.shouldAdvance(this, u, homeVids.find { it.first == u }?.second) && playIndex + 1 in homeVids.indices) {
                 val (nu, nn) = homeVids[playIndex + 1]
                 play(nu, nn)
             }

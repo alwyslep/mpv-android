@@ -38,7 +38,12 @@ class BrowseActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
-            if (u != null && Playback.shouldAdvance(this, u, browseItems.find { it.uri.toString() == u }?.name) && playIndex + 1 in browseItems.indices) {
+            // B-68: 삭제/이동으로 제거됐으면 다음 영상으로 advance.
+            val rmNext = if (Playback.wasRemoved(res.data) && u != null) {
+                val i = browseItems.indexOfFirst { it.uri.toString() == u }; if (i >= 0) browseItems.getOrNull(i + 1) else null
+            } else null
+            if (rmNext != null) playBrowse(rmNext)
+            else if (u != null && Playback.shouldAdvance(this, u, browseItems.find { it.uri.toString() == u }?.name) && playIndex + 1 in browseItems.indices) {
                 playBrowse(browseItems[playIndex + 1])
             }
         }

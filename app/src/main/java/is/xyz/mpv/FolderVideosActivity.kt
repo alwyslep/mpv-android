@@ -28,9 +28,14 @@ class FolderVideosActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
+            // B-68: 삭제/이동으로 제거됐으면 리스트 갱신 전에 다음 영상 캡처(인덱스 당겨짐 방지) → advance.
+            val rmNext = if (Playback.wasRemoved(res.data) && u != null) {
+                val i = vids.indexOfFirst { it.uri.toString() == u }; if (i >= 0) vids.getOrNull(i + 1) else null
+            } else null
             rebuild()
+            if (rmNext != null) play(rmNext)
             // 자동 다음 재생: 방금 작품을 끝까지 봤고(다 봄) 다음이 있으면
-            if (u != null && Playback.shouldAdvance(this, u, vids.find { it.uri.toString() == u }?.name) && playIndex + 1 in vids.indices) {
+            else if (u != null && Playback.shouldAdvance(this, u, vids.find { it.uri.toString() == u }?.name) && playIndex + 1 in vids.indices) {
                 play(vids[playIndex + 1])
             }
         }

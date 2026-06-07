@@ -127,8 +127,13 @@ class SearchActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
+            // B-68: 삭제/이동으로 제거됐으면 재조회 전에 다음 영상 캡처 → advance.
+            val rmNext = if (Playback.wasRemoved(res.data) && u != null) {
+                val i = playlist.indexOfFirst { it.uri.toString() == u }; if (i >= 0) playlist.getOrNull(i + 1) else null
+            } else null
             runQuery()
-            if (u != null && Playback.shouldAdvance(this, u, playlist.find { it.uri.toString() == u }?.name) && playIndex + 1 in playlist.indices) {
+            if (rmNext != null) play(rmNext)
+            else if (u != null && Playback.shouldAdvance(this, u, playlist.find { it.uri.toString() == u }?.name) && playIndex + 1 in playlist.indices) {
                 play(playlist[playIndex + 1])
             }
         }

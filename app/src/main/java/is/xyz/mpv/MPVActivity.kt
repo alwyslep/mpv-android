@@ -364,13 +364,16 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         return runCatching { MPVLib.getPropertyString("filename") }.getOrNull()
     }
 
-    private fun finishWithResult(code: Int, includeTimePos: Boolean = false, includeTracks: Boolean = false) {
+    private fun finishWithResult(code: Int, includeTimePos: Boolean = false, includeTracks: Boolean = false,
+                                 removed: Boolean = false) {
         // Refer to http://mpv-android.github.io/mpv-android/intent.html
         // FIXME: should track end-file events to accurately report OK vs CANCELED
         if (isFinishing) // only count first call
             return
         val result = Intent(RESULT_INTENT)
         result.data = if (intent.data?.scheme == "file") null else intent.data
+        // B-68: 삭제/이동으로 현재 파일이 사라짐 → 런처가 다음 영상으로 advance 하도록 신호.
+        if (removed) result.putExtra("removed", true)
         if (includeTimePos) {
             // psc 가 eof 로 비워졌으면(완료 경로) END_FILE 직전 보존값 사용
             val pos = if (psc.position >= 0) psc.position else lastPos
@@ -1635,9 +1638,13 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         startActivityForResult(intent, RCODE_MOVE_DEST)
     }
 
-    // 현재 재생 파일이 사라짐(휴지통/이동) → 플레이리스트 다음으로, 없으면 종료.
+    // 현재 재생 파일이 사라짐(휴지통/이동) → mpv 플레이리스트에 다음이 있으면 그걸로,
+    //   없으면(라이브러리 단일파일 실행) removed 신호와 함께 종료 → 런처가 폴더 다음 영상으로 advance.
     private fun afterCurrentFileGone() {
-        if (psc.playlistCount - psc.playlistPos - 1 > 0) playlistNext() else finish()
+        if (psc.playlistCount > 1 && psc.playlistPos < psc.playlistCount - 1)
+            playlistNext()
+        else
+            finishWithResult(RESULT_OK, removed = true)
     }
 
     private fun openAdvancedMenu(restoreState: StateRestoreCallback) {

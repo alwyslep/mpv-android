@@ -660,6 +660,11 @@ object Playback {
         return i
     }
 
+    // B-68: 플레이어가 현재 파일을 휴지통/이동으로 제거했는지(결과 removed 플래그). true 면
+    //   shouldAdvance(끝까지봄) 무관하게 다음 영상으로 즉시 advance. 런처는 리스트 갱신 *전*에
+    //   다음 항목을 캡처해야 정확(제거로 인덱스가 당겨지므로).
+    fun wasRemoved(data: Intent?): Boolean = data?.getBooleanExtra("removed", false) ?: false
+
     // 자동 다음재생 조건: 설정 ON + 방금 작품을 끝까지 봄(다 봄).
     fun shouldAdvance(ctx: Context, uri: String, name: String?): Boolean =
         androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)

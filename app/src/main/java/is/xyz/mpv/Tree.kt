@@ -29,8 +29,14 @@ class TreeActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
             val u = pendingUri
             if (u != null) Playback.onResult(this, u, res.data)
+            // B-68: 삭제/이동으로 제거됐으면 리스트 갱신 전에 다음 영상 캡처 → advance.
+            val rmNext = if (Playback.wasRemoved(res.data) && u != null) {
+                val vids = entries.mapNotNull { it.vid }; val i = vids.indexOfFirst { it.uri.toString() == u }
+                if (i >= 0) vids.getOrNull(i + 1) else null
+            } else null
             rebuild()
-            if (u != null && Playback.shouldAdvance(this, u, entries.mapNotNull { it.vid }.find { it.uri.toString() == u }?.name)) {
+            if (rmNext != null) play(rmNext)
+            else if (u != null && Playback.shouldAdvance(this, u, entries.mapNotNull { it.vid }.find { it.uri.toString() == u }?.name)) {
                 val vids = entries.mapNotNull { it.vid }
                 val idx = vids.indexOfFirst { it.uri.toString() == u }
                 if (idx >= 0 && idx + 1 in vids.indices) play(vids[idx + 1])
