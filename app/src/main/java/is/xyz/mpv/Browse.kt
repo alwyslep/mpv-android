@@ -119,15 +119,17 @@ class BrowseActivity : AppCompatActivity() {
         "series" -> c.series
         else -> c.artist
     }
+    // 57: 원자화 — ©ART/aART/©alb 는 jav_dl·JEmbed 가 ", " 로 join(다중 배우 등). 개별 엔티티로 분해해
+    //     한 작품이 각 배우(스튜디오/시리즈)에 재연결되도록. studio/series 는 단일값이라 실질 no-op.
+    private fun keysOf(c: CachedVideo): List<String> =
+        keyOf(c).split(", ").map { it.trim() }.filter { it.isNotEmpty() }.distinct()
 
     private fun showNames() {
         inVideos = false
         toolbar.title = when (dim) { "studio" -> getString(R.string.lbl_studio); "series" -> getString(R.string.lbl_series); else -> getString(R.string.lbl_actress) }
         val groups = LinkedHashMap<String, Int>()
         for (c in all) {
-            val k = keyOf(c).trim()
-            if (k.isEmpty()) continue
-            groups[k] = (groups[k] ?: 0) + 1
+            for (k in keysOf(c)) groups[k] = (groups[k] ?: 0) + 1  // 57: 작품을 각 엔티티에 재연결(원자화)
         }
         val names = groups.entries.sortedByDescending { it.value }
             .map { it.key to it.value }
@@ -141,7 +143,7 @@ class BrowseActivity : AppCompatActivity() {
     private fun showVideos(name: String) {
         inVideos = true
         toolbar.title = name
-        val items = all.filter { keyOf(it).trim() == name && LibPrefs.passWatch(this, it.uri, it.code) }.map {
+        val items = all.filter { name in keysOf(it) && LibPrefs.passWatch(this, it.uri, it.code) }.map {  // 57: 원자화 매칭
             SearchItem(it.code.ifEmpty { it.title }, Uri.parse(it.uri), "", it.dur ?: 0L, 0L)
         }
         browseItems = items
