@@ -106,6 +106,8 @@
     <string name="pref_ml_clear_trees">Forget added folders</string>
     <string name="pref_ml_clear_trees_summary">Remove all USB/SAF folders from search</string>
     <string name="pref_ml_clear_thumbs">Clear thumbnail cache</string>
+    <string name="pref_ml_rtl_title">Right-to-left layout</string>
+    <string name="pref_ml_rtl_summary">Mirror the library layout for right-to-left reading</string>
 
     <!-- P2: Subtitle appearance (added; stock mpv UI had language only) -->
     <string name="pref_header_subtitle">Subtitles (appearance)</string>

@@ -3,6 +3,7 @@
     <item name="primary" type="color">#722b72</item>
     <item name="primary_dark" type="color">@color/primary</item>
     <item name="accent" type="color">@color/primary</item>
+    <item name="icon_active" type="color">#FFB300</item><!-- 54: 설정 걸린 툴바 아이콘 active 틴트 -->
 
     <color name="tint_normal">#ffffff</color>
     <color name="tint_disabled">#3c3c3c</color>

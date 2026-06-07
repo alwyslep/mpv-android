@@ -136,6 +136,7 @@ class SearchActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_search)
+        Utils.applyRtl(this)   // 58: RTL 레이아웃 토글
 
         findViewById<ImageButton>(R.id.back).setOnClickListener { finish() }
         status = findViewById(R.id.status)

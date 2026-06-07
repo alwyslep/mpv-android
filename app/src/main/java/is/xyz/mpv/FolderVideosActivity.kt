@@ -39,6 +39,7 @@ class FolderVideosActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
         AuroraDrawable.apply(this)
+        Utils.applyRtl(this)   // 58: RTL 레이아웃 토글
         @Suppress("DEPRECATION")
         savedInstanceState?.getParcelable<android.os.Parcelable>("scroll")?.let { scrollState = it }  // 31
 
@@ -99,7 +100,6 @@ class FolderVideosActivity : AppCompatActivity() {
         }
 
         recycler = findViewById(R.id.recycler)
-        Utils.mirrorChildrenForLeftScrollbar(recycler)  // 49: 좌측 스크롤바(XML scaleX=-1 보완)
         ResolutionHub.fetchAsync(this)  // 48: hub 해상도맵(폴더 직진입 시도 채움 — fetchHubRes/마커용)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
         findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }

@@ -285,6 +285,28 @@ object LibPrefs {
     fun setSort(ctx: Context, scope: String, key: String, asc: Boolean) =
         p(ctx).edit().putString("sort_key_$scope", key).putBoolean("sort_asc_$scope", asc).apply()
 
+    // 54: 툴바 아이콘 active 틴트 판정 — 해당 시트에 기본값과 다른 설정이 걸렸는지.
+    fun sortActive(ctx: Context): Boolean {
+        val scope = when (viewMode(ctx)) { "videos" -> "home_videos"; "tree" -> "home_tree"; else -> "home_folders" }
+        return sortKey(ctx, scope) != "name" || !sortAsc(ctx, scope)
+    }
+    fun filterActive(ctx: Context): Boolean {
+        val pr = p(ctx)
+        fun setOn(k: String) = (pr.getStringSet(k, emptySet())?.isNotEmpty() == true)
+        return pr.getInt("filter_res_max", 0) > 0 ||
+            pr.getBoolean("embed_filter", false) ||
+            pr.getBoolean("filter_mismatch_res", false) ||
+            pr.getBoolean("filter_mismatch_dur", false) ||
+            setOn("filter_ext") || setOn("filter_actress") || setOn("filter_studio") ||
+            setOn("filter_series") || setOn("filter_genre")
+    }
+    fun quickActive(ctx: Context): Boolean =
+        viewMode(ctx) != "folder" || !grid(ctx) ||
+        watchFilter(ctx) != "all" || favOnly(ctx) || embedFilter(ctx) ||
+        !showFav(ctx) || !showDur(ctx) || showExt(ctx) || !showPath(ctx) ||
+        !showProgress(ctx) || !showRes(ctx) || !showSize(ctx) || !showThumb(ctx) ||
+        coverScale(ctx) != 1f || coverAlign(ctx) != "center"
+
     fun showDur(ctx: Context) = p(ctx).getBoolean("show_dur", true)        // 길이
     fun showExt(ctx: Context) = p(ctx).getBoolean("show_ext", false)       // 파일형식
     fun showPath(ctx: Context) = p(ctx).getBoolean("show_path", true)      // 경로
@@ -293,6 +315,7 @@ object LibPrefs {
     fun showSize(ctx: Context) = p(ctx).getBoolean("show_size", true)      // 크기
     fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 썸네일
     fun showTooltips(ctx: Context) = p(ctx).getBoolean("show_tooltips", true)  // B-64(47): 버튼 툴팁 on/off
+    fun rtl(ctx: Context) = p(ctx).getBoolean("lib_rtl", false)  // 58: 라이브러리 RTL 레이아웃
     fun setField(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 
     // 시청 상태 필터: all | unwatched | watching | watched

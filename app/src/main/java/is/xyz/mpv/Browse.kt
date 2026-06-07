@@ -47,6 +47,7 @@ class BrowseActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_browse)
+        Utils.applyRtl(this)   // 58: RTL 레이아웃 토글
         recycler = findViewById(R.id.recycler)
         status = findViewById(R.id.status)
         toolbar = findViewById(R.id.toolbar)

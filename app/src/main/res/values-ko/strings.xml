@@ -28,6 +28,8 @@
     <string name="pref_ml_clear_trees">등록된 폴더 초기화</string>
     <string name="pref_ml_clear_trees_summary">검색에 등록된 USB/SAF 폴더 모두 해제</string>
     <string name="pref_ml_clear_thumbs">썸네일 캐시 비우기</string>
+    <string name="pref_ml_rtl_title">오른쪽→왼쪽(RTL) 배치</string>
+    <string name="pref_ml_rtl_summary">라이브러리 레이아웃을 RTL 방향으로 미러</string>
 
     <string name="pref_header_subtitle">자막 (외관)</string>
     <string name="pref_header_subtitle_summary">글자 크기, 굵게, 배경, 인코딩</string>

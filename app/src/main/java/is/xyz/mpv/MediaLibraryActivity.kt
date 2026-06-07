@@ -27,6 +27,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 class MediaLibraryActivity : AppCompatActivity() {
 
     private lateinit var recycler: RecyclerView
+    private lateinit var toolbar: MaterialToolbar   // 54: 아이콘 active 틴트용 보관
     private lateinit var empty: TextView
     private lateinit var fabMenu: View
     private lateinit var selCtl: SelectionController   // jembed/이동 선택모드 (공통 컨트롤러)
@@ -76,10 +77,11 @@ class MediaLibraryActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_media_library)
         AuroraDrawable.apply(this)
+        Utils.applyRtl(this)   // 58: RTL 레이아웃 토글
         @Suppress("DEPRECATION")
         savedInstanceState?.getParcelable<android.os.Parcelable>("ml_scroll")?.let { scrollState = it }  // 31: 파괴→재생성 복원
 
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar = findViewById(R.id.toolbar)
         toolbar.menu.add(0, 2, 0, getString(R.string.lbl_search)).apply {
             setIcon(R.drawable.ic_search_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
@@ -135,7 +137,6 @@ class MediaLibraryActivity : AppCompatActivity() {
         }
 
         recycler = findViewById(R.id.recycler)
-        Utils.mirrorChildrenForLeftScrollbar(recycler)  // 49: 좌측 스크롤바(XML scaleX=-1 보완)
         recycler.layoutManager = LinearLayoutManager(this)
         empty = findViewById(R.id.empty)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById(R.id.sel_count)) { load() }
@@ -151,6 +152,7 @@ class MediaLibraryActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Utils.applyRtl(this)   // 58: 설정에서 토글 후 복귀 시 즉시 반영
         // 재생 후 복귀 시 최근목록/신규영상 반영
         if (hasMediaAccess()) load()
     }
@@ -224,6 +226,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         moveMenuItem?.isVisible = showSel
         thumbMenuItem?.isVisible = showSel
         if (mode != "videos") { selCtl.exit(); selCtl.unbind() }
+        applyIconTints()   // 54: 설정 걸린 툴바 아이콘 색 갱신(정렬·빠른설정·필터)
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
         ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
         MetaHub.fetchAsync(this)       // 필터: hub 메타맵 1회 채움(메타 필터용)
@@ -291,6 +294,19 @@ class MediaLibraryActivity : AppCompatActivity() {
                 }
             }
         }.start()
+    }
+
+    // 54: 정렬(9)·빠른설정(3)·필터(6) — 기본값과 다른 설정이 걸렸으면 amber 로 틴트, 아니면 기본색.
+    private fun applyIconTints() {
+        val active = ContextCompat.getColor(this, R.color.icon_active)
+        val normal = com.google.android.material.color.MaterialColors.getColor(
+            toolbar, com.google.android.material.R.attr.colorOnSurface)
+        fun tint(id: Int, on: Boolean) {
+            toolbar.menu.findItem(id)?.icon?.mutate()?.setTint(if (on) active else normal)
+        }
+        tint(9, LibPrefs.sortActive(this))
+        tint(3, LibPrefs.quickActive(this))
+        tint(6, LibPrefs.filterActive(this))
     }
 
     private fun play(uri: String, title: String) {

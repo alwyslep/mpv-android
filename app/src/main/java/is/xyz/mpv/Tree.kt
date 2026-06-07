@@ -40,6 +40,7 @@ class TreeActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
+        Utils.applyRtl(this)   // 58: RTL 레이아웃 토글
         @Suppress("DEPRECATION")
         savedInstanceState?.getParcelable<android.os.Parcelable>("scroll")?.let { scrollState = it }  // 31
 
@@ -96,7 +97,6 @@ class TreeActivity : AppCompatActivity() {
         }
 
         recycler = findViewById(R.id.recycler)
-        recycler.scaleX = -1f; Utils.mirrorChildrenForLeftScrollbar(recycler)  // 49: 좌측 스크롤바
         ResolutionHub.fetchAsync(this)  // 48: hub 해상도맵(트리 직진입 시도 채움)
         selCtl = SelectionController(this, findViewById(R.id.sel_bar), findViewById<TextView>(R.id.sel_count)) { reload() }
         findViewById<View>(R.id.sel_all).setOnClickListener { selCtl.selectAll() }

@@ -31,8 +31,8 @@
                 android:paddingBottom="96dp"
                 android:scrollbars="vertical"
                 android:scrollbarStyle="outsideOverlay"
-                android:fadeScrollbars="false"
-                android:scaleX="-1" /><!-- 49: 좌측 스크롤바(이중미러, itemView 재반전) -->
+                android:fadeScrollbars="true"
+                android:scrollbarThumbVertical="@drawable/scrollbar_thumb_aurora" /><!-- 51: 우측 반투명 플로팅 스크롤바(자동숨김) -->
 
             <TextView
                 android:id="@+id/empty"

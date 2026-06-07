@@ -3,6 +3,14 @@
 
     <!-- 18: 그리드·보기모드는 빠른설정(⊞)과 중복 → 제거. 빠른설정에서 변경 시 같은 키에 영구 저장됨. -->
 
+    <!-- 58: 라이브러리 RTL 레이아웃 토글 (media_library 저장소 = LibPrefs.rtl) -->
+    <SwitchPreferenceCompat
+        app:iconSpaceReserved="false"
+        android:defaultValue="false"
+        android:key="lib_rtl"
+        android:summary="@string/pref_ml_rtl_summary"
+        android:title="@string/pref_ml_rtl_title" />
+
     <Preference
         app:key="action_rebuild_index"
         app:summary="@string/pref_ml_rebuild_index_summary"

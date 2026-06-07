@@ -54,6 +54,7 @@ class SafBrowserActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_folder_videos)
+        Utils.applyRtl(this)   // 58: RTL 레이아웃 토글
         @Suppress("DEPRECATION")
         savedInstanceState?.getParcelable<android.os.Parcelable>("scroll")?.let { scrollState = it }  // 31
 
