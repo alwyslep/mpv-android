@@ -1226,8 +1226,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         extras.getString("saved_sid", "").let {
             if (!it.isNullOrEmpty()) pushOption("sid", it)
         }
-        extras.getString("title", "").let {
-            if (!it.isNullOrEmpty())
+        // 제목: title 우선, 없으면 media_name(앱이 넘기는 표시명/품번). 안 그러면 mpv 가 content uri 의
+        //   MediaStore 숫자 ID(예: 13129557)를 filename→media-title 로 표시(실경로 미해석 파일). 그걸 방지.
+        (extras.getString("title", "").ifEmpty { extras.getString("media_name", "") ?: "" }).let {
+            if (it.isNotEmpty())
                 pushOption("force-media-title", it)
         }
         // TODO: `headers` would be good, maybe `tls_verify`
