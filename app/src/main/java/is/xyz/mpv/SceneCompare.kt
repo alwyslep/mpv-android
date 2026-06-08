@@ -32,6 +32,8 @@ object SceneCompare {
         Thread {
             val vids = MediaLibrary.queryVideos(ctx).filter { norm(JavCode.extract(it.name)) == code }
                 .sortedByDescending { minOf(it.width, it.height) }   // 고해상도 먼저
+            JavDiag.log("scene", "tap='$name' code=$code  matched=${vids.size}")
+            vids.forEach { JavDiag.log("scene", "  '${it.name}' dir=${prettyDir(it.path)} dur=${it.durationMs}ms ${it.width}x${it.height} path=${it.path}") }
             (ctx as? Activity)?.runOnUiThread {
                 if (vids.size < 2) { Toast.makeText(ctx, "비교할 같은 품번이 없음 (이 파일뿐)", Toast.LENGTH_LONG).show(); return@runOnUiThread }
                 build(ctx, code, vids)
@@ -103,7 +105,8 @@ object SceneCompare {
                             mmr.getScaledFrameAtTime(tUs, MediaMetadataRetriever.OPTION_CLOSEST, w, h)
                         else mmr.getFrameAtTime(tUs, MediaMetadataRetriever.OPTION_CLOSEST)
                     } finally { mmr.release() }
-                } catch (e: Throwable) { null }
+                } catch (e: Throwable) { JavDiag.ex("scene.extract", e); null }
+                JavDiag.log("scene", "frame[$i] '${v.name}' @${pct}% tUs=$tUs → ${if (bmp != null) "${bmp.width}x${bmp.height}" else "NULL"}")
                 act.runOnUiThread {
                     if (i < imgs.size) {
                         if (bmp != null) imgs[i].setImageBitmap(bmp)
