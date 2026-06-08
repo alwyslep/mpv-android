@@ -30,7 +30,7 @@ object SceneCompare {
         val code = norm(JavCode.extract(name)) ?: run { Toast.makeText(ctx, "품번 인식 실패", Toast.LENGTH_SHORT).show(); return }
         Thread {
             val vids = MediaLibrary.queryVideos(ctx)
-                .filter { norm(JavCode.extract(it.name)) == code }
+                .filter { norm(JavCode.extract(it.name)) == code && !MediaLibrary.isTrashOrTemp(it) }
                 .distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }   // 같은 파일(중복행) 합침
                 .sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size })   // 고해상도·대용량 먼저
             JavDiag.log("scene", "tap='$name' code=$code  matched=${vids.size}")

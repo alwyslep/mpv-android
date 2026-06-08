@@ -67,6 +67,12 @@ object MediaLibrary {
         }
     }
 
+    // 중복탐지/장면비교 제외 대상: 휴지통(.mpv-trash) · remux 임시파일 · 크기0(미완성/임시).
+    //   휴지통 보낸 중복이 다시 중복으로 잡히는 것 방지(B-68).
+    fun isTrashOrTemp(v: Vid): Boolean =
+        v.folderPath.contains(".mpv-trash") || v.folderName.contains(".mpv-trash") ||
+        v.nameExt.contains(".remux") || v.size <= 0L
+
     fun queryVideos(ctx: Context): List<Vid> {
         val out = ArrayList<Vid>()
         val proj = arrayOf(

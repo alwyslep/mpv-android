@@ -41,6 +41,7 @@ class DuplicatesActivity : AppCompatActivity() {
         findViewById<android.view.View>(R.id.loading_bar)?.visibility = android.view.View.VISIBLE
         Thread {
             val raw = MediaLibrary.queryVideos(this)
+                .filter { !MediaLibrary.isTrashOrTemp(it) }   // 휴지통/remux임시/크기0 제외
             // 같은 '파일'(MediaStore 중복행)만 합침: 경로 있으면 경로, 없으면 크기(바이트)+해상도+이름 으로 식별.
             val all = raw.distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }
             val byCode = HashMap<String, MutableList<Vid>>()
