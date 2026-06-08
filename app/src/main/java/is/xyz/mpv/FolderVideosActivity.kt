@@ -75,12 +75,13 @@ class FolderVideosActivity : AppCompatActivity() {
         toolbar.menu.add(0, 4, 3, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         toolbar.menu.add(0, 5, 4, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
         toolbar.menu.add(0, 6, 5, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
+        toolbar.menu.add(0, 8, 6, "PNG 복구").apply { setIcon(R.drawable.ic_healing_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }   // B-68(52)
         // 55: 메뉴 커스텀 툴팁(다크그린/주황) 일괄
         Utils.tipMenu(toolbar, mapOf(
             1 to "그리드/목록 보기 전환", 7 to "정렬 기준·오름/내림차순 변경",
             2 to "표시 항목·커버 크기 등 빠른 설정", 3 to "여러 영상을 골라 일괄 임베드/이동/썸네일 지정",
             4 to "해상도·상태·확장자·메타 조건으로 필터", 5 to "선택 영상을 다른 폴더로 이동",
-            6 to "선택 영상의 썸네일 위치를 일괄 지정"
+            6 to "선택 영상의 썸네일 위치를 일괄 지정", 8 to "PNG 디코이로 깨진 영상을 폴더 단위로 일괄 복구"
         ))
         MetaHub.fetchAsync(this)
         updateToggleIcon()
@@ -100,6 +101,10 @@ class FolderVideosActivity : AppCompatActivity() {
                 4 -> FilterSheet.show(this) { reload() }
                 5 -> selCtl.enter(showEmbed = false, showMove = true)
                 6 -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)
+                8 -> {   // B-68(52): 이 폴더의 PNG 손상 영상 일괄 복구(하단 배너 진행)
+                    val vs = LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
+                    VideoHeal.healFolderConfirm(this, vs.map { it.uri to it.name }) { reload() }
+                }
             }
             true
         }

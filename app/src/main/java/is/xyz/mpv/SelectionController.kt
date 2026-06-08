@@ -163,40 +163,22 @@ class SelectionController(
         runEmbed(items, skipIfHasCover = true, titlePrefix = "커버 보강")
     }
 
+    // B-68(52): 중앙 팝업 제거 → 하단 리치 배너(JobProgress)로 진행/중단. 선택모드는 즉시 빠져나옴.
     private fun runEmbed(items: List<Pair<Uri, String>>, skipIfHasCover: Boolean, titlePrefix: String) {
-        val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
-        val ll = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
-        val tv = TextView(act)
-        val pbAll = ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply { max = items.size }
-        val lblOne = TextView(act).apply { textSize = 12f; setPadding(0, 12, 0, 0) }
-        val pbOne = ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
-        val btnCancel = MaterialButton(act, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "중단" }
-        ll.addView(tv); ll.addView(pbAll); ll.addView(lblOne); ll.addView(pbOne); ll.addView(btnCancel)
-        val dlg = MaterialAlertDialogBuilder(act)
-            .setTitle("$titlePrefix 중 (${"%,d".format(items.size)}개)").setView(ll).setCancelable(false).create()
-        btnCancel.setOnClickListener {
-            cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 작품 완료 후)"
-        }
-        dlg.show(); nonModal(dlg)
-        JobProgress.start("$titlePrefix (${"%,d".format(items.size)}개)")   // B-68: 배너(화면전환에도 지속)
+        exit()                                                  // 선택모드 종료(배너로 진행 추적)
+        JobProgress.start("$titlePrefix (${"%,d".format(items.size)}개)", items.size)
         JEmbed.embedBatch(act, items,
             onProgress = { idx, total, code, stage, pct ->
-                tv.text = "전체 ${"%,d".format(idx + 1)}/${"%,d".format(total)}"
-                pbAll.progress = idx
-                lblOne.text = "$code   $stage   $pct%"
-                pbOne.progress = if (stage == "remux") pct else if (stage == "embed") 100 else 0
-                JobProgress.update("$titlePrefix ${idx + 1}/$total  $code  $stage $pct%")
+                val one = if (stage == "remux") pct else if (stage == "embed") 100 else 0
+                JobProgress.update(idx, "$code  $stage", one)
             },
-            onDone = { ok, fail, fails ->
-                dlg.dismiss(); exit(); onReload()
-                val head = if (cancelled.get()) "중단됨" else "완료"
-                val msg = "$head: 성공 $ok, 실패 $fail" +
-                    if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
-                Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
-                JobProgress.done("$titlePrefix $head: 성공 $ok 실패 $fail")
+            onDone = { ok, fail, _ ->
+                runCatching { onReload() }
+                val head = if (JobProgress.isCancelled()) "중단됨" else "완료"
+                JobProgress.done("$titlePrefix $head: 성공 $ok, 실패 $fail")
             },
-            cancel = { cancelled.get() },
-            onItemDone = { uri, success -> if (success) sel?.notifyItem(uri.toString()) },   // 작품별 썸네일 즉시 반영
+            cancel = { JobProgress.isCancelled() },             // 배너 중단 버튼 → 우아한 종료
+            onItemDone = { uri, success -> if (success) runCatching { sel?.notifyItem(uri.toString()) } },
             skipIfHasCover = skipIfHasCover)
     }
 

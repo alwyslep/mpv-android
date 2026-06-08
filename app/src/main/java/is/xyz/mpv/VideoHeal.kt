@@ -148,10 +148,10 @@ object VideoHeal {
             .setPositiveButton("복구") { _, _ ->
                 val app = ctx.applicationContext
                 val u = Uri.parse(uri); val total = sizeOf(app, u)
-                JobProgress.start("복구: $name")                       // 비모달 배너(지속) — 모달 다이얼로그 X
+                JobProgress.start("PNG 복구 ($name)", 1)               // 하단 리치 배너(비모달·지속)
                 Thread {
                     val r = healUri(app, u, total) { done ->
-                        JobProgress.update("복구: $name  ${if (total > 0) (done * 100 / total).toInt() else 0}%")
+                        JobProgress.update(0, name, if (total > 0) (done * 100 / total).toInt() else 0)
                     }
                     JobProgress.done(r.second)
                     if (r.first) mainHandler.post { runCatching { onRemoved() } }
@@ -177,18 +177,20 @@ object VideoHeal {
 
     private fun runBatch(ctx: Context, targets: List<Pair<Uri, String>>, onDone: () -> Unit) {
         val app = ctx.applicationContext
-        JobProgress.start("폴더 복구 (${targets.size}개)")           // 비모달 배너(지속)
+        JobProgress.start("PNG 복구 (${targets.size}개)", targets.size)   // 하단 리치 배너(비모달·지속·중단)
         Thread {
             var ok = 0; var fail = 0
             for ((idx, it) in targets.withIndex()) {
+                if (JobProgress.isCancelled()) break                     // 우아한 종료(현재 항목 완료 후)
                 val (u, nm) = it
                 val total = sizeOf(app, u)
                 val r = healUri(app, u, total) { done ->
-                    JobProgress.update("폴더 복구 ${idx + 1}/${targets.size}  $nm  ${if (total > 0) (done * 100 / total).toInt() else 0}%")
+                    JobProgress.update(idx, nm, if (total > 0) (done * 100 / total).toInt() else 0)
                 }
                 if (r.first) ok++ else fail++
             }
-            JobProgress.done("폴더 복구 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
+            val head = if (JobProgress.isCancelled()) "중단됨" else "완료"
+            JobProgress.done("PNG 복구 $head: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
             mainHandler.post { runCatching { onDone() } }
         }.start()
     }
