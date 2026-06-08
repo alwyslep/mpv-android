@@ -175,8 +175,9 @@ class SafBrowserActivity : AppCompatActivity() {
         } else {
             recycler.layoutManager = LinearLayoutManager(this)
         }
+        val inTrash = docId.endsWith(".mpv-trash")   // B-68: 휴지통 폴더 안 → 롱프레스=영구삭제
         recycler.adapter = SafAdapter(
-            entries, grid,
+            entries, grid, inTrash,
             onFolder = { e ->
                 startActivity(
                     Intent(this, SafBrowserActivity::class.java)
@@ -185,7 +186,8 @@ class SafBrowserActivity : AppCompatActivity() {
                         .putExtra("title", e.name)
                 )
             },
-            onVideo = { e -> play(e) }
+            onVideo = { e -> play(e) },
+            onRemoved = { reload() }
         )
         recycler.layoutManager?.onRestoreInstanceState(scrollState)
     }
@@ -221,8 +223,10 @@ class SafBrowserActivity : AppCompatActivity() {
 class SafAdapter(
     private val items: List<SafEntry>,
     private val grid: Boolean,
+    private val permanent: Boolean,            // B-68: 휴지통 폴더 안 → 롱프레스 삭제=영구삭제
     private val onFolder: (SafEntry) -> Unit,
-    private val onVideo: (SafEntry) -> Unit
+    private val onVideo: (SafEntry) -> Unit,
+    private val onRemoved: () -> Unit = {}     // 영구삭제 후 목록 갱신
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val typeDir = 0
@@ -283,7 +287,9 @@ class SafAdapter(
             }
             h.itemView.setOnClickListener { onVideo(e) }
             h.itemView.setOnLongClickListener {
-                VideoActions.longPress(it, e.uri.toString(), fallback, onChanged = { notifyItemChanged(h.bindingAdapterPosition) })
+                VideoActions.longPress(it, e.uri.toString(), fallback,
+                    onChanged = { notifyItemChanged(h.bindingAdapterPosition) },
+                    onRemoved = onRemoved, permanent = permanent)
                 true
             }
         }

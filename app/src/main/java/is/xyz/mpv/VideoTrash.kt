@@ -29,6 +29,32 @@ object VideoTrash {
         else safTrashConfirm(ctx, u, name, onRemoved, onCancel)
     }
 
+    // 단건 영구 삭제 — 휴지통(.mpv-trash) 폴더 안 타일 롱프레스 '영구 삭제'. 확인창 후 deleteDocument(복구불가).
+    fun permanentDeleteConfirm(ctx: Context, uri: String, name: String, onRemoved: () -> Unit) {
+        val u = Uri.parse(uri)
+        AlertDialog.Builder(ctx)
+            .setTitle("영구 삭제")
+            .setMessage("$name\n영구 삭제합니다. 복구할 수 없습니다.")
+            .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
+            .setPositiveButton("영구 삭제") { _, _ -> permanentDelete(ctx, u, name, onRemoved) }
+            .show()
+    }
+
+    private fun permanentDelete(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
+        JavDiag.log("permDelete", "BEGIN $name uri=$u")
+        Thread {
+            val ok = try {
+                if (u.authority == MediaStore.AUTHORITY) ctx.contentResolver.delete(u, null, null) > 0
+                else DocumentsContract.deleteDocument(ctx.contentResolver, u)
+            } catch (e: Throwable) { JavDiag.ex("permDelete", e); false }
+            JavDiag.log("permDelete", "END ok=$ok")
+            (ctx as? Activity)?.runOnUiThread {
+                if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "영구 삭제: $name") }
+                else toast(ctx, "삭제 실패: $name")
+            }
+        }.start()
+    }
+
     // 휴지통 비우기 — 트리 루트의 .mpv-trash 내 전체 파일 영구삭제(deleteDocument, 복구 불가). 확인창 후.
     //   삭제는 계속 휴지통 경유(안전), 주기적으로 이걸로 비운다. SafBrowser 메뉴서 현재 드라이브 대상.
     fun emptyTrashConfirm(ctx: Context, treeUri: Uri, onDone: () -> Unit = {}) {

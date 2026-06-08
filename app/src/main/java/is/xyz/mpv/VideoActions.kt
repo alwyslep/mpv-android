@@ -8,20 +8,23 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 // 타일 길게누르기 공통 액션 — 상세 보기 / 즐겨찾기(찜) 토글 / 평점 매기기.
 // onChanged: 찜·평점이 바뀌면 호출(목록 갱신용).
 object VideoActions {
-    fun longPress(anchor: View, uri: String, name: String, onChanged: () -> Unit, onRemoved: () -> Unit = {}) {
+    // permanent=true: 휴지통(.mpv-trash) 폴더 안 — 삭제 메뉴가 '영구 삭제'(휴지통 재이동 무의미)로 바뀐다.
+    fun longPress(anchor: View, uri: String, name: String, onChanged: () -> Unit, onRemoved: () -> Unit = {},
+                  permanent: Boolean = false) {
         val ctx = anchor.context
         val pm = PopupMenu(ctx, anchor)
         val faved = Favorites.has(ctx, uri, name)
         pm.menu.add(0, 1, 0, ctx.getString(R.string.action_details))
         pm.menu.add(0, 2, 1, if (faved) ctx.getString(R.string.action_unfav) else ctx.getString(R.string.action_fav))
         pm.menu.add(0, 3, 2, ctx.getString(R.string.action_rate))
-        pm.menu.add(0, 4, 3, ctx.getString(R.string.action_trash))   // 59: 삭제(휴지통으로)
+        pm.menu.add(0, 4, 3, if (permanent) "영구 삭제" else ctx.getString(R.string.action_trash))   // 휴지통으로 / 휴지통 안=영구삭제
         pm.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> VideoDetailActivity.open(ctx, uri, name)
                 2 -> { Favorites.toggle(ctx, uri, name); onChanged() }
                 3 -> ratingDialog(ctx, uri, name, onChanged)
-                4 -> VideoTrash.confirmAndTrash(ctx, uri, name, onRemoved)
+                4 -> if (permanent) VideoTrash.permanentDeleteConfirm(ctx, uri, name, onRemoved)
+                     else VideoTrash.confirmAndTrash(ctx, uri, name, onRemoved)
             }
             true
         }
