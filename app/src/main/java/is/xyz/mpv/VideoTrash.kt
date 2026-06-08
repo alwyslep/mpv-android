@@ -59,20 +59,39 @@ object VideoTrash {
 
     private fun safTrash(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
         Thread {
+            var diag = "?"   // B-68 진단: 실패 지점 추적(무음 실패 제거)
             val ok = try {
-                val authority = u.authority!!
-                val treeId = DocumentsContract.getTreeDocumentId(u)
-                val treeUri = DocumentsContract.buildTreeDocumentUri(authority, treeId)
-                val root = DocumentFile.fromTreeUri(ctx, treeUri)
-                val trash = root?.findFile(TRASH_DIR)?.takeIf { it.isDirectory } ?: root?.createDirectory(TRASH_DIR)
-                val parent = parentDocUri(u)
-                if (trash != null && parent != null)
-                    DocumentsContract.moveDocument(ctx.contentResolver, u, parent, trash.uri) != null
-                else false
-            } catch (_: Throwable) { false }
+                val authority = u.authority
+                if (authority == null) { diag = "authority=null docId=${u.lastPathSegment}"; false }
+                else {
+                    val treeId = try { DocumentsContract.getTreeDocumentId(u) }
+                                 catch (e: Throwable) { diag = "getTreeDocumentId 실패(tree uri 아님): ${e.javaClass.simpleName}"; null }
+                    if (treeId == null) false
+                    else {
+                        val treeUri = DocumentsContract.buildTreeDocumentUri(authority, treeId)
+                        val root = DocumentFile.fromTreeUri(ctx, treeUri)
+                        if (root == null) { diag = "root null treeId=$treeId"; false }
+                        else {
+                            val canW = root.canWrite()
+                            val trash = root.findFile(TRASH_DIR)?.takeIf { it.isDirectory } ?: root.createDirectory(TRASH_DIR)
+                            val parent = parentDocUri(u)
+                            when {
+                                trash == null -> { diag = "trash dir 생성실패(canWrite=$canW, root=${root.name})"; false }
+                                parent == null -> { diag = "parent null docId=${DocumentsContract.getDocumentId(u)}"; false }
+                                else -> {
+                                    val moved = try { DocumentsContract.moveDocument(ctx.contentResolver, u, parent, trash.uri) }
+                                                catch (e: Throwable) { diag = "moveDocument 예외 ${e.javaClass.simpleName}: ${e.message}"; null }
+                                    if (moved == null && diag == "?") diag = "moveDocument null(미지원/권한)"
+                                    moved != null
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Throwable) { diag = "예외 ${e.javaClass.simpleName}: ${e.message}"; false }
             (ctx as? Activity)?.runOnUiThread {
                 if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "휴지통으로 이동: $name") }
-                else toast(ctx, "삭제 실패: $name")
+                else Toast.makeText(ctx, "삭제 실패: $diag", Toast.LENGTH_LONG).show()
             }
         }.start()
     }

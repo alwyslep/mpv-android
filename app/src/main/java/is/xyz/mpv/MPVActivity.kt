@@ -1627,6 +1627,8 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     //   옛 버그: 확인 전 finish 가 시스템 확인창을 취소시켜 파일이 안 옮겨짐). 외부 SAF 는 moveDocument.
     private fun actionTrashCurrent(uri: String, name: String, restore: StateRestoreCallback) {
         val u = Uri.parse(uri)
+        // B-68 진단: 어느 경로로 가는지 확정용(다음 빌드서 제거).
+        showToast("trash: scheme=${u.scheme} auth=${u.authority} → ${if (u.authority == MediaStore.AUTHORITY) "MediaStore" else "SAF"}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && u.authority == MediaStore.AUTHORITY) {
             try {
                 val pi = MediaStore.createTrashRequest(contentResolver, listOf(u), true)
