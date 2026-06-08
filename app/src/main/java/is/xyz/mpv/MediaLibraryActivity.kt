@@ -256,10 +256,11 @@ class MediaLibraryActivity : AppCompatActivity() {
     private fun setupToolbar() {
         val videos = LibPrefs.viewMode(this) == "videos"
         val en = mutableSetOf("search", "classify", "sort", "tune", "settings", "filter", "cover", "dup", "refresh")
-        if (videos) en.addAll(listOf("select", "move", "thumb"))
+        if (videos) en.addAll(listOf("select", "move", "thumb", "embedauto"))
         LibToolbar.build(toolbar, en, null) { key ->
             when (key) {
                 "refresh" -> load()
+                "embedauto" -> EmbedAuto.confirm(this, MediaLibrary.queryVideos(this).map { it.uri to it.name }) { load() }
                 "search" -> startActivity(Intent(this, SearchActivity::class.java))
                 "classify" -> startActivity(Intent(this, BrowseActivity::class.java))
                 "dup" -> startActivity(Intent(this, DuplicatesActivity::class.java))   // 타일 검수 화면

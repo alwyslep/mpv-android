@@ -101,10 +101,11 @@ class FolderVideosActivity : AppCompatActivity() {
     // B-68(52): 공통 12아이콘 툴바. 폴더 화면 활성 = toggle/sort/tune/select/filter/move/thumb/heal (나머지 회색).
     private fun setupToolbar() {
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
-        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "select", "filter", "move", "thumb", "heal", "dup", "refresh"), grid) { key ->
+        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "select", "embedauto", "filter", "move", "thumb", "heal", "dup", "refresh"), grid) { key ->
             fun folderVids() = LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath)).map { it.uri to it.name }
             when (key) {
                 "refresh" -> reload()
+                "embedauto" -> EmbedAuto.confirm(this, folderVids()) { reload() }
                 "toggle" -> { grid = !grid; prefs.edit().putBoolean("video_grid", grid).apply(); setupToolbar(); rebuild() }
                 "sort" -> SortDialog.show(this, "folder", false) { reload() }
                 "tune" -> QuickSettings.show(this) { grid = LibPrefs.grid(this); setupToolbar(); reload() }
