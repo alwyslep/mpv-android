@@ -31,11 +31,11 @@ object SceneCompare {
         val code = norm(JavCode.extract(name)) ?: run { Toast.makeText(ctx, "품번 인식 실패", Toast.LENGTH_SHORT).show(); return }
         Thread {
             val vids = MediaLibrary.queryVideos(ctx)
-                .filter { norm(JavCode.extract(it.name)) == code && it.path.isNotEmpty() }   // 유령(빈경로 stale) 제외
-                .distinctBy { it.path }                                                       // 같은 경로 중복행 제거
-                .sortedByDescending { minOf(it.width, it.height) }   // 고해상도 먼저
-            JavDiag.log("scene", "tap='$name' code=$code  matched(real)=${vids.size}")
-            vids.forEach { JavDiag.log("scene", "  '${it.name}' dir=${prettyDir(it.path)} dur=${it.durationMs}ms ${it.width}x${it.height} path=${it.path}") }
+                .filter { norm(JavCode.extract(it.name)) == code }
+                .distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }   // 같은 파일(중복행) 합침
+                .sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size })   // 고해상도·대용량 먼저
+            JavDiag.log("scene", "tap='$name' code=$code  matched=${vids.size}")
+            vids.forEach { JavDiag.log("scene", "  '${it.name}' dir=${prettyDir(it.path)} dur=${it.durationMs}ms ${it.width}x${it.height} ${it.size}B path=${if (it.path.isEmpty()) "NOPATH" else it.path}") }
             (ctx as? Activity)?.runOnUiThread {
                 if (vids.size < 2) { Toast.makeText(ctx, "비교할 같은 품번이 없음 (이 파일뿐)", Toast.LENGTH_LONG).show(); return@runOnUiThread }
                 build(ctx, code, vids)
@@ -98,11 +98,15 @@ object SceneCompare {
         Thread {
             for (i in vids.indices) {
                 val v = vids[i]
-                val tUs = if (v.durationMs > 0) v.durationMs * pct / 100 * 1000L else 1_000_000L
+                var tUs = 1_000_000L
                 val bmp = try {
                     val mmr = MediaMetadataRetriever()
                     try {
                         if (v.path.isNotEmpty()) mmr.setDataSource(v.path) else mmr.setDataSource(act, v.uri)
+                        // 빈경로(스코프 스토리지)는 durationMs=0 일 수 있음 → MMR 로 실제 길이 구해 정위치 추출
+                        val durMs = if (v.durationMs > 0) v.durationMs
+                            else mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+                        if (durMs > 0) tUs = durMs * pct / 100 * 1000L
                         if (Build.VERSION.SDK_INT >= 27)
                             mmr.getScaledFrameAtTime(tUs, MediaMetadataRetriever.OPTION_CLOSEST, w, h)
                         else mmr.getFrameAtTime(tUs, MediaMetadataRetriever.OPTION_CLOSEST)

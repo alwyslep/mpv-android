@@ -41,19 +41,20 @@ class DuplicatesActivity : AppCompatActivity() {
         findViewById<android.view.View>(R.id.loading_bar)?.visibility = android.view.View.VISIBLE
         Thread {
             val raw = MediaLibrary.queryVideos(this)
-            val all = raw.filter { it.path.isNotEmpty() }   // 유령(빈경로 stale MediaStore) 제외 — 오판 방지
-                .distinctBy { it.path }                      // 같은 경로 중복행 제거
+            // 같은 '파일'(MediaStore 중복행)만 합침: 경로 있으면 경로, 없으면 크기(바이트)+해상도+이름 으로 식별.
+            val all = raw.distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }
             val byCode = HashMap<String, MutableList<Vid>>()
             for (v in all) {
                 val code = JavCode.extract(v.name)?.let { norm(it) } ?: continue
                 byCode.getOrPut(code) { ArrayList() }.add(v)
             }
+            // 그룹 내 정렬: 해상도↓ → 크기↓ (제일 좋은 버전 먼저)
             val list = byCode.toSortedMap().filterValues { it.size > 1 }
-                .flatMap { it.value.sortedBy { v -> v.name } }
+                .flatMap { it.value.sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size }) }
             val groups = byCode.count { it.value.size > 1 }
-            JavDiag.log("dup", "raw=${raw.size} 유령제외/중복행제거후=${all.size} (빈경로=${raw.count { it.path.isEmpty() }})  중복그룹=${groups}")
-            byCode.filter { it.value.size > 1 }.forEach { (c, vs) ->
-                JavDiag.log("dup", "  $c (${vs.size}): " + vs.joinToString(" | ") { "${it.name}@${java.io.File(it.path).parent?.substringAfterLast('/') ?: "?"}·${minOf(it.width, it.height)}p" })
+            JavDiag.log("dup", "raw=${raw.size} dedup(같은파일합침)=${all.size}  [빈경로=${raw.count { it.path.isEmpty() }} 해상도0=${raw.count { it.width == 0 }} 크기0=${raw.count { it.size == 0L }}]  중복그룹=$groups")
+            byCode.filterValues { it.size > 1 }.entries.take(25).forEach { (c, vs) ->
+                JavDiag.log("dup", "  $c (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${it.size}B·${it.width}x${it.height}·${if (it.path.isEmpty()) "NOPATH" else java.io.File(it.path).parent?.substringAfterLast('/') ?: "?"}" })
             }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
