@@ -89,6 +89,9 @@ class SafBrowserActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_delete_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)   // 오버플로(⋮) 안 보인다는 보고 → 툴바 아이콘으로
         }
+        toolbar.menu.add(0, 9, 4, "폴더 복구(PNG디코이)").apply {   // B-68: 손상 파일 일괄 복구
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -103,6 +106,7 @@ class SafBrowserActivity : AppCompatActivity() {
                 }
                 7 -> SortDialog.show(this, "saf", false) { reload() }
                 8 -> VideoTrash.emptyTrashConfirm(this, treeUri) { reload() }
+                9 -> VideoHeal.healFolderConfirm(this, entries.filter { !it.isDir }.map { it.uri to it.name }) { reload() }
             }
             true
         }
