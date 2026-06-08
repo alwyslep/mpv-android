@@ -88,9 +88,10 @@ class TreeActivity : AppCompatActivity() {
     // B-68(52): 공통 12아이콘 툴바. 트리 활성 = toggle/sort/tune/select/filter/move/thumb/heal.
     private fun setupToolbar() {
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
-        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "select", "filter", "move", "thumb", "heal", "dup"), grid) { key ->
+        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "select", "filter", "move", "thumb", "heal", "dup", "refresh"), grid) { key ->
             fun vids() = entries.mapNotNull { it.vid }.map { it.uri to it.name }
             when (key) {
+                "refresh" -> reload()
                 "toggle" -> { grid = !grid; prefs.edit().putBoolean("video_grid", grid).apply(); setupToolbar(); rebuild() }
                 "tune" -> QuickSettings.show(this) { grid = LibPrefs.grid(this); setupToolbar(); reload() }
                 "sort" -> SortDialog.show(this, "home_tree", false) { reload() }

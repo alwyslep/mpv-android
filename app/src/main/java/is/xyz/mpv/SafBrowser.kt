@@ -96,9 +96,10 @@ class SafBrowserActivity : AppCompatActivity() {
     // B-68(52): 공통 12아이콘 툴바. SAF(USB) 활성 = toggle/sort/tune/heal (선택·이동·썸네일 등은 회색).
     private fun setupToolbar() {
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
-        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "heal", "dup"), grid) { key ->
+        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "heal", "dup", "refresh"), grid) { key ->
             fun vids() = entries.filter { !it.isDir }.map { it.uri to it.name }
             when (key) {
+                "refresh" -> reload()
                 "toggle" -> { grid = !grid; prefs.edit().putBoolean("video_grid", grid).apply(); setupToolbar(); rebuild() }
                 "tune" -> QuickSettings.show(this) { grid = LibPrefs.grid(this); setupToolbar(); reload() }
                 "sort" -> SortDialog.show(this, "saf", false) { reload() }

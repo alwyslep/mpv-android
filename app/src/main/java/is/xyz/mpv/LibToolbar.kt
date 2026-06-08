@@ -23,6 +23,7 @@ object LibToolbar {
         Spec("cover", R.drawable.ic_cover_24, "커버 보강", "커버 없는 영상에 hub 커버를 보강"),
         Spec("settings", R.drawable.ic_settings_24, "설정", "앱 설정 열기"),
         Spec("dup", R.drawable.ic_dup_24, "중복 찾기", "품번이 같은 중복 파일 찾기"),
+        Spec("refresh", R.drawable.ic_refresh_24, "새로고침", "목록 새로고침"),
     )
 
     fun build(toolbar: MaterialToolbar, enabled: Set<String>, gridIsGrid: Boolean?, on: (String) -> Unit) {
@@ -33,7 +34,7 @@ object LibToolbar {
                 (if (gridIsGrid) R.drawable.ic_list_24 else R.drawable.ic_grid_24) else s.icon
             val mi = toolbar.menu.add(0, 100 + i, i, s.label)
             mi.setIcon(icon)
-            mi.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
+            mi.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)   // 전부 아이콘 표시(overflow 접지 않음, 사용자 요구)
             val en = s.key in enabled
             mi.isEnabled = en
             if (!en) runCatching { mi.icon?.mutate()?.alpha = 90 }   // 회색/흐림(못 쓰는 화면)
