@@ -85,19 +85,20 @@ class SelectionController(
             .setTitle("장면 썸네일 (${"%,d".format(vids.size)}개)").setView(ll)
             .setPositiveButton("적용") { _, _ ->
                 val pct = seek.progress
+                exit()
+                JobProgress.start("썸네일 지정 (${"%,d".format(vids.size)}개)", vids.size)   // B-68(52) 배너
                 Thread {   // 커버 유무 판정에 MMR 가능 → 백그라운드
                     var n = 0
-                    for (v in vids) {
+                    for ((idx, v) in vids.withIndex()) {
+                        JobProgress.update(idx, v.name, 0)
                         // 커버 '이미지' 있는 파일만 제외(메타 유무 아님). SAF 등 길이 0 도 제외.
                         if (v.durationMs > 0 && !ThumbLoader.hasCover(act, v.uri)) {
                             LibPrefs.setCustomThumbPos(act, MediaKey.of(v.uri.toString(), v.name), v.durationMs * pct / 100)
                             ThumbLoader.invalidate(act, v.uri); n++
                         }
                     }
-                    act.runOnUiThread {
-                        exit(); onReload()
-                        Toast.makeText(act, "썸네일 적용: ${n}개 (커버 있는 파일 제외)", Toast.LENGTH_LONG).show()
-                    }
+                    act.runOnUiThread { runCatching { onReload() } }
+                    JobProgress.done("썸네일 적용: ${n}개 (커버 있는 파일 제외)")
                 }.start()
             }
             .setNeutralButton("해제") { _, _ ->
@@ -193,29 +194,20 @@ class SelectionController(
         )
     }
 
+    // B-68(52): 이동도 하단 리치 배너로(중앙 팝업 제거). 선택모드 즉시 종료.
     private fun runMoveProgress(
         items: List<Pair<Uri, String>>,
         mover: ((Int, Int, String) -> Unit, (Int, Int, List<String>) -> Unit, () -> Boolean) -> Unit
     ) {
-        val cancelled = java.util.concurrent.atomic.AtomicBoolean(false)
-        val ll = LinearLayout(act).apply { orientation = LinearLayout.VERTICAL; setPadding(48, 32, 48, 16) }
-        val tv = TextView(act)
-        val pb = ProgressBar(act, null, android.R.attr.progressBarStyleHorizontal).apply { max = items.size }
-        val btnCancel = MaterialButton(act, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply { text = "중단" }
-        ll.addView(tv); ll.addView(pb); ll.addView(btnCancel)
-        val dlg = MaterialAlertDialogBuilder(act)
-            .setTitle("이동 중 (${"%,d".format(items.size)}개)").setView(ll).setCancelable(false).create()
-        btnCancel.setOnClickListener { cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 파일 완료 후)" }
-        dlg.show(); nonModal(dlg)
-        mover({ idx, _, name -> tv.text = "${"%,d".format(idx + 1)}/${"%,d".format(items.size)}   $name"; pb.progress = idx },
-            { ok, fail, fails ->
-                dlg.dismiss(); exit(); onReload()
-                val head = if (cancelled.get()) "중단됨" else "이동 완료"
-                val msg = "$head: 성공 $ok, 실패 $fail" +
-                    if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
-                Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
+        exit()
+        JobProgress.start("이동 (${"%,d".format(items.size)}개)", items.size)
+        mover({ idx, _, name -> JobProgress.update(idx, name, 0) },
+            { ok, fail, _ ->
+                runCatching { onReload() }
+                val head = if (JobProgress.isCancelled()) "중단됨" else "이동 완료"
+                JobProgress.done("$head: 성공 $ok, 실패 $fail")
             },
-            { cancelled.get() })
+            { JobProgress.isCancelled() })
     }
 
     // 우측 사이드 패널 폴더트리 — 내부저장소(File)+외부저장소(SAF) 탐색, 마지막 위치 기억(다음 이동 시 그 폴더부터).

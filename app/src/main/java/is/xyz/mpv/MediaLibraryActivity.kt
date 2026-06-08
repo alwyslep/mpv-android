@@ -31,9 +31,6 @@ class MediaLibraryActivity : AppCompatActivity() {
     private lateinit var empty: TextView
     private lateinit var fabMenu: View
     private lateinit var selCtl: SelectionController   // jembed/이동 선택모드 (공통 컨트롤러)
-    private var selMenuItem: MenuItem? = null
-    private var moveMenuItem: MenuItem? = null
-    private var thumbMenuItem: MenuItem? = null
     private var seeded = false   // 번들 스크립트/conf 시드 1회 플래그
     // 55: 툴바 메뉴 커스텀 툴팁 텍스트(가시성 토글되는 5/7/8 포함 — load()서 재부착)
     private val menuTips: Map<Int, CharSequence> = mapOf(
@@ -96,55 +93,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         savedInstanceState?.getParcelable<android.os.Parcelable>("ml_scroll")?.let { scrollState = it }  // 31: 파괴→재생성 복원
 
         toolbar = findViewById(R.id.toolbar)
-        toolbar.menu.add(0, 2, 0, getString(R.string.lbl_search)).apply {
-            setIcon(R.drawable.ic_search_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 4, 1, getString(R.string.menu_classify)).apply {
-            setIcon(R.drawable.ic_people_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 9, 2, "정렬").apply {
-            setIcon(R.drawable.ic_sort_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 3, 3, getString(R.string.qs_title)).apply {
-            setIcon(R.drawable.ic_tune_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 1, 4, getString(R.string.lbl_settings)).apply {
-            setIcon(R.drawable.ic_settings_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        // B-64(39): ⋮ 안 4개를 툴바 밖으로(아이콘+ALWAYS). 선택/이동/썸네일은 videos 모드만 isVisible.
-        selMenuItem = toolbar.menu.add(0, 5, 3, "선택(임베드)").apply {
-            setIcon(R.drawable.ic_check_circle_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 6, 4, "필터").apply { setIcon(R.drawable.ic_filter_alt_24dp); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
-        moveMenuItem = toolbar.menu.add(0, 7, 5, "이동").apply { setIcon(R.drawable.ic_folder_24); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
-        thumbMenuItem = toolbar.menu.add(0, 8, 6, "썸네일 지정").apply { setIcon(R.drawable.ic_image); setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS) }
-        toolbar.menu.add(0, 10, 7, "커버 보강(없는 것만)").setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)   // B-52 A
-        // 55: 메뉴 툴팁(상세 사용법) — 커스텀 툴팁(다크그린/주황, long-press·마우스 hover). load()서도 재부착(가시성 토글 대비).
-        Utils.tipMenu(toolbar, menuTips)
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                2 -> startActivity(Intent(this, SearchActivity::class.java))
-                4 -> startActivity(Intent(this, BrowseActivity::class.java))
-                3 -> QuickSettings.show(this) { load() }
-                9 -> {
-                    val m = LibPrefs.viewMode(this)
-                    val sc = when (m) { "videos" -> "home_videos"; "tree" -> "home_tree"; else -> "home_folders" }
-                    SortDialog.show(this, sc, m == "folder") { load() }
-                }
-                1 -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
-                5 -> selCtl.enter(showEmbed = true, showMove = false)
-                6 -> FilterSheet.show(this) { load() }
-                7 -> selCtl.enter(showEmbed = false, showMove = true)
-                8 -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)
-                10 -> coverFixAll()
-            }
-            true
-        }
+        setupToolbar()   // B-68(52): 공통 LibToolbar (viewMode 따라 select/move/thumb 활성)
 
         recycler = findViewById(R.id.recycler)
         recycler.layoutManager = LinearLayoutManager(this)
@@ -231,13 +180,8 @@ class MediaLibraryActivity : AppCompatActivity() {
         if ((recycler.adapter?.itemCount ?: 0) > 0)
             recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }
         val savedScroll = scrollState
-        val showSel = mode == "videos"   // 선택/이동은 영상 평면 모드만 (폴더/트리는 폴더 진입 후)
-        selMenuItem?.isVisible = showSel
-        moveMenuItem?.isVisible = showSel
-        thumbMenuItem?.isVisible = showSel
         if (mode != "videos") { selCtl.exit(); selCtl.unbind() }
-        applyIconTints()   // 54: 설정 걸린 툴바 아이콘 색 갱신(정렬·빠른설정·필터)
-        Utils.tipMenu(toolbar, menuTips)   // 55: 가시성 토글된 메뉴(선택/이동/썸네일)에도 커스텀 툴팁 재부착
+        setupToolbar()   // viewMode 따라 select/move/thumb 활성 + 아이콘 틴트 갱신(LibToolbar 재빌드)
         DurationHub.fetchAsync(this)   // v6: hub 길이맵 1회 채움(길이 불일치 마커용)
         ResolutionHub.fetchAsync(this) // 4: hub 해상도맵 1회 채움(해상도 불일치 마커용)
         MetaHub.fetchAsync(this)       // 필터: hub 메타맵 1회 채움(메타 필터용)
@@ -308,6 +252,32 @@ class MediaLibraryActivity : AppCompatActivity() {
     }
 
     // 54: 정렬(9)·빠른설정(3)·필터(6) — 기본값과 다른 설정이 걸렸으면 amber 로 틴트, 아니면 기본색.
+    // B-68(52): 공통 12아이콘 툴바. 홈 활성 = search/classify/sort/tune/settings/filter/cover (+videos 모드면 select/move/thumb).
+    private fun setupToolbar() {
+        val videos = LibPrefs.viewMode(this) == "videos"
+        val en = mutableSetOf("search", "classify", "sort", "tune", "settings", "filter", "cover")
+        if (videos) en.addAll(listOf("select", "move", "thumb"))
+        LibToolbar.build(toolbar, en, null) { key ->
+            when (key) {
+                "search" -> startActivity(Intent(this, SearchActivity::class.java))
+                "classify" -> startActivity(Intent(this, BrowseActivity::class.java))
+                "sort" -> {
+                    val m = LibPrefs.viewMode(this)
+                    val sc = when (m) { "videos" -> "home_videos"; "tree" -> "home_tree"; else -> "home_folders" }
+                    SortDialog.show(this, sc, m == "folder") { load() }
+                }
+                "tune" -> QuickSettings.show(this) { load() }
+                "settings" -> startActivity(Intent(this, `is`.xyz.mpv.preferences.PreferenceActivity::class.java))
+                "select" -> selCtl.enter(showEmbed = true, showMove = false)
+                "filter" -> FilterSheet.show(this) { load() }
+                "move" -> selCtl.enter(showEmbed = false, showMove = true)
+                "thumb" -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)
+                "cover" -> coverFixAll()
+            }
+        }
+        applyIconTints()
+    }
+
     private fun applyIconTints() {
         val active = ContextCompat.getColor(this, R.color.icon_active)
         val normal = com.google.android.material.color.MaterialColors.getColor(
@@ -315,9 +285,9 @@ class MediaLibraryActivity : AppCompatActivity() {
         fun tint(id: Int, on: Boolean) {
             toolbar.menu.findItem(id)?.icon?.mutate()?.setTint(if (on) active else normal)
         }
-        tint(9, LibPrefs.sortActive(this))
-        tint(3, LibPrefs.quickActive(this))
-        tint(6, LibPrefs.filterActive(this))
+        tint(103, LibPrefs.sortActive(this))   // LibToolbar: sort=103
+        tint(104, LibPrefs.quickActive(this))  // tune=104
+        tint(106, LibPrefs.filterActive(this)) // filter=106
     }
 
     // B-52 A: 현재 목록(videos/tree) 영상 중 커버 없는 것만 hub 커버 재임베드(JEmbed skipIfHasCover).

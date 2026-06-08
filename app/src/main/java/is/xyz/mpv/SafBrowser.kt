@@ -36,7 +36,7 @@ class SafBrowserActivity : AppCompatActivity() {
     private lateinit var docId: String
     private var entries: List<SafEntry> = emptyList()
     private var grid = true
-    private var toggleItem: MenuItem? = null
+    private lateinit var toolbar: MaterialToolbar
     private var scrollState: android.os.Parcelable? = null   // 31: 스크롤 보존(onPause+Bundle)
 
     private var pendingUri: String? = null
@@ -72,37 +72,10 @@ class SafBrowserActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
         grid = prefs.getBoolean("video_grid", true)
 
-        val toolbar = findViewById<MaterialToolbar>(R.id.toolbar)
+        toolbar = findViewById(R.id.toolbar)
         toolbar.title = title
         toolbar.setNavigationOnClickListener { finish() }
-        toggleItem = toolbar.menu.add(0, 1, 0, getString(R.string.toggle_view)).apply {
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 7, 1, "정렬").apply {
-            setIcon(R.drawable.ic_sort_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        toolbar.menu.add(0, 2, 2, getString(R.string.qs_title)).apply {
-            setIcon(R.drawable.ic_tune_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
-        }
-        // B-68: 일괄(복구/휴지통 비우기)은 폴더 타일 길게누르기로 이동(toolbar 제거).
-        updateToggleIcon()
-        toolbar.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                1 -> {
-                    grid = !grid
-                    prefs.edit().putBoolean("video_grid", grid).apply()
-                    updateToggleIcon()
-                    rebuild()
-                }
-                2 -> QuickSettings.show(this) {
-                    grid = LibPrefs.grid(this); updateToggleIcon(); reload()
-                }
-                7 -> SortDialog.show(this, "saf", false) { reload() }
-            }
-            true
-        }
+        setupToolbar()   // B-68(52): 공통 LibToolbar
 
         recycler = findViewById(R.id.recycler)
         rebuild()
@@ -120,8 +93,17 @@ class SafBrowserActivity : AppCompatActivity() {
         }.start()
     }
 
-    private fun updateToggleIcon() {
-        toggleItem?.setIcon(if (grid) R.drawable.ic_list_24 else R.drawable.ic_grid_24)
+    // B-68(52): 공통 12아이콘 툴바. SAF(USB) 활성 = toggle/sort/tune/heal (선택·이동·썸네일 등은 회색).
+    private fun setupToolbar() {
+        val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
+        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "heal"), grid) { key ->
+            when (key) {
+                "toggle" -> { grid = !grid; prefs.edit().putBoolean("video_grid", grid).apply(); setupToolbar(); rebuild() }
+                "tune" -> QuickSettings.show(this) { grid = LibPrefs.grid(this); setupToolbar(); reload() }
+                "sort" -> SortDialog.show(this, "saf", false) { reload() }
+                "heal" -> VideoHeal.healFolderConfirm(this, entries.filter { !it.isDir }.map { it.uri to it.name }) { reload() }
+            }
+        }
     }
 
     private fun spanCount(): Int = LibPrefs.spanCount(this)
