@@ -3,11 +3,10 @@ package `is`.xyz.mpv
 import android.app.Activity
 import android.content.Context
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
-import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import java.io.ByteArrayOutputStream
@@ -28,6 +27,7 @@ object VideoHeal {
     private val SHORT = FULL.copyOfRange(8, FULL.size)
     private val DECOYS = listOf(FULL, SHORT)   // 긴 것 먼저(시그니처 고아 방지)
     private const val KEEP = 69                 // = max(decoy)-1, 청크 경계 carry
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private fun match(a: ByteArray, off: Int, n: Int): Boolean {
         for (d in DECOYS) {
@@ -92,16 +92,6 @@ object VideoHeal {
         } ?: 0L
     } catch (_: Throwable) { 0L }
 
-    // 진행 다이얼로그(가로 진행바 + 라벨). AppCompat(테마 무관).
-    private fun progressDialog(ctx: Context, title: String): Triple<AlertDialog, TextView, ProgressBar> {
-        val tv = TextView(ctx)
-        val pb = ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
-        val ll = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48, 36, 48, 12); addView(tv); addView(pb)
-        }
-        val d = AlertDialog.Builder(ctx).setTitle(title).setView(ll).setCancelable(false).create()
-        return Triple(d, tv, pb)
-    }
 
     private fun firstByteTs(ins: InputStream?): Boolean = ins?.use { it.read() == 0x47 } ?: false
 
@@ -156,13 +146,15 @@ object VideoHeal {
             .setMessage("$name\nPNG 디코이를 제거하고 원본을 교정본으로 대체합니다(무손실).")
             .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
             .setPositiveButton("복구") { _, _ ->
-                val act = ctx as? Activity
-                val u = Uri.parse(uri); val total = sizeOf(ctx, u)
-                val (d, tv, pb) = progressDialog(ctx, "복구 중")
-                tv.text = name; d.show()
+                val app = ctx.applicationContext
+                val u = Uri.parse(uri); val total = sizeOf(app, u)
+                JobProgress.start("복구: $name")                       // 비모달 배너(지속) — 모달 다이얼로그 X
                 Thread {
-                    val r = healUri(ctx, u, total) { done -> act?.runOnUiThread { pb.progress = if (total > 0) (done * 100 / total).toInt() else 0 } }
-                    act?.runOnUiThread { d.dismiss(); toast(ctx, r.second); if (r.first) onRemoved() }
+                    val r = healUri(app, u, total) { done ->
+                        JobProgress.update("복구: $name  ${if (total > 0) (done * 100 / total).toInt() else 0}%")
+                    }
+                    JobProgress.done(r.second)
+                    if (r.first) mainHandler.post { runCatching { onRemoved() } }
                 }.start()
             }.show()
     }
@@ -184,21 +176,20 @@ object VideoHeal {
     }
 
     private fun runBatch(ctx: Context, targets: List<Pair<Uri, String>>, onDone: () -> Unit) {
-        val act = ctx as? Activity
-        val (d, tv, pb) = progressDialog(ctx, "폴더 복구 중")
-        d.show()
+        val app = ctx.applicationContext
+        JobProgress.start("폴더 복구 (${targets.size}개)")           // 비모달 배너(지속)
         Thread {
             var ok = 0; var fail = 0
             for ((idx, it) in targets.withIndex()) {
                 val (u, nm) = it
-                val total = sizeOf(ctx, u)
-                act?.runOnUiThread { tv.text = "${idx + 1}/${targets.size}   $nm"; pb.progress = 0 }
-                val r = healUri(ctx, u, total) { done -> act?.runOnUiThread { pb.progress = if (total > 0) (done * 100 / total).toInt() else 0 } }
+                val total = sizeOf(app, u)
+                val r = healUri(app, u, total) { done ->
+                    JobProgress.update("폴더 복구 ${idx + 1}/${targets.size}  $nm  ${if (total > 0) (done * 100 / total).toInt() else 0}%")
+                }
                 if (r.first) ok++ else fail++
             }
-            act?.runOnUiThread {
-                d.dismiss(); toast(ctx, "복구 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone()
-            }
+            JobProgress.done("폴더 복구 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
+            mainHandler.post { runCatching { onDone() } }
         }.start()
     }
 

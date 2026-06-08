@@ -178,12 +178,14 @@ class SelectionController(
             cancelled.set(true); btnCancel.isEnabled = false; btnCancel.text = "중단 중… (현재 작품 완료 후)"
         }
         dlg.show(); nonModal(dlg)
+        JobProgress.start("$titlePrefix (${"%,d".format(items.size)}개)")   // B-68: 배너(화면전환에도 지속)
         JEmbed.embedBatch(act, items,
             onProgress = { idx, total, code, stage, pct ->
                 tv.text = "전체 ${"%,d".format(idx + 1)}/${"%,d".format(total)}"
                 pbAll.progress = idx
                 lblOne.text = "$code   $stage   $pct%"
                 pbOne.progress = if (stage == "remux") pct else if (stage == "embed") 100 else 0
+                JobProgress.update("$titlePrefix ${idx + 1}/$total  $code  $stage $pct%")
             },
             onDone = { ok, fail, fails ->
                 dlg.dismiss(); exit(); onReload()
@@ -191,6 +193,7 @@ class SelectionController(
                 val msg = "$head: 성공 $ok, 실패 $fail" +
                     if (fails.isNotEmpty()) "\n" + fails.take(3).joinToString("\n") else ""
                 Toast.makeText(act, msg, Toast.LENGTH_LONG).show()
+                JobProgress.done("$titlePrefix $head: 성공 $ok 실패 $fail")
             },
             cancel = { cancelled.get() },
             onItemDone = { uri, success -> if (success) sel?.notifyItem(uri.toString()) },   // 작품별 썸네일 즉시 반영

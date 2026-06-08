@@ -30,8 +30,8 @@ class MpvApplication : Application() {
             }
 
             override fun onActivityStarted(activity: Activity) {}
-            override fun onActivityResumed(activity: Activity) {}
-            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityResumed(activity: Activity) { JobBanner.attach(activity) }   // B-68 진행 배너(지속)
+            override fun onActivityPaused(activity: Activity) { JobBanner.detach(activity) }
             override fun onActivityStopped(activity: Activity) {}
             override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
             override fun onActivityDestroyed(activity: Activity) {}

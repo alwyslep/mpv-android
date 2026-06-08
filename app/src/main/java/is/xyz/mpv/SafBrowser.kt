@@ -10,6 +10,7 @@ import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import android.widget.PopupMenu
 import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -85,13 +86,7 @@ class SafBrowserActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
-        toolbar.menu.add(0, 8, 3, "휴지통 비우기").apply {   // B-68: 이 드라이브 .mpv-trash 영구삭제
-            setIcon(R.drawable.ic_delete_24)
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)   // 오버플로(⋮) 안 보인다는 보고 → 툴바 아이콘으로
-        }
-        toolbar.menu.add(0, 9, 4, "폴더 복구(PNG디코이)").apply {   // B-68: 손상 파일 일괄 복구
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
-        }
+        // B-68: 일괄(복구/휴지통 비우기)은 폴더 타일 길게누르기로 이동(toolbar 제거).
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -105,8 +100,6 @@ class SafBrowserActivity : AppCompatActivity() {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
                 7 -> SortDialog.show(this, "saf", false) { reload() }
-                8 -> VideoTrash.emptyTrashConfirm(this, treeUri) { reload() }
-                9 -> VideoHeal.healFolderConfirm(this, entries.filter { !it.isDir }.map { it.uri to it.name }) { reload() }
             }
             true
         }
@@ -133,9 +126,9 @@ class SafBrowserActivity : AppCompatActivity() {
 
     private fun spanCount(): Int = LibPrefs.spanCount(this)
 
-    private fun queryChildren(): List<SafEntry> {
+    private fun queryChildren(forDocId: String = docId): List<SafEntry> {
         val out = ArrayList<SafEntry>()
-        val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, docId)
+        val children = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, forDocId)
         val proj = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
@@ -189,9 +182,28 @@ class SafBrowserActivity : AppCompatActivity() {
                 )
             },
             onVideo = { e -> play(e) },
-            onRemoved = { reload() }
+            onRemoved = { reload() },
+            onFolderLong = { e, v -> folderBulk(e, v) }   // B-68: 폴더 길게누르기 → 일괄(복구/비우기)
         )
         recycler.layoutManager?.onRestoreInstanceState(scrollState)
+    }
+
+    // B-68: 폴더 타일 길게누르기 일괄 메뉴 — PNG 손상 복구 / (.mpv-trash면) 휴지통 비우기.
+    private fun folderBulk(e: SafEntry, anchor: View) {
+        val pm = PopupMenu(this, anchor)
+        pm.menu.add(0, 1, 0, "PNG 손상 복구")
+        if (e.name == ".mpv-trash") pm.menu.add(0, 2, 1, "휴지통 비우기(영구삭제)")
+        pm.setOnMenuItemClickListener { item ->
+            when (item.itemId) {
+                1 -> {
+                    val kids = queryChildren(e.docId).filter { !it.isDir }.map { it.uri to it.name }
+                    VideoHeal.healFolderConfirm(this, kids) { reload() }
+                }
+                2 -> VideoTrash.emptyTrashConfirm(this, treeUri) { reload() }
+            }
+            true
+        }
+        pm.show()
     }
 
     override fun onPause() {
@@ -228,7 +240,8 @@ class SafAdapter(
     private val permanent: Boolean,            // B-68: 휴지통 폴더 안 → 롱프레스 삭제=영구삭제
     private val onFolder: (SafEntry) -> Unit,
     private val onVideo: (SafEntry) -> Unit,
-    private val onRemoved: () -> Unit = {}     // 영구삭제 후 목록 갱신
+    private val onRemoved: () -> Unit = {},     // 영구삭제 후 목록 갱신
+    private val onFolderLong: (SafEntry, View) -> Unit = { _, _ -> }   // B-68: 폴더 길게누르기 일괄
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
     private val typeDir = 0
@@ -267,6 +280,7 @@ class SafAdapter(
         if (h is DirVH) {
             h.name.text = e.name
             h.itemView.setOnClickListener { onFolder(e) }
+            h.itemView.setOnLongClickListener { onFolderLong(e, it); true }
         } else if (h is VidVH) {
             val ctx = h.itemView.context
             h.thumbBox.visibility = if (LibPrefs.showThumb(ctx)) View.VISIBLE else View.GONE
