@@ -88,7 +88,8 @@ class SafBrowserActivity : AppCompatActivity() {
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
         toolbar.menu.add(0, 8, 3, "휴지통 비우기").apply {   // B-68: 이 드라이브 .mpv-trash 영구삭제
-            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+            setIcon(R.drawable.ic_delete_24)
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)   // 오버플로(⋮) 안 보인다는 보고 → 툴바 아이콘으로
         }
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
