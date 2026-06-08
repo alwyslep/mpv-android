@@ -40,9 +40,9 @@ class DuplicatesActivity : AppCompatActivity() {
     private fun load() {
         findViewById<android.view.View>(R.id.loading_bar)?.visibility = android.view.View.VISIBLE
         Thread {
-            val all = MediaLibrary.queryVideos(this)
-                .filter { it.path.isNotEmpty() }   // 유령(빈경로 stale MediaStore) 제외 — 오판 방지
-                .distinctBy { it.path }            // 같은 경로 중복행 제거
+            val raw = MediaLibrary.queryVideos(this)
+            val all = raw.filter { it.path.isNotEmpty() }   // 유령(빈경로 stale MediaStore) 제외 — 오판 방지
+                .distinctBy { it.path }                      // 같은 경로 중복행 제거
             val byCode = HashMap<String, MutableList<Vid>>()
             for (v in all) {
                 val code = JavCode.extract(v.name)?.let { norm(it) } ?: continue
@@ -51,6 +51,10 @@ class DuplicatesActivity : AppCompatActivity() {
             val list = byCode.toSortedMap().filterValues { it.size > 1 }
                 .flatMap { it.value.sortedBy { v -> v.name } }
             val groups = byCode.count { it.value.size > 1 }
+            JavDiag.log("dup", "raw=${raw.size} 유령제외/중복행제거후=${all.size} (빈경로=${raw.count { it.path.isEmpty() }})  중복그룹=${groups}")
+            byCode.filter { it.value.size > 1 }.forEach { (c, vs) ->
+                JavDiag.log("dup", "  $c (${vs.size}): " + vs.joinToString(" | ") { "${it.name}@${java.io.File(it.path).parent?.substringAfterLast('/') ?: "?"}·${minOf(it.width, it.height)}p" })
+            }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 dups = list
