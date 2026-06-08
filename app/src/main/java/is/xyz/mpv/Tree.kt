@@ -100,7 +100,7 @@ class TreeActivity : AppCompatActivity() {
                 "move" -> selCtl.enter(showEmbed = false, showMove = true)
                 "thumb" -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)
                 "heal" -> VideoHeal.healFolderConfirm(this, vids()) { reload() }
-                "dup" -> DupFinder.show(this, vids())
+                "dup" -> startActivity(android.content.Intent(this, DuplicatesActivity::class.java))   // 타일 검수 화면
             }
         }
     }

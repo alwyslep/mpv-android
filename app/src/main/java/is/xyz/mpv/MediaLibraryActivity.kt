@@ -262,7 +262,7 @@ class MediaLibraryActivity : AppCompatActivity() {
                 "refresh" -> load()
                 "search" -> startActivity(Intent(this, SearchActivity::class.java))
                 "classify" -> startActivity(Intent(this, BrowseActivity::class.java))
-                "dup" -> DupFinder.show(this, MediaLibrary.queryVideos(this).map { it.uri to it.name })
+                "dup" -> startActivity(Intent(this, DuplicatesActivity::class.java))   // 타일 검수 화면
                 "sort" -> {
                     val m = LibPrefs.viewMode(this)
                     val sc = when (m) { "videos" -> "home_videos"; "tree" -> "home_tree"; else -> "home_folders" }
