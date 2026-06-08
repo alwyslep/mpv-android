@@ -8,7 +8,7 @@ import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.widget.Toast
 import androidx.documentfile.provider.DocumentFile
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.appcompat.app.AlertDialog
 
 // 59: 타일 롱프레스 '삭제(휴지통으로)'.
 //  - 내부 MediaStore: 안드로이드 네이티브 휴지통(createTrashRequest, 30일 복구) — 시스템 확인창 자동.
@@ -17,10 +17,10 @@ object VideoTrash {
     private const val TRASH_DIR = ".mpv-trash"
     private const val REQ_TRASH = 0x7A5
 
-    // ⚠️ 다이얼로그는 반드시 Material 오버레이 테마를 명시해야 한다 — MPVActivity 테마가
-    //   Theme.AppCompat.Light(비 Material)라 MaterialAlertDialogBuilder(ctx) 무인자 호출 시 예외→
-    //   확인창 미표시(B-68 휴지통 무동작 근본원인). DLG = ThemeOverlay.Material3.MaterialAlertDialog.
-    private val DLG = R.style.AppTheme_Preference_AlertDialog
+    // ⚠️ 다이얼로그는 AppCompat AlertDialog.Builder 만 쓴다 — MaterialAlertDialogBuilder 는 호스트
+    //   액티비티 테마가 Material 이어야 하는데 MPVActivity=Theme.AppCompat.Light(비 Material)라 예외→
+    //   확인창 미표시(B-68 휴지통 무동작 근본). ThemeOverlay 오버라이드로도 checkMaterialTheme 통과 못 함.
+    //   AppCompat AlertDialog 는 AppCompat·Material3(후손) 양쪽서 동작 → 공유 코드 안전.
 
     fun confirmAndTrash(ctx: Context, uri: String, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
         val u = Uri.parse(uri)
@@ -39,7 +39,7 @@ object VideoTrash {
                 ThumbLoader.invalidate(ctx, u, name)
                 onRemoved()
             } else {
-                MaterialAlertDialogBuilder(ctx, DLG)
+                AlertDialog.Builder(ctx)
                     .setTitle(ctx.getString(R.string.action_trash))
                     .setMessage("$name\n복구 불가 — 삭제하시겠습니까?")
                     .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
@@ -56,7 +56,7 @@ object VideoTrash {
     private fun safTrashConfirm(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
         JavDiag.log("trash", "safTrashConfirm 진입 name=$name")
         try {
-            MaterialAlertDialogBuilder(ctx, DLG)
+            AlertDialog.Builder(ctx)
                 .setTitle(ctx.getString(R.string.action_trash))
                 .setMessage("$name\n드라이브의 $TRASH_DIR 폴더로 이동합니다(복구 가능).")
                 .setNegativeButton(ctx.getString(R.string.dialog_cancel)) { _, _ -> JavDiag.log("trash", "confirm 취소"); onCancel() }
