@@ -41,6 +41,8 @@ class DuplicatesActivity : AppCompatActivity() {
         findViewById<android.view.View>(R.id.loading_bar)?.visibility = android.view.View.VISIBLE
         Thread {
             val all = MediaLibrary.queryVideos(this)
+                .filter { it.path.isNotEmpty() }   // 유령(빈경로 stale MediaStore) 제외 — 오판 방지
+                .distinctBy { it.path }            // 같은 경로 중복행 제거
             val byCode = HashMap<String, MutableList<Vid>>()
             for (v in all) {
                 val code = JavCode.extract(v.name)?.let { norm(it) } ?: continue

@@ -30,9 +30,11 @@ object SceneCompare {
     fun show(ctx: Context, name: String) {
         val code = norm(JavCode.extract(name)) ?: run { Toast.makeText(ctx, "품번 인식 실패", Toast.LENGTH_SHORT).show(); return }
         Thread {
-            val vids = MediaLibrary.queryVideos(ctx).filter { norm(JavCode.extract(it.name)) == code }
+            val vids = MediaLibrary.queryVideos(ctx)
+                .filter { norm(JavCode.extract(it.name)) == code && it.path.isNotEmpty() }   // 유령(빈경로 stale) 제외
+                .distinctBy { it.path }                                                       // 같은 경로 중복행 제거
                 .sortedByDescending { minOf(it.width, it.height) }   // 고해상도 먼저
-            JavDiag.log("scene", "tap='$name' code=$code  matched=${vids.size}")
+            JavDiag.log("scene", "tap='$name' code=$code  matched(real)=${vids.size}")
             vids.forEach { JavDiag.log("scene", "  '${it.name}' dir=${prettyDir(it.path)} dur=${it.durationMs}ms ${it.width}x${it.height} path=${it.path}") }
             (ctx as? Activity)?.runOnUiThread {
                 if (vids.size < 2) { Toast.makeText(ctx, "비교할 같은 품번이 없음 (이 파일뿐)", Toast.LENGTH_LONG).show(); return@runOnUiThread }
