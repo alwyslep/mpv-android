@@ -255,12 +255,13 @@ class MediaLibraryActivity : AppCompatActivity() {
     // B-68(52): 공통 12아이콘 툴바. 홈 활성 = search/classify/sort/tune/settings/filter/cover (+videos 모드면 select/move/thumb).
     private fun setupToolbar() {
         val videos = LibPrefs.viewMode(this) == "videos"
-        val en = mutableSetOf("search", "classify", "sort", "tune", "settings", "filter", "cover")
+        val en = mutableSetOf("search", "classify", "sort", "tune", "settings", "filter", "cover", "dup")
         if (videos) en.addAll(listOf("select", "move", "thumb"))
         LibToolbar.build(toolbar, en, null) { key ->
             when (key) {
                 "search" -> startActivity(Intent(this, SearchActivity::class.java))
                 "classify" -> startActivity(Intent(this, BrowseActivity::class.java))
+                "dup" -> DupFinder.show(this, MediaLibrary.queryVideos(this).map { it.uri to it.name })
                 "sort" -> {
                     val m = LibPrefs.viewMode(this)
                     val sc = when (m) { "videos" -> "home_videos"; "tree" -> "home_tree"; else -> "home_folders" }

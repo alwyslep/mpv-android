@@ -20,8 +20,9 @@ object VideoActions {
         pm.menu.add(0, 1, 0, ctx.getString(R.string.action_details))
         pm.menu.add(0, 2, 1, if (faved) ctx.getString(R.string.action_unfav) else ctx.getString(R.string.action_fav))
         pm.menu.add(0, 3, 2, ctx.getString(R.string.action_rate))
-        if (corrupt) pm.menu.add(0, 5, 3, "복구(PNG디코이)")   // 손상 파일만 노출 → 디코이 제거·원본 교체
-        pm.menu.add(0, 4, 4, if (inTrash) "영구 삭제" else ctx.getString(R.string.action_trash))   // 휴지통으로 / 휴지통 안=영구삭제
+        pm.menu.add(0, 6, 3, "이름 바꾸기")   // B-68(52): 파일관리 — 이름 변경
+        if (corrupt) pm.menu.add(0, 5, 4, "복구(PNG디코이)")   // 손상 파일만 노출 → 디코이 제거·원본 교체
+        pm.menu.add(0, 4, 5, if (inTrash) "영구 삭제" else ctx.getString(R.string.action_trash))   // 휴지통으로 / 휴지통 안=영구삭제
         pm.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 1 -> VideoDetailActivity.open(ctx, uri, name)
@@ -30,6 +31,7 @@ object VideoActions {
                 4 -> if (inTrash) VideoTrash.permanentDeleteConfirm(ctx, uri, name, onRemoved)
                      else VideoTrash.confirmAndTrash(ctx, uri, name, onRemoved)
                 5 -> VideoHeal.healOneConfirm(ctx, uri, name, onRemoved)
+                6 -> VideoRename.confirm(ctx, uri, name, onRemoved)
             }
             true
         }
