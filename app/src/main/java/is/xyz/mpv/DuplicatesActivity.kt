@@ -16,6 +16,7 @@ class DuplicatesActivity : AppCompatActivity() {
     private lateinit var recycler: RecyclerView
     private lateinit var toolbar: MaterialToolbar
     private var dups: List<Vid> = emptyList()
+    private var keepUris: Set<String> = emptySet()
     private var pendingUri: String? = null
 
     private val playLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { res ->
@@ -50,8 +51,10 @@ class DuplicatesActivity : AppCompatActivity() {
                 byCode.getOrPut(code) { ArrayList() }.add(v)
             }
             // 그룹 내 정렬: 해상도↓ → 크기↓ (제일 좋은 버전 먼저)
-            val list = byCode.toSortedMap().filterValues { it.size > 1 }
-                .flatMap { it.value.sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size }) }
+            val dupGroups = byCode.toSortedMap().filterValues { it.size > 1 }
+            val list = dupGroups.flatMap { it.value.sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size }) }
+            // KEEP 추천 = 그룹별 최대 용량(가장 신뢰 가능한 신호 — 해상도는 93%가 MediaStore 0)
+            val keeps = dupGroups.values.mapNotNull { grp -> grp.maxByOrNull { it.size }?.uri?.toString() }.toSet()
             val groups = byCode.count { it.value.size > 1 }
             JavDiag.log("dup", "raw=${raw.size} dedup(같은파일합침)=${all.size}  [빈경로=${raw.count { it.path.isEmpty() }} 해상도0=${raw.count { it.width == 0 }} 크기0=${raw.count { it.size == 0L }}]  중복그룹=$groups")
             byCode.filterValues { it.size > 1 }.entries.take(25).forEach { (c, vs) ->
@@ -60,6 +63,7 @@ class DuplicatesActivity : AppCompatActivity() {
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 dups = list
+                keepUris = keeps
                 toolbar.title = "품번 중복  ${groups}건 · ${list.size}개"
                 rebuild()
                 findViewById<android.view.View>(R.id.loading_bar)?.visibility = android.view.View.GONE
@@ -71,7 +75,7 @@ class DuplicatesActivity : AppCompatActivity() {
     private fun rebuild() {
         val grid = LibPrefs.grid(this)
         recycler.layoutManager = if (grid) GridLayoutManager(this, LibPrefs.spanCount(this)) else LinearLayoutManager(this)
-        recycler.adapter = VideoAdapter(dups.toMutableList(), grid) { v -> play(v) }
+        recycler.adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris) { v -> play(v) }
     }
 
     private fun play(v: Vid) {
