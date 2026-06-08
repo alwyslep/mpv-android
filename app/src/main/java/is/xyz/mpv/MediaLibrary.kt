@@ -641,6 +641,7 @@ object Progress {
 // MPVActivity 실행/복귀 — 이어보기 위치 전달 + 종료 결과(position/duration) 기록 + 최근재생.
 object Playback {
     fun intentFor(ctx: Context, uri: String, title: String, resume: Boolean = true): Intent {
+        JavDiag.log("launch", "intentFor from=${ctx.javaClass.simpleName} uri=$uri")   // 재생 진입 런처 식별
         Recents.add(ctx, uri, title)
         val i = if (uri.startsWith("content://")) {
             Intent(Intent.ACTION_VIEW, Uri.parse(uri))
