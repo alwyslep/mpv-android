@@ -31,7 +31,7 @@ object LibToolbar {
                 (if (gridIsGrid) R.drawable.ic_list_24 else R.drawable.ic_grid_24) else s.icon
             val mi = toolbar.menu.add(0, 100 + i, i, s.label)
             mi.setIcon(icon)
-            mi.setShowAsAction(MenuItem.SHOW_AS_ACTION_IFROOM)
+            mi.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM)
             val en = s.key in enabled
             mi.isEnabled = en
             if (!en) runCatching { mi.icon?.mutate()?.alpha = 90 }   // 회색/흐림(못 쓰는 화면)
