@@ -17,8 +17,14 @@ object VideoTrash {
     private const val TRASH_DIR = ".mpv-trash"
     private const val REQ_TRASH = 0x7A5
 
+    // ⚠️ 다이얼로그는 반드시 Material 오버레이 테마를 명시해야 한다 — MPVActivity 테마가
+    //   Theme.AppCompat.Light(비 Material)라 MaterialAlertDialogBuilder(ctx) 무인자 호출 시 예외→
+    //   확인창 미표시(B-68 휴지통 무동작 근본원인). DLG = ThemeOverlay.Material3.MaterialAlertDialog.
+    private val DLG = R.style.AppTheme_Preference_AlertDialog
+
     fun confirmAndTrash(ctx: Context, uri: String, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
         val u = Uri.parse(uri)
+        JavDiag.log("trash", "confirmAndTrash auth=${u.authority}")
         if (u.authority == MediaStore.AUTHORITY) mediaStoreTrash(ctx, u, name, onRemoved)
         else safTrashConfirm(ctx, u, name, onRemoved, onCancel)
     }
@@ -33,7 +39,7 @@ object VideoTrash {
                 ThumbLoader.invalidate(ctx, u, name)
                 onRemoved()
             } else {
-                MaterialAlertDialogBuilder(ctx)
+                MaterialAlertDialogBuilder(ctx, DLG)
                     .setTitle(ctx.getString(R.string.action_trash))
                     .setMessage("$name\n복구 불가 — 삭제하시겠습니까?")
                     .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
@@ -48,13 +54,17 @@ object VideoTrash {
     }
 
     private fun safTrashConfirm(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
-        MaterialAlertDialogBuilder(ctx)
-            .setTitle(ctx.getString(R.string.action_trash))
-            .setMessage("$name\n드라이브의 $TRASH_DIR 폴더로 이동합니다(복구 가능).")
-            .setNegativeButton(ctx.getString(R.string.dialog_cancel)) { _, _ -> onCancel() }
-            .setOnCancelListener { onCancel() }   // 바깥 탭/뒤로 취소도 재개 콜백
-            .setPositiveButton(ctx.getString(R.string.action_trash)) { _, _ -> safTrash(ctx, u, name, onRemoved) }
-            .show()
+        JavDiag.log("trash", "safTrashConfirm 진입 name=$name")
+        try {
+            MaterialAlertDialogBuilder(ctx, DLG)
+                .setTitle(ctx.getString(R.string.action_trash))
+                .setMessage("$name\n드라이브의 $TRASH_DIR 폴더로 이동합니다(복구 가능).")
+                .setNegativeButton(ctx.getString(R.string.dialog_cancel)) { _, _ -> JavDiag.log("trash", "confirm 취소"); onCancel() }
+                .setOnCancelListener { JavDiag.log("trash", "confirm dismiss"); onCancel() }   // 바깥 탭/뒤로 취소도 재개 콜백
+                .setPositiveButton(ctx.getString(R.string.action_trash)) { _, _ -> JavDiag.log("trash", "confirm OK→safTrash"); safTrash(ctx, u, name, onRemoved) }
+                .show()
+            JavDiag.log("trash", "safTrashConfirm 표시 성공")
+        } catch (e: Throwable) { JavDiag.ex("safTrashConfirm", e); onCancel() }
     }
 
     private fun safTrash(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
