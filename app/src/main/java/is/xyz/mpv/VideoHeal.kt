@@ -4,6 +4,10 @@ import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import android.provider.DocumentsContract
+import android.provider.OpenableColumns
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import java.io.ByteArrayOutputStream
@@ -63,24 +67,46 @@ object VideoHeal {
         return out.toByteArray()
     }
 
-    private fun streamStrip(ins: InputStream, outs: OutputStream) {
+    private fun streamStrip(ins: InputStream, outs: OutputStream, total: Long, onProgress: (Long) -> Unit) {
         val buf = ByteArray(8 * 1024 * 1024)
         var carry = ByteArray(0)
+        var read = 0L; var lastP = 0L
         while (true) {
             val n = ins.read(buf)
             if (n < 0) break
+            read += n
+            if (read - lastP >= 16L * 1024 * 1024) { lastP = read; onProgress(read) }
             val comb = carry + buf.copyOf(n)
             val s = stripChunk(comb, comb.size)
             val w = s.size - KEEP
             if (w > 0) { outs.write(s, 0, w); carry = s.copyOfRange(w, s.size) } else carry = s
         }
         outs.write(carry)
+        onProgress(if (total > 0) total else read)
+    }
+
+    fun sizeOf(ctx: Context, uri: Uri): Long = try {
+        if (uri.scheme == "file") File(uri.path!!).length()
+        else ctx.contentResolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use {
+            if (it.moveToFirst() && !it.isNull(0)) it.getLong(0) else 0L
+        } ?: 0L
+    } catch (_: Throwable) { 0L }
+
+    // 진행 다이얼로그(가로 진행바 + 라벨). AppCompat(테마 무관).
+    private fun progressDialog(ctx: Context, title: String): Triple<AlertDialog, TextView, ProgressBar> {
+        val tv = TextView(ctx)
+        val pb = ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal).apply { max = 100 }
+        val ll = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL; setPadding(48, 36, 48, 12); addView(tv); addView(pb)
+        }
+        val d = AlertDialog.Builder(ctx).setTitle(title).setView(ll).setCancelable(false).create()
+        return Triple(d, tv, pb)
     }
 
     private fun firstByteTs(ins: InputStream?): Boolean = ins?.use { it.read() == 0x47 } ?: false
 
     // 단건 복구 — 성공 시 원본을 교정본으로 대체(원본명 유지). 반환 (성공, 메시지).
-    fun healUri(ctx: Context, uri: Uri): Pair<Boolean, String> {
+    fun healUri(ctx: Context, uri: Uri, total: Long = 0L, onProgress: (Long) -> Unit = {}): Pair<Boolean, String> {
         val resolver = ctx.contentResolver
         val auth = uri.authority ?: ""
         try {
@@ -95,7 +121,7 @@ object VideoHeal {
                 val newDoc = DocumentsContract.createDocument(resolver, parentDoc, "video/mp4", tmpName)
                     ?: return false to "새 문서 생성 실패"
                 try {
-                    resolver.openInputStream(uri)!!.use { i -> resolver.openOutputStream(newDoc, "w")!!.use { o -> streamStrip(i, o) } }
+                    resolver.openInputStream(uri)!!.use { i -> resolver.openOutputStream(newDoc, "w")!!.use { o -> streamStrip(i, o, total, onProgress) } }
                 } catch (e: Throwable) { runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; JavDiag.ex("heal.saf", e); return false to "복구 쓰기 실패" }
                 if (!firstByteTs(resolver.openInputStream(newDoc))) {
                     runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; return false to "검증 실패(TS 아님)"
@@ -108,7 +134,7 @@ object VideoHeal {
             val path = if (uri.scheme == "file") uri.path else realPath(ctx, uri)
                 ?: return false to "경로 못 구함(SAF/파일만 지원)"
             val src = File(path); val tmp = File(path + ".heal.tmp")
-            FileInputStream(src).use { i -> FileOutputStream(tmp).use { o -> streamStrip(i, o) } }
+            FileInputStream(src).use { i -> FileOutputStream(tmp).use { o -> streamStrip(i, o, total, onProgress) } }
             if (!firstByteTs(FileInputStream(tmp))) { tmp.delete(); return false to "검증 실패(TS 아님)" }
             if (!src.delete()) { tmp.delete(); return false to "원본 삭제 실패" }
             if (!tmp.renameTo(src)) return false to "이름 교체 실패"
@@ -130,9 +156,13 @@ object VideoHeal {
             .setMessage("$name\nPNG 디코이를 제거하고 원본을 교정본으로 대체합니다(무손실).")
             .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
             .setPositiveButton("복구") { _, _ ->
+                val act = ctx as? Activity
+                val u = Uri.parse(uri); val total = sizeOf(ctx, u)
+                val (d, tv, pb) = progressDialog(ctx, "복구 중")
+                tv.text = name; d.show()
                 Thread {
-                    val r = healUri(ctx, Uri.parse(uri))
-                    (ctx as? Activity)?.runOnUiThread { toast(ctx, r.second); if (r.first) onRemoved() }
+                    val r = healUri(ctx, u, total) { done -> act?.runOnUiThread { pb.progress = if (total > 0) (done * 100 / total).toInt() else 0 } }
+                    act?.runOnUiThread { d.dismiss(); toast(ctx, r.second); if (r.first) onRemoved() }
                 }.start()
             }.show()
     }
@@ -154,11 +184,20 @@ object VideoHeal {
     }
 
     private fun runBatch(ctx: Context, targets: List<Pair<Uri, String>>, onDone: () -> Unit) {
+        val act = ctx as? Activity
+        val (d, tv, pb) = progressDialog(ctx, "폴더 복구 중")
+        d.show()
         Thread {
             var ok = 0; var fail = 0
-            for ((u, _) in targets) { if (healUri(ctx, u).first) ok++ else fail++ }
-            (ctx as? Activity)?.runOnUiThread {
-                toast(ctx, "복구 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone()
+            for ((idx, it) in targets.withIndex()) {
+                val (u, nm) = it
+                val total = sizeOf(ctx, u)
+                act?.runOnUiThread { tv.text = "${idx + 1}/${targets.size}   $nm"; pb.progress = 0 }
+                val r = healUri(ctx, u, total) { done -> act?.runOnUiThread { pb.progress = if (total > 0) (done * 100 / total).toInt() else 0 } }
+                if (r.first) ok++ else fail++
+            }
+            act?.runOnUiThread {
+                d.dismiss(); toast(ctx, "복구 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone()
             }
         }.start()
     }
