@@ -14,7 +14,6 @@ object VideoActions {
         val ctx = anchor.context
         // 휴지통 안 판정 — 진입경로 무관: 호출측 permanent(폴더 컨텍스트) 또는 uri 자체에 .mpv-trash 포함.
         val inTrash = permanent || uri.contains(".mpv-trash")
-        JavDiag.log("longPress", "uri=$uri permArg=$permanent inTrash=$inTrash")
         val pm = PopupMenu(ctx, anchor)
         val faved = Favorites.has(ctx, uri, name)
         pm.menu.add(0, 1, 0, ctx.getString(R.string.action_details))

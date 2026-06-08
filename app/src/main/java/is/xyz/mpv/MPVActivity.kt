@@ -1627,8 +1627,6 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     //   옛 버그: 확인 전 finish 가 시스템 확인창을 취소시켜 파일이 안 옮겨짐). 외부 SAF 는 moveDocument.
     private fun actionTrashCurrent(uri: String, name: String, restore: StateRestoreCallback) {
         val u = Uri.parse(uri)
-        val branch = if (u.authority == MediaStore.AUTHORITY) "MediaStore" else "SAF"
-        JavDiag.log("trash", "actionTrashCurrent uri=$uri scheme=${u.scheme} auth=${u.authority} branch=$branch sdk=${Build.VERSION.SDK_INT}")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && u.authority == MediaStore.AUTHORITY) {
             try {
                 val pi = MediaStore.createTrashRequest(contentResolver, listOf(u), true)
@@ -1675,13 +1673,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     // 현재 재생 파일이 사라짐(휴지통/이동) → mpv 플레이리스트에 다음이 있으면 그걸로,
     //   없으면(라이브러리 단일파일 실행) removed 신호와 함께 종료 → 런처가 폴더 다음 영상으로 advance.
     private fun afterCurrentFileGone() {
-        JavDiag.log("advance", "afterCurrentFileGone playlistCount=${psc.playlistCount} pos=${psc.playlistPos}")
         if (psc.playlistCount > 1 && psc.playlistPos < psc.playlistCount - 1)
             playlistNext()
-        else {
-            JavDiag.log("advance", "finishWithResult(removed=true) — 런처가 다음 영상 advance 해야 함")
+        else
             finishWithResult(RESULT_OK, removed = true)
-        }
     }
 
     private fun openAdvancedMenu(restoreState: StateRestoreCallback) {

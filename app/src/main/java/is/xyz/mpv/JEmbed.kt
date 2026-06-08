@@ -88,9 +88,7 @@ object JEmbed {
                 val label = code.ifBlank { uri.lastPathSegment ?: "?" }
                 ui { onProgress(i, items.size, label, "준비", 0) }
                 // 품번 없으면 remux-only(rec=null), 있으면 hub 메타 fetch.
-                val t0 = System.nanoTime()
                 val rec = if (code.isBlank()) null else Library.fetchSync(app, code)
-                val tFetch = System.nanoTime()
                 // force(v74): 메타 못 받아도 통째 포기하지 않음(과거: rec==null → continue, remux 도 skip).
                 //   processOne 에 rec=null 을 넘기면 TS 는 remux 만이라도 진행(재생가능 mp4 확보, 메타는
                 //   나중 재임베드 가능). null=일시 실패(예외)·EMPTY_REC=진짜 없음을 메시지로 구분 표시.
@@ -101,26 +99,18 @@ object JEmbed {
                     rec === Library.EMPTY_REC -> " (hub 메타 없음)"
                     else -> ""
                 }
-                val tsFlag = runCatching { isTsUri(app, uri) }.getOrDefault(false)
                 val msg = (try {
                     processOne(app, uri, code, recForEmbed, skipIfHasCover) { stage, pct -> ui { onProgress(i, items.size, label, stage, pct) } }
                 } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }) + metaNote
-                val tProc = System.nanoTime()
-                if (msg.startsWith("⊘")) {
-                    JavDiag.log("embedT", "$label SKIP(coverO) fetch=${(tFetch-t0)/1_000_000}ms proc=${(tProc-tFetch)/1_000_000}ms")
-                    ok++; continue
-                }   // 커버 이미 있음 — skip(재썸네일 불필요)
+                if (msg.startsWith("⊘")) { ok++; continue }   // 커버 이미 있음 — skip(재썸네일 불필요)
                 if (msg.contains("✓")) {
                     ok++
                     val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
                     val nm = p?.let { File(it).name } ?: uri.lastPathSegment
                     ThumbLoader.invalidate(app, uri, nm)   // 27: 파일명(diskKey) 전달 — 디스크 옛 썸네일까지 삭제
                     if (p != null) runCatching { MediaScannerConnection.scanFile(app, arrayOf(p), null, null) }
-                    val tScan = System.nanoTime()
-                    JavDiag.log("embedT", "$label OK isTS=$tsFlag fetch=${(tFetch-t0)/1_000_000}ms proc=${(tProc-tFetch)/1_000_000}ms scan=${(tScan-tProc)/1_000_000}ms total=${(tScan-t0)/1_000_000}ms")
                     ui { onItemDone(uri, true) }   // 이 작품 완료 → 해당 타일 썸네일 즉시 반영
                 } else {
-                    JavDiag.log("embedT", "$label FAIL isTS=$tsFlag fetch=${(tFetch-t0)/1_000_000}ms proc=${(tProc-tFetch)/1_000_000}ms msg=${msg.take(50)}")
                     fails.add("$label: $msg"); ui { onItemDone(uri, false) }
                 }
             }
@@ -202,17 +192,18 @@ object JEmbed {
             ?: return "SAF 새 문서 생성 실패(부모 권한?)"
         var rmsg = "remux fd 실패"
         try {
-            val tr = System.nanoTime()
             resolver.openFileDescriptor(uri, "r")!!.use { inP ->
                 resolver.openFileDescriptor(newDoc, "rw")!!.use { outP ->
                     rmsg = remuxFromFd(inP.fileDescriptor, outP.fileDescriptor) { pct -> onProgress?.invoke("remux", pct) }
                 }
             }
-            JavDiag.log("embedT", "  remuxSaf=${(System.nanoTime()-tr)/1_000_000}ms (USB 2×파일 I/O) rmsg=${rmsg.take(30)}")
         } catch (e: Throwable) { rmsg = "remux 예외: ${e.message}" }
         if (!rmsg.startsWith("✓")) { runCatching { DocumentsContract.deleteDocument(resolver, newDoc) }; return "remux 실패: $rmsg" }
         runCatching { DocumentsContract.deleteDocument(resolver, uri) }
-        val finalDoc = runCatching { DocumentsContract.renameDocument(resolver, newDoc, origName) }.getOrNull() ?: newDoc
+        // remux 결과는 mp4 → 원본명 확장자(.ts 등) 그대로 rename 하면 거부/오확장. base+.mp4 로.
+        val finalName = origName.substringBeforeLast('.') + ".mp4"
+        val finalDoc = runCatching { DocumentsContract.renameDocument(resolver, newDoc, finalName) }
+            .onFailure { JavDiag.ex("remuxSaf.rename", it) }.getOrNull() ?: newDoc
         if (rec == null || code.isBlank()) return "✓ TS→mp4 remux(SAF) — 임베드 생략(" + (if (code.isBlank()) "품번없음" else "메타없음") + ")"
         onProgress?.invoke("embed", 0)
         resolver.openFileDescriptor(finalDoc, "rw")?.use {
@@ -323,9 +314,7 @@ object JEmbed {
         val coverUrl = rec.optString("coverUrl")
         if (coverUrl.isNotBlank()) {
             try {
-                val tc = System.nanoTime()
                 val bytes = URL(coverUrl).openStream().use { it.readBytes() }
-                JavDiag.log("embedT", "  coverDl=${(System.nanoTime()-tc)/1_000_000}ms size=${bytes.size/1024}KB")  // 병렬화 핵심 지표(원격 네트워크)
                 if (bytes.size > 100) { items.write(coverItem(bytes, png = bytes[0] == 0x89.toByte())); coverMsg = " +커버(${bytes.size / 1024}KB)" }
             } catch (e: Throwable) { coverMsg = " (커버실패:${e.message})" }
         }

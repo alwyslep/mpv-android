@@ -24,7 +24,6 @@ object VideoTrash {
 
     fun confirmAndTrash(ctx: Context, uri: String, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
         val u = Uri.parse(uri)
-        JavDiag.log("trash", "confirmAndTrash auth=${u.authority}")
         if (u.authority == MediaStore.AUTHORITY) mediaStoreTrash(ctx, u, name, onRemoved)
         else safTrashConfirm(ctx, u, name, onRemoved, onCancel)
     }
@@ -41,13 +40,11 @@ object VideoTrash {
     }
 
     private fun permanentDelete(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
-        JavDiag.log("permDelete", "BEGIN $name uri=$u")
         Thread {
             val ok = try {
                 if (u.authority == MediaStore.AUTHORITY) ctx.contentResolver.delete(u, null, null) > 0
                 else DocumentsContract.deleteDocument(ctx.contentResolver, u)
             } catch (e: Throwable) { JavDiag.ex("permDelete", e); false }
-            JavDiag.log("permDelete", "END ok=$ok")
             (ctx as? Activity)?.runOnUiThread {
                 if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "영구 삭제: $name") }
                 else toast(ctx, "삭제 실패: $name")
@@ -76,7 +73,6 @@ object VideoTrash {
     }
 
     private fun doEmptyTrash(ctx: Context, files: List<DocumentFile>, onDone: () -> Unit) {
-        JavDiag.log("emptyTrash", "BEGIN ${files.size}개")
         Thread {
             var ok = 0; var fail = 0
             for (f in files) {
@@ -84,7 +80,6 @@ object VideoTrash {
                         catch (e: Throwable) { JavDiag.ex("emptyTrash.del", e); false }
                 if (r) ok++ else fail++
             }
-            JavDiag.log("emptyTrash", "END ok=$ok fail=$fail")
             (ctx as? Activity)?.runOnUiThread {
                 toast(ctx, "영구삭제 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
                 onDone()
@@ -117,71 +112,33 @@ object VideoTrash {
     }
 
     private fun safTrashConfirm(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit, onCancel: () -> Unit = {}) {
-        JavDiag.log("trash", "safTrashConfirm 진입 name=$name")
         try {
             AlertDialog.Builder(ctx)
                 .setTitle(ctx.getString(R.string.action_trash))
                 .setMessage("$name\n드라이브의 $TRASH_DIR 폴더로 이동합니다(복구 가능).")
-                .setNegativeButton(ctx.getString(R.string.dialog_cancel)) { _, _ -> JavDiag.log("trash", "confirm 취소"); onCancel() }
-                .setOnCancelListener { JavDiag.log("trash", "confirm dismiss"); onCancel() }   // 바깥 탭/뒤로 취소도 재개 콜백
-                .setPositiveButton(ctx.getString(R.string.action_trash)) { _, _ -> JavDiag.log("trash", "confirm OK→safTrash"); safTrash(ctx, u, name, onRemoved) }
+                .setNegativeButton(ctx.getString(R.string.dialog_cancel)) { _, _ -> onCancel() }
+                .setOnCancelListener { onCancel() }   // 바깥 탭/뒤로 취소도 재개 콜백
+                .setPositiveButton(ctx.getString(R.string.action_trash)) { _, _ -> safTrash(ctx, u, name, onRemoved) }
                 .show()
-            JavDiag.log("trash", "safTrashConfirm 표시 성공")
         } catch (e: Throwable) { JavDiag.ex("safTrashConfirm", e); onCancel() }
     }
 
     private fun safTrash(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
         Thread {
-            var diag = "?"
-            JavDiag.log("safTrash", "BEGIN name=$name")
-            JavDiag.log("safTrash", "uri=$u")
-            JavDiag.log("safTrash", "scheme=${u.scheme} authority=${u.authority}")
-            // 보유 persisted 권한 목록(트리/쓰기 여부 확인)
-            try {
-                ctx.contentResolver.persistedUriPermissions.forEach {
-                    JavDiag.log("perm", "uri=${it.uri} r=${it.isReadPermission} w=${it.isWritePermission}")
-                }
-            } catch (e: Throwable) { JavDiag.ex("perm", e) }
             val ok = try {
-                val authority = u.authority
-                if (authority == null) { diag = "authority=null"; JavDiag.log("safTrash", diag); false }
-                else {
-                    val treeId = try { val t = DocumentsContract.getTreeDocumentId(u); JavDiag.log("safTrash", "treeId=$t"); t }
-                                 catch (e: Throwable) { diag = "getTreeDocumentId 실패"; JavDiag.ex("safTrash.treeId", e); null }
-                    if (treeId == null) false
-                    else {
-                        val treeUri = DocumentsContract.buildTreeDocumentUri(authority, treeId)
-                        JavDiag.log("safTrash", "treeUri=$treeUri")
-                        val root = DocumentFile.fromTreeUri(ctx, treeUri)
-                        JavDiag.log("safTrash", "root=${root?.uri} name=${root?.name} canWrite=${root?.canWrite()} exists=${root?.exists()}")
-                        if (root == null) { diag = "root null"; false }
-                        else {
-                            val existing = root.findFile(TRASH_DIR)
-                            JavDiag.log("safTrash", "findFile($TRASH_DIR)=${existing?.uri} isDir=${existing?.isDirectory}")
-                            val trash = existing?.takeIf { it.isDirectory } ?: root.createDirectory(TRASH_DIR)
-                            JavDiag.log("safTrash", "trashDir=${trash?.uri} canWrite=${trash?.canWrite()}")
-                            val parent = parentDocUri(u)
-                            JavDiag.log("safTrash", "docId=${DocumentsContract.getDocumentId(u)} parent=$parent")
-                            when {
-                                trash == null -> { diag = "trash dir 생성실패(canWrite=${root.canWrite()})"; false }
-                                parent == null -> { diag = "parent null"; false }
-                                else -> {
-                                    val moved = try {
-                                        val r = DocumentsContract.moveDocument(ctx.contentResolver, u, parent, trash.uri)
-                                        JavDiag.log("safTrash", "moveDocument result=$r"); r
-                                    } catch (e: Throwable) { diag = "moveDocument 예외 ${e.javaClass.simpleName}"; JavDiag.ex("safTrash.move", e); null }
-                                    if (moved == null && diag == "?") diag = "moveDocument null(미지원/권한)"
-                                    moved != null
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Throwable) { diag = "예외 ${e.javaClass.simpleName}"; JavDiag.ex("safTrash", e); false }
-            JavDiag.log("safTrash", "END ok=$ok diag=$diag")
+                val authority = u.authority!!
+                val treeId = DocumentsContract.getTreeDocumentId(u)
+                val treeUri = DocumentsContract.buildTreeDocumentUri(authority, treeId)
+                val root = DocumentFile.fromTreeUri(ctx, treeUri)
+                val trash = root?.findFile(TRASH_DIR)?.takeIf { it.isDirectory } ?: root?.createDirectory(TRASH_DIR)
+                val parent = parentDocUri(u)
+                if (trash != null && parent != null)
+                    DocumentsContract.moveDocument(ctx.contentResolver, u, parent, trash.uri) != null
+                else false
+            } catch (e: Throwable) { JavDiag.ex("safTrash", e); false }   // 무음 catch 금지
             (ctx as? Activity)?.runOnUiThread {
                 if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "휴지통으로 이동: $name") }
-                else Toast.makeText(ctx, "삭제 실패: $diag (로그 기록됨)", Toast.LENGTH_LONG).show()
+                else toast(ctx, "삭제 실패: $name")
             }
         }.start()
     }
