@@ -41,7 +41,7 @@ object JobBanner {
 
     private fun build(ctx: Activity): LinearLayout {
         val d = ctx.resources.displayMetrics.density
-        val text = TextView(ctx).apply {
+        val label = TextView(ctx).apply {
             tag = "t"; setTextColor(Color.WHITE); textSize = 13f; maxLines = 1
             ellipsize = android.text.TextUtils.TruncateAt.END
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
@@ -63,7 +63,7 @@ object JobBanner {
             tag = TAG; orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(BG); setPadding((36 * d).toInt(), (14 * d).toInt(), (36 * d).toInt(), (14 * d).toInt())
             visibility = View.GONE
-            addView(text); addView(pb); addView(cancel)
+            addView(label); addView(pb); addView(cancel)
         }
     }
 
