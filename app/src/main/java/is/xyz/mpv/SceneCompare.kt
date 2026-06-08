@@ -24,7 +24,7 @@ object SceneCompare {
     fun show(ctx: Context, name: String) {
         val code = norm(JavCode.extract(name)) ?: run { Toast.makeText(ctx, "품번 인식 실패", Toast.LENGTH_SHORT).show(); return }
         Thread {
-            val vids = MediaLibrary.queryVideos(ctx).filter { norm(JavCode.extract(it.name)) == code && it.durationMs > 0 }
+            val vids = MediaLibrary.queryVideos(ctx).filter { norm(JavCode.extract(it.name)) == code }   // DuplicatesActivity 와 동일 기준(길이 0 도 포함)
                 .sortedByDescending { minOf(it.width, it.height) }   // 고해상도 먼저
             (ctx as? Activity)?.runOnUiThread {
                 if (vids.size < 2) { Toast.makeText(ctx, "비교할 같은 품번이 없음 (이 파일뿐)", Toast.LENGTH_LONG).show(); return@runOnUiThread }
@@ -75,7 +75,7 @@ object SceneCompare {
         Thread {
             for (i in vids.indices) {
                 val v = vids[i]
-                val tUs = v.durationMs * pct / 100 * 1000L
+                val tUs = if (v.durationMs > 0) v.durationMs * pct / 100 * 1000L else 1_000_000L   // 길이 0=1초 폴백
                 val bmp = try {
                     val mmr = MediaMetadataRetriever()
                     try {
