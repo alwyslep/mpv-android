@@ -204,7 +204,8 @@ class VideoAdapter(
         h.itemView.setOnLongClickListener {
             VideoActions.longPress(it, us, v.name,
                 onChanged = { notifyItemChanged(h.bindingAdapterPosition) },
-                onRemoved = { removeItem(us) })   // 59: 삭제 후 타일 즉시 제거
+                onRemoved = { removeItem(us) },   // 59: 삭제 후 타일 즉시 제거
+                permanent = v.folderPath.contains(".mpv-trash"))   // B-68: 휴지통 폴더(MediaStore 경로)면 영구삭제
             true
         }
     }
