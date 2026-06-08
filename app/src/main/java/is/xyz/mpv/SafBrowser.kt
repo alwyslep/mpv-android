@@ -87,6 +87,9 @@ class SafBrowserActivity : AppCompatActivity() {
             setIcon(R.drawable.ic_tune_24)
             setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)
         }
+        toolbar.menu.add(0, 8, 3, "휴지통 비우기").apply {   // B-68: 이 드라이브 .mpv-trash 영구삭제
+            setShowAsAction(MenuItem.SHOW_AS_ACTION_NEVER)
+        }
         updateToggleIcon()
         toolbar.setOnMenuItemClickListener { item ->
             when (item.itemId) {
@@ -100,6 +103,7 @@ class SafBrowserActivity : AppCompatActivity() {
                     grid = LibPrefs.grid(this); updateToggleIcon(); reload()
                 }
                 7 -> SortDialog.show(this, "saf", false) { reload() }
+                8 -> VideoTrash.emptyTrashConfirm(this, treeUri) { reload() }
             }
             true
         }

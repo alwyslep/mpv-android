@@ -29,6 +29,43 @@ object VideoTrash {
         else safTrashConfirm(ctx, u, name, onRemoved, onCancel)
     }
 
+    // 휴지통 비우기 — 트리 루트의 .mpv-trash 내 전체 파일 영구삭제(deleteDocument, 복구 불가). 확인창 후.
+    //   삭제는 계속 휴지통 경유(안전), 주기적으로 이걸로 비운다. SafBrowser 메뉴서 현재 드라이브 대상.
+    fun emptyTrashConfirm(ctx: Context, treeUri: Uri, onDone: () -> Unit = {}) {
+        Thread {
+            val files = try {
+                val root = DocumentFile.fromTreeUri(ctx, treeUri)
+                root?.findFile(TRASH_DIR)?.takeIf { it.isDirectory }?.listFiles()?.toList() ?: emptyList()
+            } catch (e: Throwable) { JavDiag.ex("emptyTrash", e); emptyList() }
+            (ctx as? Activity)?.runOnUiThread {
+                if (files.isEmpty()) { toast(ctx, "$TRASH_DIR 비어 있음"); onDone(); return@runOnUiThread }
+                AlertDialog.Builder(ctx)
+                    .setTitle("휴지통 비우기")
+                    .setMessage("$TRASH_DIR 의 ${files.size}개 파일을 영구 삭제합니다.\n복구할 수 없습니다.")
+                    .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
+                    .setPositiveButton("영구 삭제") { _, _ -> doEmptyTrash(ctx, files, onDone) }
+                    .show()
+            }
+        }.start()
+    }
+
+    private fun doEmptyTrash(ctx: Context, files: List<DocumentFile>, onDone: () -> Unit) {
+        JavDiag.log("emptyTrash", "BEGIN ${files.size}개")
+        Thread {
+            var ok = 0; var fail = 0
+            for (f in files) {
+                val r = try { DocumentsContract.deleteDocument(ctx.contentResolver, f.uri) }
+                        catch (e: Throwable) { JavDiag.ex("emptyTrash.del", e); false }
+                if (r) ok++ else fail++
+            }
+            JavDiag.log("emptyTrash", "END ok=$ok fail=$fail")
+            (ctx as? Activity)?.runOnUiThread {
+                toast(ctx, "영구삭제 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
+                onDone()
+            }
+        }.start()
+    }
+
     // 내부 MediaStore — 시스템 휴지통 요청(확인창은 OS가 표시). 낙관적 제거 후 취소 시 다음 로드에 복귀.
     private fun mediaStoreTrash(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
         val act = ctx as? Activity ?: return
