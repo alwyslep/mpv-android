@@ -54,7 +54,7 @@ class DuplicatesActivity : AppCompatActivity() {
             val groups = byCode.count { it.value.size > 1 }
             JavDiag.log("dup", "raw=${raw.size} dedup(같은파일합침)=${all.size}  [빈경로=${raw.count { it.path.isEmpty() }} 해상도0=${raw.count { it.width == 0 }} 크기0=${raw.count { it.size == 0L }}]  중복그룹=$groups")
             byCode.filterValues { it.size > 1 }.entries.take(25).forEach { (c, vs) ->
-                JavDiag.log("dup", "  $c (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${it.size}B·${it.width}x${it.height}·${if (it.path.isEmpty()) "NOPATH" else java.io.File(it.path).parent?.substringAfterLast('/') ?: "?"}" })
+                JavDiag.log("dup", "  $c (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${MediaLibrary.fmtSize(it.size)}·${it.width}x${it.height}·📁${it.folderName}" })
             }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread

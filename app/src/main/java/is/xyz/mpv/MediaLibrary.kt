@@ -77,7 +77,9 @@ object MediaLibrary {
             MediaStore.Video.Media.SIZE,
             MediaStore.Video.Media.WIDTH,
             MediaStore.Video.Media.HEIGHT,
-            MediaStore.Video.Media.DATE_MODIFIED
+            MediaStore.Video.Media.DATE_MODIFIED,
+            MediaStore.Video.Media.RELATIVE_PATH,      // 스코프 스토리지: DATA 비어도 채워짐
+            MediaStore.Video.Media.BUCKET_DISPLAY_NAME // 직속 폴더명
         )
         val coll = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val sort = "${MediaStore.Video.Media.DATE_MODIFIED} DESC"
@@ -90,12 +92,23 @@ object MediaLibrary {
             val iW = c.getColumnIndexOrThrow(MediaStore.Video.Media.WIDTH)
             val iH = c.getColumnIndexOrThrow(MediaStore.Video.Media.HEIGHT)
             val iDate = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
+            val iRel = c.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
+            val iBucket = c.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
             while (c.moveToNext()) {
                 val id = c.getLong(iId)
                 val data = c.getString(iData) ?: ""
                 val nameExt = c.getString(iName) ?: (if (data.isNotEmpty()) File(data).name else "video")
                 val name = nameExt.substringBeforeLast(".")
-                val parent = if (data.isNotEmpty()) (File(data).parent ?: "") else ""
+                val rel = (if (iRel >= 0) c.getString(iRel) else null)?.trimEnd('/') ?: ""
+                val bucket = (if (iBucket >= 0) c.getString(iBucket) else null) ?: ""
+                // DATA 있으면 실경로, 없으면(스코프 스토리지) RELATIVE_PATH/BUCKET 으로 폴더 표기
+                val parent = if (data.isNotEmpty()) (File(data).parent ?: "") else rel
+                val fname = when {
+                    parent.isNotEmpty() && data.isNotEmpty() -> File(parent).name
+                    bucket.isNotEmpty() -> bucket
+                    rel.isNotEmpty() -> rel.substringAfterLast('/')
+                    else -> "(기타)"
+                }
                 out.add(
                     Vid(
                         id = id,
@@ -107,7 +120,7 @@ object MediaLibrary {
                         size = c.getLong(iSize),
                         width = c.getInt(iW),
                         height = c.getInt(iH),
-                        folderName = if (parent.isNotEmpty()) File(parent).name else "(기타)",
+                        folderName = fname,
                         folderPath = parent,
                         dateModified = c.getLong(iDate)
                     )
