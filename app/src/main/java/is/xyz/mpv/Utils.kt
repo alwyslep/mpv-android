@@ -180,15 +180,15 @@ internal object Utils {
     //     long-press(터치) + 마우스 hover 모두 지원. showTooltips off 면 미설정.
     private var tipPopup: android.widget.PopupWindow? = null
 
-    fun tip(view: android.view.View, text: CharSequence) {
+    fun tip(view: android.view.View, text: CharSequence, above: Boolean = false) {
         androidx.appcompat.widget.TooltipCompat.setTooltipText(view, null)  // 시스템 툴팁 끔(커스텀으로 대체)
         if (!LibPrefs.showTooltips(view.context)) {
             view.setOnLongClickListener(null); view.setOnHoverListener(null); return
         }
-        view.setOnLongClickListener { showTip(view, text); true }
+        view.setOnLongClickListener { showTip(view, text, above); true }
         view.setOnHoverListener { v, e ->
             when (e.actionMasked) {
-                android.view.MotionEvent.ACTION_HOVER_ENTER -> showTip(v, text)
+                android.view.MotionEvent.ACTION_HOVER_ENTER -> showTip(v, text, above)
                 android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTip()
             }
             false
@@ -265,15 +265,22 @@ internal object Utils {
             elevation = convertDp(ctx, 4f).toFloat()
         }
 
-    private fun showTip(anchor: android.view.View, text: CharSequence) {
+    private fun showTip(anchor: android.view.View, text: CharSequence, above: Boolean = false) {
         dismissTip()
         val ctx = anchor.context
         val tv = buildTipView(ctx, text)
         val pw = newTipPopup(ctx, tv); tipPopup = pw
+        val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        tv.measure(unspec, unspec)
         val loc = IntArray(2); anchor.getLocationOnScreen(loc)
+        val pad = convertDp(ctx, 8f)
+        val sw = ctx.resources.displayMetrics.widthPixels
+        val x = loc[0].coerceIn(pad, maxOf(pad, sw - tv.measuredWidth - pad))   // 화면 밖 방지
+        // above=true: 앵커(베너 버튼) 위로 — 베너 높이보다 약간 높게(하단 베너 가림 방지)
+        val y = if (above) loc[1] - tv.measuredHeight - convertDp(ctx, 12f)
+                else loc[1] + anchor.height + convertDp(ctx, 2f)
         try {
-            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START,
-                loc[0], loc[1] + anchor.height + convertDp(ctx, 2f))
+            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, y)
         } catch (_: Throwable) { tipPopup = null; return }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }
