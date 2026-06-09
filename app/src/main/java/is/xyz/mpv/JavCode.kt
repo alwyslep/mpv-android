@@ -40,7 +40,11 @@ object JavCode {
      */
     fun dupKey(name: String): String? {
         extract(name)?.let { return norm(it) }
-        val s = RESOLUTION.replace(name.substringBeforeLast('.'), " ")
+        val base = name.substringBeforeLast('.')
+        // 무하이픈 폴백은 '파일명이 곧 코드'(공백 없는 짧은 형)일 때만.
+        //  서술형 제목(예: "Korea1818 Com - Hot Threesome…") 속 스튜디오명/숫자 오탐 차단 — 공백 있으면 거름.
+        if (base.contains(' ')) return null
+        val s = RESOLUTION.replace(base, " ")
         LOOSE.find(s)?.let { return (it.groupValues[1] + it.groupValues[2]).uppercase() }
         return null
     }
