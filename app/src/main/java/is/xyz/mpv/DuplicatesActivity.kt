@@ -82,8 +82,11 @@ class DuplicatesActivity : AppCompatActivity() {
                 .map { it.value.sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size }) }
             val list = dupGroups.flatten()
             JavDiag.log("dup", "raw=${raw.size} dedup=${all.size}  [빈경로=${raw.count { it.path.isEmpty() }} 해상도0=${raw.count { it.width == 0 }} 크기0=${raw.count { it.size == 0L }}]  중복그룹=${dupGroups.size}")
+            // 드라이브 진단: 전체 볼륨 분포 + 충돌(여러 볼륨) 폴더
+            JavDiag.log("dup", "볼륨분포: " + all.groupingBy { it.volume.ifEmpty { "(빈)" } }.eachCount().entries.joinToString { "${it.key}=${it.value}" })
+            JavDiag.log("dup", "태그대상(충돌폴더 ${tagFolders.size}): " + volsByFolder.filterValues { it.size > 1 }.entries.joinToString(" ; ") { "${it.key}→{${it.value.joinToString(",")}}" })
             dupGroups.take(25).forEach { vs ->
-                JavDiag.log("dup", "  ${JavCode.dupKey(vs[0].name)} (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${MediaLibrary.fmtSize(it.size)}·${it.width}x${it.height}·📁${it.folderName}" })
+                JavDiag.log("dup", "  ${JavCode.dupKey(vs[0].name)} (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${MediaLibrary.fmtSize(it.size)}·📁${it.folderName}·💾${it.volume.ifEmpty { "(빈)" }}" })
             }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
