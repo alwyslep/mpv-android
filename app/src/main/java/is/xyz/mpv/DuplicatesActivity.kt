@@ -29,6 +29,7 @@ class DuplicatesActivity : AppCompatActivity() {
     // 우리 임베드 판정(원본커버만 있는 건 제외) = JEmbed 메타(배우/스튜디오/시리즈/장르) 존재. covr 단독 아님.
     private val embedMap = ConcurrentHashMap<String, Boolean>() // uri → 우리 임베드 여부
     private val embedSet = java.util.Collections.synchronizedSet(HashSet<String>())  // 임베드된 uri(어댑터 라이브 참조)
+    private val durMap = ConcurrentHashMap<String, Long>()      // uri → 재생길이ms(MMR; 잘린/부분 파일 식별)
     private var pendingUri: String? = null
     private var adapter: VideoAdapter? = null
     private var gen = 0                                          // enrich 세대(stale 중단)
@@ -136,11 +137,13 @@ class DuplicatesActivity : AppCompatActivity() {
         if (dups.isEmpty()) Toast.makeText(this, "중복 모두 정리됨", Toast.LENGTH_SHORT).show()
     }
 
-    // KEEP 추천 산출 — 그룹별: 우리 임베드(메타) → 해상도 → 크기 순 최상.
+    // KEEP 추천 산출 — 그룹별: 우리 임베드(메타) → 재생길이(분버킷,완본 우선) → 해상도 → 크기.
+    //   길이는 분 단위 버킷이라 인코딩 오차(초)는 무시되고, 잘린/부분(반토막) 파일만 밀려난다.
     private fun computeKeeps(): Set<String> = groups.mapNotNull { grp ->
         grp.maxWithOrNull(
             compareBy<Vid>(
                 { if (embedMap[it.uri.toString()] == true) 1 else 0 },              // 우리 임베드 우선
+                { (durMap[it.uri.toString()] ?: it.durationMs) / 60000 },           // 재생길이(분) — 완본 우선
                 { mmrRes[it.uri.toString()] ?: minOf(it.width, it.height) },        // 해상도
                 { it.size }                                                         // 크기
             )
@@ -161,7 +164,8 @@ class DuplicatesActivity : AppCompatActivity() {
                 val key = v.uri.toString()
                 val needRes = (v.width <= 0 || v.height <= 0) && !mmrRes.containsKey(key)
                 val needEmbed = !embedMap.containsKey(key)
-                if (!needRes && !needEmbed) continue
+                val needDur = v.durationMs <= 0 && !durMap.containsKey(key)
+                if (!needRes && !needEmbed && !needDur) continue
                 try {
                     val mmr = MediaMetadataRetriever()
                     try {
@@ -171,6 +175,7 @@ class DuplicatesActivity : AppCompatActivity() {
                             val rh = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                             if (rw > 0 && rh > 0) mmrRes[key] = minOf(rw, rh)
                         }
+                        if (needDur) durMap[key] = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
                         if (needEmbed) {
                             fun m(k: Int) = mmr.extractMetadata(k)?.trim().orEmpty()
                             val embedded = m(MediaMetadataRetriever.METADATA_KEY_ARTIST).isNotEmpty() ||      // 배우

@@ -37,6 +37,8 @@ object QuickSettings {
         var pCoverScale = (LibPrefs.coverScale(ctx) * 100).toInt()  // 50~200(%)
         var pEmbedFilter = LibPrefs.embedFilter(ctx)
         var pCoverAlign = LibPrefs.coverAlign(ctx)
+        var pMergeDrives = LibPrefs.mergeDrives(ctx)
+        val origMerge = pMergeDrives
 
         // 보기 모드
         val grpMode = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_mode)
@@ -67,6 +69,7 @@ object QuickSettings {
         // 즐겨찾기만
         bindChip(v.findViewById(R.id.chip_fav_only), pFavOnly) { pFavOnly = it }
         bindChip(v.findViewById(R.id.chip_embed_filter), pEmbedFilter) { pEmbedFilter = it }
+        bindChip(v.findViewById(R.id.chip_merge_drives), pMergeDrives) { pMergeDrives = it }   // 54
 
         // 레이아웃
         val grpLayout = v.findViewById<MaterialButtonToggleGroup>(R.id.grp_layout)
@@ -128,6 +131,8 @@ object QuickSettings {
             LibPrefs.setCoverScale(ctx, pCoverScale)
             LibPrefs.setField(ctx, "embed_filter", pEmbedFilter)
             LibPrefs.setCoverAlign(ctx, pCoverAlign)
+            LibPrefs.setField(ctx, "merge_drives", pMergeDrives)
+            if (pMergeDrives != origMerge) MediaLibrary.clearSafCache()   // 54: 병합 변경 → SAF 폴더경로 재계산
             dlg.dismiss()
             onApply()
         }

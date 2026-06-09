@@ -174,9 +174,12 @@ object MediaLibrary {
         )
         // 드라이브 식별자(볼륨) = tree URI storage id. "5FD3-CB64:" → "5FD3-CB64".
         //  ※ 이전 substringAfterLast(":") 는 콜론이 끝이라 빈문자열 버그 → 두 USB 구분 불가했음(B-68).
-        val rootName = (treeUri.lastPathSegment ?: "USB").substringBefore(":").substringAfterLast("/").ifEmpty { "USB" }
-        val stack = ArrayDeque<Pair<String, String>>()  // docId, 가상 폴더경로(USB이름/하위…)
-        stack.addLast(DocumentsContract.getTreeDocumentId(treeUri) to rootName)
+        val volId = (treeUri.lastPathSegment ?: "USB").substringBefore(":").substringAfterLast("/").ifEmpty { "USB" }
+        // 폴더경로 base: 병합ON(기본)=드라이브 무관("") → 같은 폴더명이 여러 드라이브라도 한 폴더 타일로 합침(앱 강점).
+        //   병합OFF=드라이브 id 접두 → 드라이브별 폴더 분리. volume 은 항상 드라이브 id(중복탐지·💾태그용, 병합과 무관).
+        val pathRoot = if (LibPrefs.mergeDrives(ctx)) "" else volId
+        val stack = ArrayDeque<Pair<String, String>>()  // docId, 가상 폴더경로(드라이브/하위…)
+        stack.addLast(DocumentsContract.getTreeDocumentId(treeUri) to pathRoot)
         while (stack.isNotEmpty()) {
             if (out.size > 50000) return
             val (doc, dpath) = stack.removeLast()
@@ -206,7 +209,7 @@ object MediaLibrary {
                                     folderName = dpath.substringAfterLast("/"),
                                     folderPath = dpath,
                                     dateModified = lm / 1000,
-                                    volume = rootName,   // SAF 드라이브(USB 루트명)
+                                    volume = volId,   // SAF 드라이브 id(병합과 무관 — 중복탐지·💾태그용)
                                 )
                             )
                         }
@@ -349,6 +352,7 @@ object LibPrefs {
     fun showThumb(ctx: Context) = p(ctx).getBoolean("show_thumb", true)    // 썸네일
     fun showTooltips(ctx: Context) = p(ctx).getBoolean("show_tooltips", true)  // B-64(47): 버튼 툴팁 on/off
     fun rtl(ctx: Context) = p(ctx).getBoolean("lib_rtl", false)  // 58: 라이브러리 RTL 레이아웃
+    fun mergeDrives(ctx: Context) = p(ctx).getBoolean("merge_drives", true)  // 54: 다른 드라이브 동일 폴더명 병합(기본 ON=앱 강점)
     fun setField(ctx: Context, key: String, v: Boolean) = p(ctx).edit().putBoolean(key, v).apply()
 
     // 시청 상태 필터: all | unwatched | watching | watched

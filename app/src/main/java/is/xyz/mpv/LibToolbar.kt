@@ -12,6 +12,7 @@ object LibToolbar {
     val ALL = listOf(
         Spec("toggle", R.drawable.ic_list_24, "보기 전환", "그리드/목록 보기 전환"),
         Spec("search", R.drawable.ic_search_24, "검색", "품번·제목·배우로 검색"),
+        Spec("dup", R.drawable.ic_dup_24, "중복 찾기", "품번이 같은 중복 파일 찾기"),
         Spec("classify", R.drawable.ic_people_24, "분류", "배우/스튜디오 등으로 분류 보기"),
         Spec("sort", R.drawable.ic_sort_24, "정렬", "정렬 기준·오름/내림차순 변경"),
         Spec("tune", R.drawable.ic_tune_24, "빠른 설정", "표시 항목·커버 크기 등 빠른 설정"),
@@ -23,8 +24,7 @@ object LibToolbar {
         Spec("heal", R.drawable.ic_healing_24, "PNG 복구", "PNG 디코이로 깨진 영상을 일괄 복구"),
         Spec("cover", R.drawable.ic_cover_24, "커버 보강", "커버 없는 영상에 hub 커버를 보강"),
         Spec("settings", R.drawable.ic_settings_24, "설정", "앱 설정 열기"),
-        Spec("dup", R.drawable.ic_dup_24, "중복 찾기", "품번이 같은 중복 파일 찾기"),
-        Spec("refresh", R.drawable.ic_refresh_24, "새로고침", "목록 새로고침"),
+        Spec("refresh", R.drawable.ic_refresh_24, "새로고침", "목록 새로고침"),   // 항상 맨 끝
     )
 
     // 재배치-안전: key 로 메뉴 id(100+index) 조회. (applyIconTints 등 고정 id 의존 제거용)
