@@ -62,11 +62,54 @@ object LibToolbar {
             if (!en) runCatching { mi.icon?.mutate()?.alpha = 90 }   // 회색/흐림(못 쓰는 화면)
             tips[100 + ci] = s.tip
         }
-        runCatching { Utils.tipMenu(toolbar, tips) }   // 커스텀 툴팁(long-press·hover)
+        runCatching { Utils.tipMenu(toolbar, tips) }   // 커스텀 툴팁(hover). 롱프레스는 아래 드래그가 가져감.
         toolbar.setOnMenuItemClickListener { mi ->
             val idx = mi.itemId - 100
             if (idx in ALL.indices) on(ALL[idx].key)
             true
+        }
+        // 55b: 툴바에서 직접 드래그 재배치 — 아이콘 길게눌러 끌어 다른 아이콘에 놓으면 순서 교체→저장→재빌드.
+        toolbar.post { attachDrag(toolbar, enabled, gridIsGrid, on) }
+    }
+
+    @Suppress("DEPRECATION")
+    private fun attachDrag(toolbar: MaterialToolbar, enabled: Set<String>, gridIsGrid: Boolean?, on: (String) -> Unit) {
+        val ctx = toolbar.context
+        order(ctx).forEach { key ->
+            val ci = ALL.indexOfFirst { it.key == key }
+            val v = if (ci >= 0) toolbar.findViewById<android.view.View>(100 + ci) else null
+            v ?: return@forEach
+            v.setOnLongClickListener {
+                val data = android.content.ClipData.newPlainText("k", key)
+                val shadow = android.view.View.DragShadowBuilder(v)
+                if (android.os.Build.VERSION.SDK_INT >= 24) v.startDragAndDrop(data, shadow, key, 0)
+                else @Suppress("DEPRECATION") v.startDrag(data, shadow, key, 0)
+                JavDiag.log("order", "drag start: $key")
+                true
+            }
+            v.setOnDragListener { _, e ->
+                when (e.action) {
+                    android.view.DragEvent.ACTION_DROP -> {
+                        val dragged = e.localState as? String
+                        if (dragged != null && dragged != key) {
+                            val ks = order(ctx).toMutableList()
+                            ks.remove(dragged)
+                            val ti = ks.indexOf(key).coerceAtLeast(0)
+                            ks.add(ti, dragged)
+                            setOrder(ctx, ks)
+                            JavDiag.log("order", "drop $dragged → 앞 $key  새순서=[${ks.take(6).joinToString(",")}...]")
+                            build(toolbar, enabled, gridIsGrid, on)   // 새 순서로 재빌드
+                        }
+                        true
+                    }
+                    android.view.DragEvent.ACTION_DRAG_STARTED,
+                    android.view.DragEvent.ACTION_DRAG_ENTERED,
+                    android.view.DragEvent.ACTION_DRAG_LOCATION,
+                    android.view.DragEvent.ACTION_DRAG_EXITED,
+                    android.view.DragEvent.ACTION_DRAG_ENDED -> true
+                    else -> false
+                }
+            }
         }
     }
 }
