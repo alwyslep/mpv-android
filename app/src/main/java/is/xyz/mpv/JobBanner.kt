@@ -71,6 +71,8 @@ object JobBanner {
             setPadding(0, px(3f), 0, 0)
             addView(caption("항목")); addView(bar("oi", C_ITEM))
         }
+        Utils.tip(rowAll, "전체 진행 — 처리한 항목 / 총 항목 (실시간)", above = true)   // 베너 위에 표시
+        Utils.tip(rowItem, "현재 항목(파일) 처리 진행률 %", above = true)
         val bars = LinearLayout(ctx).apply {
             tag = "bars"; orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)   // 57/58: 길게(문자열 공간 위해 1:2)

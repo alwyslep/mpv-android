@@ -278,8 +278,12 @@ internal object Utils {
         val pad = convertDp(ctx, 8f)
         val sw = ctx.resources.displayMetrics.widthPixels
         val x = loc[0].coerceIn(pad, maxOf(pad, sw - tv.measuredWidth - pad))   // 화면 밖 방지
-        // above=true: 베너(앵커의 부모) 위로 — 베너 범위 밖 위에 띄워 버튼을 가리지 않음.
-        val bannerTop = (anchor.parent as? android.view.View)?.let { p -> IntArray(2).also { p.getLocationOnScreen(it) }[1] } ?: loc[1]
+        // above=true: 베너 *최상단* 위로 — 부모 체인을 content(FrameLayout) 직전까지 올라가 베너 뷰의 top.
+        //   (전체/항목 바처럼 베너 안에 중첩된 뷰여도 베너 범위 밖 위에 표시.)
+        var topView: android.view.View = anchor
+        var pp = anchor.parent
+        while (pp is android.view.View && pp !is android.widget.FrameLayout) { topView = pp; pp = pp.parent }
+        val bannerTop = IntArray(2).also { topView.getLocationOnScreen(it) }[1]
         val y = if (above) bannerTop - tv.measuredHeight - convertDp(ctx, 6f)
                 else loc[1] + anchor.height + convertDp(ctx, 2f)
         try {
