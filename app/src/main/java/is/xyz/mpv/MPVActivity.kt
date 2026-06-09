@@ -382,6 +382,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             result.putExtra("position", pos.toInt())
             result.putExtra("duration", dur.toInt())
             // 4: 외부/내부 통일 — MPVActivity 가 직접 진행위치 저장(결과 반환에만 의존하지 않음)
+            JavDiag.log("autonext", "save psc.pos=${psc.position} lastPos=$lastPos →pos=$pos psc.dur=${psc.duration} lastDur=$lastDur →dur=$dur name=${mediaName()} uri=${playbackUri()?.take(48)}")
             playbackUri()?.let { u -> if (dur > 0 && pos in 0..dur) Progress.save(this, u, mediaName(), pos, dur) }
         }
         if (includeTracks) {

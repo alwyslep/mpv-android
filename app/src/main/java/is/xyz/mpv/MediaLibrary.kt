@@ -703,9 +703,12 @@ object Playback {
     fun wasRemoved(data: Intent?): Boolean = data?.getBooleanExtra("removed", false) ?: false
 
     // 자동 다음재생 조건: 설정 ON + 방금 작품을 끝까지 봄(다 봄).
-    fun shouldAdvance(ctx: Context, uri: String, name: String?): Boolean =
-        androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
-            .getBoolean("autoplay_next", false) && LibPrefs.watchStatus(ctx, uri, name) == 2
+    fun shouldAdvance(ctx: Context, uri: String, name: String?): Boolean {
+        val auto = androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx).getBoolean("autoplay_next", false)
+        val ws = LibPrefs.watchStatus(ctx, uri, name)
+        JavDiag.log("autonext", "auto=$auto watch=$ws key=${MediaKey.of(uri, name)} prog=${Progress.get(ctx, uri, name)} name=$name uri=${uri.take(48)}")
+        return auto && ws == 2
+    }
 
     fun onResult(ctx: Context, uri: String, data: Intent?) {
         if (data == null) return

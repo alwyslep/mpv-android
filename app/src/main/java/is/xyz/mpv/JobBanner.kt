@@ -73,7 +73,7 @@ object JobBanner {
         }
         val bars = LinearLayout(ctx).apply {
             tag = "bars"; orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 3f)   // 57: 길게(label:bars=1:3)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)   // 57/58: 길게(문자열 공간 위해 1:2)
                 .apply { marginStart = px(18f); gravity = Gravity.CENTER_VERTICAL }
             addView(rowAll); addView(rowItem)
         }
@@ -107,11 +107,13 @@ object JobBanner {
             return
         }
         val tot = JobProgress.total.coerceAtLeast(1)
-        // 텍스트 축약 — 진행은 바가 보여주므로 제목·항목명 위주(N/총·% 는 바로 대체).
-        val parts = listOfNotNull(JobProgress.title.ifEmpty { null }, JobProgress.line.ifEmpty { null })
-        text.text = parts.joinToString("  ·  ")
+        // 문자열: 제목 (n/N)  진행률%  ·  현재항목  (제목·%는 항상, 항목명은 길면 잘림)
+        val cnt = if (tot > 1) " (${JobProgress.idx + 1}/$tot)" else ""
+        val head = "${JobProgress.title}$cnt  ${JobProgress.pct}%".trim()
+        text.text = if (JobProgress.line.isNotEmpty()) "$head  ·  ${JobProgress.line}" else head
         bars.visibility = View.VISIBLE
-        pbAll.progress = (JobProgress.idx + 1) * 100 / tot           // 전체: 항목 진행
+        // 전체바 = 실시간: 완료 항목 + 현재 항목 진행분. 6/10 처리중이면 50% + (현재%/10).
+        pbAll.progress = (JobProgress.idx * 100 + JobProgress.pct) / tot
         pbItem.progress = JobProgress.pct                            // 개별: 현 항목 진행
         cancel.visibility = View.VISIBLE
         if (!JobProgress.isCancelled()) { cancel.isEnabled = true; cancel.text = CANCEL_TXT }
