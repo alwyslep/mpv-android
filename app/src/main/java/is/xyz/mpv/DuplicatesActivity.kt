@@ -84,6 +84,11 @@ class DuplicatesActivity : AppCompatActivity() {
             JavDiag.log("dup", "raw=${raw.size} dedup=${all.size}  [빈경로=${raw.count { it.path.isEmpty() }} 해상도0=${raw.count { it.width == 0 }} 크기0=${raw.count { it.size == 0L }}]  중복그룹=${dupGroups.size}")
             // 드라이브 진단: 전체 볼륨 분포 + 충돌(여러 볼륨) 폴더
             JavDiag.log("dup", "볼륨분포: " + all.groupingBy { it.volume.ifEmpty { "(빈)" } }.eachCount().entries.joinToString { "${it.key}=${it.value}" })
+            // 빈볼륨 파일의 정체 — uri authority(SAF=externalstorage / MediaStore=media) + 샘플 + SAF트리
+            val empties = all.filter { it.volume.isEmpty() }
+            JavDiag.log("dup", "빈볼륨 authority: " + empties.groupingBy { it.uri.authority ?: "?" }.eachCount().entries.joinToString { "${it.key}=${it.value}" })
+            empties.take(2).forEach { JavDiag.log("dup", "  빈볼륨샘플: name=${it.name} folder=${it.folderName} path='${it.path}' uri=${it.uri}") }
+            runCatching { JavDiag.log("dup", "SAF트리(${SafTrees.all(this).size}): " + SafTrees.all(this).joinToString(" ; ")) }
             JavDiag.log("dup", "태그대상(충돌폴더 ${tagFolders.size}): " + volsByFolder.filterValues { it.size > 1 }.entries.joinToString(" ; ") { "${it.key}→{${it.value.joinToString(",")}}" })
             dupGroups.take(25).forEach { vs ->
                 JavDiag.log("dup", "  ${JavCode.dupKey(vs[0].name)} (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${MediaLibrary.fmtSize(it.size)}·📁${it.folderName}·💾${it.volume.ifEmpty { "(빈)" }}" })
