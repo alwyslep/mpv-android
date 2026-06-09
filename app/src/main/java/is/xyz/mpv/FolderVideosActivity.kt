@@ -140,6 +140,11 @@ class FolderVideosActivity : AppCompatActivity() {
         recycler.layoutManager?.onRestoreInstanceState(scrollState)
     }
 
+    override fun onResume() {
+        super.onResume()
+        setupToolbar()   // 55b: 아이콘 순서 변경 후 복귀 시 반영
+    }
+
     override fun onPause() {
         super.onPause()
         if (::recycler.isInitialized) recycler.layoutManager?.onSaveInstanceState()?.let { scrollState = it }

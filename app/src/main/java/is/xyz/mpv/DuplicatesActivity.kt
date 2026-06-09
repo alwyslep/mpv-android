@@ -134,13 +134,14 @@ class DuplicatesActivity : AppCompatActivity() {
         if (dups.isEmpty()) Toast.makeText(this, "중복 모두 정리됨", Toast.LENGTH_SHORT).show()
     }
 
-    // KEEP 추천 산출 — 그룹별: 우리 임베드(메타) → 재생길이(분버킷,완본 우선) → 해상도 → 크기.
-    //   길이는 분 단위 버킷이라 인코딩 오차(초)는 무시되고, 잘린/부분(반토막) 파일만 밀려난다.
+    // KEEP 추천 산출 — 그룹별: 재생길이(완본) → 우리 임베드(메타) → 해상도 → 크기.
+    //   ⭐완본(길이) 최우선: 잘린/부분(반토막) 파일은 임베드돼 있어도 추천 안 함(완본>메타).
+    //   길이는 분 버킷이라 인코딩 오차(초)는 무시 → 같은 길이면 임베드→해상도→크기로 결정.
     private fun computeKeeps(): Set<String> = groups.mapNotNull { grp ->
         grp.maxWithOrNull(
             compareBy<Vid>(
-                { if (embedMap[it.uri.toString()] == true) 1 else 0 },              // 우리 임베드 우선
-                { (durMap[it.uri.toString()] ?: it.durationMs) / 60000 },           // 재생길이(분) — 완본 우선
+                { (durMap[it.uri.toString()] ?: it.durationMs) / 60000 },           // 재생길이(분) — 완본 최우선
+                { if (embedMap[it.uri.toString()] == true) 1 else 0 },              // 우리 임베드
                 { mmrRes[it.uri.toString()] ?: minOf(it.width, it.height) },        // 해상도
                 { it.size }                                                         // 크기
             )
@@ -192,6 +193,13 @@ class DuplicatesActivity : AppCompatActivity() {
                 keepUris.clear(); keepUris.addAll(keeps)
                 adapter?.notifyDataSetChanged()
                 JavDiag.log("dup", "enrich 완료: 임베드=${embedMap.count { it.value }}/${embedMap.size}  KEEP=${keeps.size}")
+                groups.forEach { grp ->
+                    JavDiag.log("dup", "  KEEP[${JavCode.dupKey(grp[0].name)}]: " + grp.joinToString(" | ") { v ->
+                        val k = v.uri.toString()
+                        val dm = (durMap[k] ?: v.durationMs)
+                        "${if (k in keeps) "✅" else ""}${MediaLibrary.fmtDur(dm)}·${if (embedMap[k] == true) "임베드" else "no"}·${mmrRes[k] ?: minOf(v.width, v.height)}p·${MediaLibrary.fmtSize(v.size)}"
+                    })
+                }
             }
         }.start()
     }

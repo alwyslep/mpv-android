@@ -112,6 +112,7 @@ class MediaLibraryActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Utils.applyRtl(this)   // 58: 설정에서 토글 후 복귀 시 즉시 반영
+        setupToolbar()         // 55b: 아이콘 순서 변경(ToolbarOrderActivity) 후 복귀 시 반영
         // 재생 후 복귀 시 최근목록/신규영상 반영
         if (hasMediaAccess()) load()
     }
