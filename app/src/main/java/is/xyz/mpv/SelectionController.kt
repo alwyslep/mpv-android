@@ -47,7 +47,7 @@ class SelectionController(
         mapOf(
             R.id.sel_all to "현재 목록 전체 선택/해제", R.id.sel_embed to "선택 영상에 hub 메타·커버 임베드(품번 없으면 remux만)",
             R.id.sel_move to "선택 영상을 다른 폴더로 이동", R.id.sel_thumb to "선택 영상의 썸네일 위치를 일괄 지정",
-            R.id.sel_cancel to "선택 모드 종료"
+            R.id.sel_delete to "선택 영상 영구 삭제(복구 불가)", R.id.sel_cancel to "선택 모드 종료"
         ).forEach { (id, t) -> selBar.findViewById<View>(id)?.let { Utils.tip(it, t) } }
     }
     fun unbind() { sel = null }
@@ -55,14 +55,25 @@ class SelectionController(
     val isActive: Boolean get() = sel?.selectionMode == true
 
     // 임베드/이동/썸네일 독립 진입 — 액션에 맞는 버튼만 노출.
-    fun enter(showEmbed: Boolean = true, showMove: Boolean = true, showThumb: Boolean = false) {
+    fun enter(showEmbed: Boolean = true, showMove: Boolean = true, showThumb: Boolean = false, showDelete: Boolean = false) {
         val a = sel
         if (a == null) { toast("'영상' 보기 모드 또는 폴더 안에서 선택하세요"); return }
         a.selectionMode = true; a.refreshSelection()
         selBar.findViewById<View>(R.id.sel_embed)?.visibility = if (showEmbed) View.VISIBLE else View.GONE
         selBar.findViewById<View>(R.id.sel_move)?.visibility = if (showMove) View.VISIBLE else View.GONE
         selBar.findViewById<View>(R.id.sel_thumb)?.visibility = if (showThumb) View.VISIBLE else View.GONE
+        selBar.findViewById<View>(R.id.sel_delete)?.visibility = if (showDelete) View.VISIBLE else View.GONE
         selBar.visibility = View.VISIBLE; update()
+    }
+
+    // 53: 휴지통 폴더 — 선택 일괄 영구삭제.
+    fun deleteBatch() {
+        val items = sel?.selected?.toList()?.mapNotNull { u -> vidOf(u)?.let { Uri.parse(u) to it.name } } ?: emptyList()
+        if (items.isEmpty()) { toast("선택 없음"); return }
+        VideoTrash.bulkPermanentDeleteConfirm(act, items) {
+            items.forEach { sel?.removeItem(it.first.toString()) }
+            exit(); onReload()
+        }
     }
 
     // 장면 썸네일 일괄 — % 위치 슬라이더로 적용(커버 없는 파일만) / 해제. 품번·파일명 키.

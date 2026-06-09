@@ -68,6 +68,7 @@ class FolderVideosActivity : AppCompatActivity() {
         findViewById<View>(R.id.sel_cancel).setOnClickListener { selCtl.exit() }
         findViewById<View>(R.id.sel_embed).setOnClickListener { selCtl.embedBatch() }
         findViewById<View>(R.id.sel_move).setOnClickListener { selCtl.moveBatch() }
+        findViewById<View>(R.id.sel_delete).setOnClickListener { selCtl.deleteBatch() }   // 53: 휴지통 일괄 영구삭제
         rebuild()
         reload()
     }
@@ -99,9 +100,14 @@ class FolderVideosActivity : AppCompatActivity() {
     }
 
     // B-68(52): 공통 12아이콘 툴바. 폴더 화면 활성 = toggle/sort/tune/select/filter/move/thumb/heal (나머지 회색).
+    private val isTrash get() = folderPath.contains(".mpv-trash")
+
     private fun setupToolbar() {
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
-        LibToolbar.build(toolbar, setOf("toggle", "sort", "tune", "select", "embedauto", "filter", "move", "thumb", "heal", "dup", "refresh"), grid) { key ->
+        // 휴지통 폴더: 임베드/이동/복구 대신 영구삭제 위주(select=영구삭제 모드).
+        val enabled = if (isTrash) setOf("toggle", "sort", "tune", "select", "filter", "dup", "refresh")
+                      else setOf("toggle", "sort", "tune", "select", "embedauto", "filter", "move", "thumb", "heal", "dup", "refresh")
+        LibToolbar.build(toolbar, enabled, grid) { key ->
             fun folderVids() = LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath)).map { it.uri to it.name }
             when (key) {
                 "refresh" -> reload()
@@ -109,7 +115,8 @@ class FolderVideosActivity : AppCompatActivity() {
                 "toggle" -> { grid = !grid; prefs.edit().putBoolean("video_grid", grid).apply(); setupToolbar(); rebuild() }
                 "sort" -> SortDialog.show(this, "folder", false) { reload() }
                 "tune" -> QuickSettings.show(this) { grid = LibPrefs.grid(this); setupToolbar(); reload() }
-                "select" -> selCtl.enter(showEmbed = true, showMove = false)
+                "select" -> if (isTrash) selCtl.enter(showEmbed = false, showMove = false, showDelete = true)
+                            else selCtl.enter(showEmbed = true, showMove = false)
                 "filter" -> FilterSheet.show(this) { reload() }
                 "move" -> selCtl.enter(showEmbed = false, showMove = true)
                 "thumb" -> selCtl.enter(showEmbed = false, showMove = false, showThumb = true)

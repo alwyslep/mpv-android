@@ -41,6 +41,31 @@ object VideoTrash {
             .show()
     }
 
+    // 53: 선택 일괄 영구삭제(휴지통 폴더 내). 확인창 1회 → 순차 deleteDocument/contentResolver.delete.
+    fun bulkPermanentDeleteConfirm(act: Activity, items: List<Pair<Uri, String>>, onDone: () -> Unit) {
+        if (items.isEmpty()) { toast(act, "선택 없음"); return }
+        AlertDialog.Builder(act)
+            .setTitle("영구 삭제")
+            .setMessage("${items.size}개를 영구 삭제합니다. 복구할 수 없습니다.")
+            .setNegativeButton(act.getString(R.string.dialog_cancel), null)
+            .setPositiveButton("영구 삭제(${items.size})") { _, _ -> doBulkPermanentDelete(act, items, onDone) }
+            .show()
+    }
+
+    private fun doBulkPermanentDelete(act: Activity, items: List<Pair<Uri, String>>, onDone: () -> Unit) {
+        Thread {
+            var ok = 0; var fail = 0
+            for ((u, name) in items) {
+                val r = try {
+                    if (u.authority == MediaStore.AUTHORITY) act.contentResolver.delete(u, null, null) > 0
+                    else DocumentsContract.deleteDocument(act.contentResolver, u)
+                } catch (e: Throwable) { JavDiag.ex("bulkPermDelete", e); false }
+                if (r) { ok++; ThumbLoader.invalidate(act, u, name) } else fail++
+            }
+            act.runOnUiThread { toast(act, "영구삭제: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone() }
+        }.start()
+    }
+
     private fun permanentDelete(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
         Thread {
             val ok = try {

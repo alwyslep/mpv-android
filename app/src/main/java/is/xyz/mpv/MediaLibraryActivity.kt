@@ -238,7 +238,13 @@ class MediaLibraryActivity : AppCompatActivity() {
                     empty.visibility = if (folds.isEmpty()) View.VISIBLE else View.GONE
                     recycler.layoutManager =
                         if (grid) GridLayoutManager(this, spanCount()) else LinearLayoutManager(this)
-                    recycler.adapter = FolderAdapter(folds, grid) { f ->
+                    recycler.adapter = FolderAdapter(folds, grid,
+                        onLongClick = { f ->   // 53: 휴지통 폴더 롱프레스 → 일괄 영구삭제
+                            if (f.path.contains(".mpv-trash") || f.name.contains(".mpv-trash")) {
+                                val items = MediaLibrary.videosIn(allVids, f.path).map { it.uri to it.name }
+                                VideoTrash.bulkPermanentDeleteConfirm(this, items) { load() }
+                            }
+                        }) { f ->
                         startActivity(
                             Intent(this, FolderVideosActivity::class.java)
                                 .putExtra("path", f.path)

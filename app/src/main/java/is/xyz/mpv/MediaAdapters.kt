@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView
 class FolderAdapter(
     private val items: List<Fold>,
     private val grid: Boolean,
+    private val onLongClick: ((Fold) -> Unit)? = null,
     private val onClick: (Fold) -> Unit
 ) : RecyclerView.Adapter<FolderAdapter.VH>() {
 
@@ -58,6 +59,7 @@ class FolderAdapter(
             h.thumb.setImageDrawable(null)
         }
         h.itemView.setOnClickListener { onClick(f) }
+        h.itemView.setOnLongClickListener { onLongClick?.invoke(f); onLongClick != null }
     }
 }
 
