@@ -49,14 +49,12 @@ object SceneCompare {
         val cellW = (dm.widthPixels - posW) / cols - (16 * d).toInt()
         val cellH = cellW * 9 / 16
 
-        // 동일 폴더명이 매칭들 사이 여러 드라이브에 충돌하면 그 폴더만 💾드라이브 태그.
-        val volsByFolder = HashMap<String, MutableSet<String>>()
-        vids.forEach { if (it.folderName.isNotEmpty()) volsByFolder.getOrPut(it.folderName) { HashSet() }.add(it.volume) }
-        val tagFolders = volsByFolder.filterValues { it.size > 1 }.keys
+        // 비교 파일들이 여러 드라이브에 걸치면 전부 💾드라이브 태그(어느 드라이브인지 구분).
+        val multiVol = vids.map { it.volume }.distinct().size > 1
         val folderTexts = vids.map { v ->
             when {
                 v.folderName.isEmpty() -> "📁 (폴더?)"
-                tagFolders.contains(v.folderName) -> "💾${MediaLibrary.volLabel(v.volume)} · 📁 ${v.folderName}"
+                multiVol -> "💾${MediaLibrary.volLabel(v.volume)} · 📁 ${v.folderName}"
                 else -> "📁 ${v.folderName}"
             }
         }

@@ -23,7 +23,7 @@ class DuplicatesActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
     private var dups: List<Vid> = emptyList()
     private var groups: List<List<Vid>> = emptyList()
-    private var driveTagFolders: Set<String> = emptySet()   // 동일폴더명이 여러 드라이브 충돌 → 태그
+    private var driveTagUris: Set<String> = emptySet()   // 그룹이 여러 드라이브에 걸친 파일 uri → 💾태그
     private val keepUris = java.util.Collections.synchronizedSet(HashSet<String>())  // 안정 인스턴스(어댑터가 라이브 참조)
     private val mmrRes = ConcurrentHashMap<String, Int>()      // uri → 짧은변 px(MMR 보완)
     // 우리 임베드 판정(원본커버만 있는 건 제외) = JEmbed 메타(배우/스튜디오/시리즈/장르) 존재. covr 단독 아님.
@@ -70,10 +70,6 @@ class DuplicatesActivity : AppCompatActivity() {
             // 같은 '파일'(같은 드라이브 내 중복행)만 합침: 경로 있으면 경로, 없으면 드라이브+크기+해상도+이름.
             //  ※ volume 포함 필수 — 빼면 두 드라이브의 동일 복사본(같은 바이트)을 한 파일로 합쳐 교차드라이브 중복이 사라짐.
             val all = raw.distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.volume}|${v.size}|${v.width}x${v.height}|${v.name}" }
-            // 동일 폴더명이 여러 드라이브에 존재하면(충돌) 그 폴더명만 💾드라이브 태그 — 라이브러리 전체 기준.
-            val volsByFolder = HashMap<String, MutableSet<String>>()
-            for (v in all) if (v.folderName.isNotEmpty()) volsByFolder.getOrPut(v.folderName) { HashSet() }.add(v.volume)
-            val tagFolders = volsByFolder.filterValues { it.size > 1 }.keys.toSet()
             val byCode = HashMap<String, MutableList<Vid>>()
             for (v in all) {
                 val code = JavCode.dupKey(v.name) ?: continue   // variant 관용(무하이픈 폴백 포함)
@@ -83,10 +79,11 @@ class DuplicatesActivity : AppCompatActivity() {
             val dupGroups = byCode.toSortedMap().filterValues { it.size > 1 }
                 .map { it.value.sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size }) }
             val list = dupGroups.flatten()
+            // 💾태그 = 그룹이 여러 드라이브에 걸치면 그 그룹 전체 파일(폴더 무관, 검수서 드라이브 구분 필요).
+            val tagUris = dupGroups.filter { g -> g.map { it.volume }.distinct().size > 1 }.flatten().map { it.uri.toString() }.toSet()
             JavDiag.log("dup", "raw=${raw.size} dedup=${all.size}  [빈경로=${raw.count { it.path.isEmpty() }} 해상도0=${raw.count { it.width == 0 }} 크기0=${raw.count { it.size == 0L }}]  중복그룹=${dupGroups.size}")
-            // 드라이브: 볼륨 분포 + 충돌(같은 폴더명이 여러 드라이브) 폴더
             JavDiag.log("dup", "볼륨분포: " + all.groupingBy { it.volume.ifEmpty { "(빈)" } }.eachCount().entries.joinToString { "${it.key}=${it.value}" })
-            JavDiag.log("dup", "태그대상(충돌폴더 ${tagFolders.size}): " + volsByFolder.filterValues { it.size > 1 }.entries.joinToString(" ; ") { "${it.key}→{${it.value.joinToString(",")}}" })
+            JavDiag.log("dup", "드라이브 걸친 그룹 태그파일=${tagUris.size}")
             dupGroups.take(25).forEach { vs ->
                 JavDiag.log("dup", "  ${JavCode.dupKey(vs[0].name)} (${vs.size}): " + vs.joinToString(" | ") { "${it.name}·${MediaLibrary.fmtSize(it.size)}·📁${it.folderName}·💾${it.volume.ifEmpty { "(빈)" }}" })
             }
@@ -94,7 +91,7 @@ class DuplicatesActivity : AppCompatActivity() {
                 if (isFinishing) return@runOnUiThread
                 dups = list
                 groups = dupGroups
-                driveTagFolders = tagFolders
+                driveTagUris = tagUris
                 keepUris.clear(); keepUris.addAll(computeKeeps())   // 1차: 임베드 정보 전이라 사실상 크기 기준
                 toolbar.title = "품번 중복  ${dupGroups.size}건 · ${list.size}개"
                 rebuild()
@@ -109,7 +106,7 @@ class DuplicatesActivity : AppCompatActivity() {
         val grid = LibPrefs.grid(this)
         recycler.layoutManager = if (grid) GridLayoutManager(this, LibPrefs.spanCount(this)) else LinearLayoutManager(this)
         adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes,
-            embedUris = embedSet, driveTagFolders = driveTagFolders,
+            embedUris = embedSet, driveTagUris = driveTagUris,
             onItemRemoved = { uri -> reconcileAfterRemove(uri) }) { v -> play(v) }
         recycler.adapter = adapter
     }
