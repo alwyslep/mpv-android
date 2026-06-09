@@ -1,5 +1,6 @@
 package `is`.xyz.mpv
 
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
@@ -14,8 +15,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 
-// 55b: 툴바 아이콘 순서 설정 — ▲▼ 버튼(확실) + ≡ 핸들/롱프레스 드래그로 재배치, prefs 저장.
-//   ALL 은 캐논(id 고정), 순서만 사용자 정의. 저장은 onPause(나갈 때 자동).
+// 55b: 툴바 아이콘 순서 설정 — ▲▼ 버튼(확실) + ≡ 핸들/롱프레스 드래그로 재배치, prefs 저장(onPause).
+//   ALL=캐논(id 고정), 순서만 사용자 정의. 솔리드 배경+흰색 큰 버튼으로 가시성 확보.
 class ToolbarOrderActivity : AppCompatActivity() {
     private val keys = ArrayList<String>()
     private lateinit var adapter: Adapter
@@ -25,16 +26,15 @@ class ToolbarOrderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        AuroraDrawable.apply(this)
-        Utils.applyRtl(this)
         keys.clear(); keys.addAll(LibToolbar.order(this))
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setBackgroundColor(0xFF12161C.toInt())   // 솔리드 다크 — 오로라 위 가시성 보장
             layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         }
         val toolbar = MaterialToolbar(this).apply {
-            title = "툴바 아이콘 순서"
+            title = "툴바 아이콘 순서"; setTitleTextColor(0xFFFFFFFF.toInt())
             setNavigationOnClickListener { finish() }
             navigationIcon = androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.ic_arrow_back)
                 ?: navigationIcon
@@ -49,9 +49,9 @@ class ToolbarOrderActivity : AppCompatActivity() {
 
         val recycler = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@ToolbarOrderActivity) }
         adapter = Adapter()
-        touchHelper = ItemTouchHelper(DragCallback())
-        touchHelper.attachToRecyclerView(recycler)
         recycler.adapter = adapter
+        touchHelper = ItemTouchHelper(DragCallback())
+        touchHelper.attachToRecyclerView(recycler)   // adapter 설정 후 attach
         root.addView(recycler, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val reset = MaterialButton(this).apply {
@@ -71,38 +71,40 @@ class ToolbarOrderActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        LibToolbar.setOrder(this, keys)   // 나갈 때 저장 → 다음 화면 진입 시 적용
+        LibToolbar.setOrder(this, keys)
     }
 
-    inner class VH(v: View) : RecyclerView.ViewHolder(v) {
-        val icon: ImageView = v.findViewById(1)
-        val label: TextView = v.findViewById(2)
-        val up: TextView = v.findViewById(3)
-        val down: TextView = v.findViewById(4)
-        val handle: TextView = v.findViewById(5)
+    inner class VH(row: LinearLayout) : RecyclerView.ViewHolder(row) {
+        val icon = row.getChildAt(0) as ImageView
+        val label = row.getChildAt(1) as TextView
+        val up = row.getChildAt(2) as TextView
+        val down = row.getChildAt(3) as TextView
+        val handle = row.getChildAt(4) as TextView
     }
 
     inner class Adapter : RecyclerView.Adapter<VH>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
             val ctx = parent.context
-            fun arrow(c: String) = TextView(ctx).apply {
-                text = c; textSize = 20f; setTextColor(0xFFCCCCCC.toInt())
-                gravity = Gravity.CENTER
-                setPadding(dp(12f), dp(6f), dp(12f), dp(6f)); isClickable = true
+            fun btn(c: String) = TextView(ctx).apply {
+                text = c; textSize = 18f; setTextColor(0xFFFFFFFF.toInt()); gravity = Gravity.CENTER
+                width = dp(44f); setPadding(0, dp(8f), 0, dp(8f)); isClickable = true; isFocusable = true
+                background = GradientDrawable().apply { cornerRadius = dp(6f).toFloat(); setColor(0x33FFFFFF) }
             }
             val row = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16f), dp(10f), dp(8f), dp(10f))
+                setPadding(dp(16f), dp(12f), dp(12f), dp(12f))
                 layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             }
-            val icon = ImageView(ctx).apply { id = 1; layoutParams = LinearLayout.LayoutParams(dp(26f), dp(26f)) }
+            val icon = ImageView(ctx).apply { layoutParams = LinearLayout.LayoutParams(dp(26f), dp(26f)) }
             val label = TextView(ctx).apply {
-                id = 2; textSize = 15f; setPadding(dp(16f), 0, dp(8f), 0)
+                textSize = 15f; setTextColor(0xFFFFFFFF.toInt()); setPadding(dp(16f), 0, dp(8f), 0)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
-            val up = arrow("▲").apply { id = 3 }
-            val down = arrow("▼").apply { id = 4 }
-            val handle = TextView(ctx).apply { id = 5; text = "≡"; textSize = 22f; setTextColor(0xFF888888.toInt()); setPadding(dp(10f), dp(6f), dp(6f), dp(6f)) }
+            val up = btn("▲").apply { layoutParams = LinearLayout.LayoutParams(dp(44f), ViewGroup.LayoutParams.WRAP_CONTENT) }
+            val down = btn("▼").apply { layoutParams = LinearLayout.LayoutParams(dp(44f), ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(8f) } }
+            val handle = TextView(ctx).apply {
+                text = "≡"; textSize = 24f; setTextColor(0xFFBBBBBB.toInt()); setPadding(dp(14f), dp(6f), dp(8f), dp(6f))
+            }
             row.addView(icon); row.addView(label); row.addView(up); row.addView(down); row.addView(handle)
             return VH(row)
         }
