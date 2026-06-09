@@ -112,6 +112,9 @@ object QuickSettings {
 
         val dlg = MaterialAlertDialogBuilder(act).setView(v).create()
 
+        v.findViewById<MaterialButton>(R.id.btn_toolbar_order).setOnClickListener {   // 55b
+            dlg.dismiss(); act.startActivity(android.content.Intent(act, ToolbarOrderActivity::class.java))
+        }
         Utils.tip(v.findViewById(R.id.btn_cancel), "변경 취소하고 닫기")   // B-64(47)
         Utils.tip(v.findViewById(R.id.btn_done), "변경 사항 적용하고 닫기")
         v.findViewById<MaterialButton>(R.id.btn_cancel).setOnClickListener { dlg.dismiss() }

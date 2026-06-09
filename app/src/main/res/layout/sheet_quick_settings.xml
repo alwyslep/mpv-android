@@ -132,6 +132,11 @@
             <com.google.android.material.chip.Chip android:id="@+id/chip_f_fav" style="@style/FieldChip" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/qs_favorites" />
         </com.google.android.material.chip.ChipGroup>
 
+        <com.google.android.material.button.MaterialButton android:id="@+id/btn_toolbar_order"
+            style="@style/Widget.Material3.Button.TonalButton"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="툴바 아이콘 순서 ⠿" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

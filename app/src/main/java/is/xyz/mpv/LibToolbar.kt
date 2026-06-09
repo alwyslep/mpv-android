@@ -1,5 +1,6 @@
 package `is`.xyz.mpv
 
+import android.content.Context
 import android.view.MenuItem
 import com.google.android.material.appbar.MaterialToolbar
 
@@ -30,19 +31,34 @@ object LibToolbar {
     // 재배치-안전: key 로 메뉴 id(100+index) 조회. (applyIconTints 등 고정 id 의존 제거용)
     fun menuId(key: String): Int = ALL.indexOfFirst { it.key == key }.let { if (it >= 0) 100 + it else -1 }
 
+    // 55b: 사용자 정의 아이콘 순서(key 목록). 저장순 + 미저장(신규) key 뒤에. id 는 ALL 캐논 인덱스 유지.
+    private fun prefs(ctx: Context) = ctx.getSharedPreferences("media_library", Context.MODE_PRIVATE)
+    fun order(ctx: Context): List<String> {
+        val saved = prefs(ctx).getString("toolbar_order", null)
+            ?.split(",")?.filter { k -> ALL.any { it.key == k } } ?: emptyList()
+        return saved + ALL.map { it.key }.filter { it !in saved }
+    }
+    fun setOrder(ctx: Context, keys: List<String>) =
+        prefs(ctx).edit().putString("toolbar_order", keys.joinToString(",")).apply()
+    fun resetOrder(ctx: Context) = prefs(ctx).edit().remove("toolbar_order").apply()
+
     fun build(toolbar: MaterialToolbar, enabled: Set<String>, gridIsGrid: Boolean?, on: (String) -> Unit) {
         toolbar.menu.clear()
         val tips = HashMap<Int, CharSequence>()
-        ALL.forEachIndexed { i, s ->
+        // 표시 순서는 사용자 정의(order), id 는 ALL 캐논 인덱스(100+ci) 유지 → 핸들러/menuId 불변.
+        order(toolbar.context).forEachIndexed { pos, key ->
+            val ci = ALL.indexOfFirst { it.key == key }
+            if (ci < 0) return@forEachIndexed
+            val s = ALL[ci]
             val icon = if (s.key == "toggle" && gridIsGrid != null)
                 (if (gridIsGrid) R.drawable.ic_list_24 else R.drawable.ic_grid_24) else s.icon
-            val mi = toolbar.menu.add(0, 100 + i, i, s.label)
+            val mi = toolbar.menu.add(0, 100 + ci, pos, s.label)   // order=pos(표시순), itemId=캐논
             mi.setIcon(icon)
             mi.setShowAsAction(MenuItem.SHOW_AS_ACTION_ALWAYS)   // 전부 아이콘 표시(overflow 접지 않음, 사용자 요구)
             val en = s.key in enabled
             mi.isEnabled = en
             if (!en) runCatching { mi.icon?.mutate()?.alpha = 90 }   // 회색/흐림(못 쓰는 화면)
-            tips[100 + i] = s.tip
+            tips[100 + ci] = s.tip
         }
         runCatching { Utils.tipMenu(toolbar, tips) }   // 커스텀 툴팁(long-press·hover)
         toolbar.setOnMenuItemClickListener { mi ->
