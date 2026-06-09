@@ -172,7 +172,9 @@ object MediaLibrary {
             DocumentsContract.Document.COLUMN_SIZE,
             DocumentsContract.Document.COLUMN_LAST_MODIFIED,
         )
-        val rootName = (treeUri.lastPathSegment ?: "USB").substringAfterLast(":").substringAfterLast("/")
+        // 드라이브 식별자(볼륨) = tree URI storage id. "5FD3-CB64:" → "5FD3-CB64".
+        //  ※ 이전 substringAfterLast(":") 는 콜론이 끝이라 빈문자열 버그 → 두 USB 구분 불가했음(B-68).
+        val rootName = (treeUri.lastPathSegment ?: "USB").substringBefore(":").substringAfterLast("/").ifEmpty { "USB" }
         val stack = ArrayDeque<Pair<String, String>>()  // docId, 가상 폴더경로(USB이름/하위…)
         stack.addLast(DocumentsContract.getTreeDocumentId(treeUri) to rootName)
         while (stack.isNotEmpty()) {
