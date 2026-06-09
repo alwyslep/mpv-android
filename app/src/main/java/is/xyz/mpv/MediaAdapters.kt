@@ -128,7 +128,8 @@ class VideoAdapter(
         val folder = if (showFolder && v.folderName.isNotEmpty()) "📁${v.folderName}" else ""
         val isKeep = keepUris.contains(uriStr)
         val metaParts = listOf(sz, ext, cover, folder).filter { it.isNotEmpty() }.joinToString("  ·  ")
-        h.meta.text = if (isKeep) "✅추천  $metaParts" else metaParts
+        if (showFolder) { h.meta.isSingleLine = false; h.meta.maxLines = 2 }   // 경로줄 + 추천줄
+        h.meta.text = if (isKeep) "$metaParts\n✅추천" else metaParts            // 경로 다음 줄에 추천
         if (isKeep) h.meta.setTextColor(0xFF66BB6A.toInt())   // KEEP = 초록
         else run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
         // 해상도 배지(썸네일 위). badgeDark=기본, badgeRed=저화질/불일치 경고.
