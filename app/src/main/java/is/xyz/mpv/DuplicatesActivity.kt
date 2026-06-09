@@ -26,8 +26,9 @@ class DuplicatesActivity : AppCompatActivity() {
     private var driveTagFolders: Set<String> = emptySet()   // 동일폴더명이 여러 드라이브 충돌 → 태그
     private val keepUris = java.util.Collections.synchronizedSet(HashSet<String>())  // 안정 인스턴스(어댑터가 라이브 참조)
     private val mmrRes = ConcurrentHashMap<String, Int>()      // uri → 짧은변 px(MMR 보완)
-    private val hasCover = ConcurrentHashMap<String, Boolean>() // uri → 임베드 커버 존재(MMR embeddedPicture)
-    private val coverSet = java.util.Collections.synchronizedSet(HashSet<String>())  // 커버 있는 uri(어댑터 라이브 참조)
+    // 우리 임베드 판정(원본커버만 있는 건 제외) = JEmbed 메타(배우/스튜디오/시리즈/장르) 존재. covr 단독 아님.
+    private val embedMap = ConcurrentHashMap<String, Boolean>() // uri → 우리 임베드 여부
+    private val embedSet = java.util.Collections.synchronizedSet(HashSet<String>())  // 임베드된 uri(어댑터 라이브 참조)
     private var pendingUri: String? = null
     private var adapter: VideoAdapter? = null
     private var gen = 0                                          // enrich 세대(stale 중단)
@@ -102,22 +103,24 @@ class DuplicatesActivity : AppCompatActivity() {
     private fun rebuild() {
         val grid = LibPrefs.grid(this)
         recycler.layoutManager = if (grid) GridLayoutManager(this, LibPrefs.spanCount(this)) else LinearLayoutManager(this)
-        adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes, coverUris = coverSet, driveTagFolders = driveTagFolders) { v -> play(v) }
+        adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes, embedUris = embedSet, driveTagFolders = driveTagFolders) { v -> play(v) }
         recycler.adapter = adapter
     }
 
-    // KEEP 추천 산출 — 그룹별: 임베드(커버) → 해상도 → 크기 순 최상.
+    // KEEP 추천 산출 — 그룹별: 우리 임베드(메타) → 해상도 → 크기 순 최상.
     private fun computeKeeps(): Set<String> = groups.mapNotNull { grp ->
         grp.maxWithOrNull(
             compareBy<Vid>(
-                { if (hasCover[it.uri.toString()] == true) 1 else 0 },              // 임베드 우선
+                { if (embedMap[it.uri.toString()] == true) 1 else 0 },              // 우리 임베드 우선
                 { mmrRes[it.uri.toString()] ?: minOf(it.width, it.height) },        // 해상도
                 { it.size }                                                         // 크기
             )
         )?.uri?.toString()
     }.toSet()
 
-    // 중복 타일 보강 — 각 dup 파일 MMR 1회 open 으로 (a)해상도(0x0 보완) (b)임베드 커버 여부 조사.
+    // 중복 타일 보강 — 각 dup 파일 MMR 1회 open 으로 (a)해상도(0x0 보완) (b)우리 임베드 여부 조사.
+    //   임베드 판정 = JEmbed 메타(배우 ©ART / 스튜디오 ©aART / 시리즈 ©alb / 장르 ©gen) 존재.
+    //   ※ covr(커버) 단독은 원본 다운로드에도 흔해 제외 — 우리 메타가 박혀야 '임베드본'.
     //   → 끝나면 KEEP 을 임베드 우선으로 재산출(크기만으론 임베드 정본을 버리는 문제 해소).
     private fun enrich() {
         val myGen = ++gen
@@ -128,8 +131,8 @@ class DuplicatesActivity : AppCompatActivity() {
                 if (myGen != gen) return@Thread
                 val key = v.uri.toString()
                 val needRes = (v.width <= 0 || v.height <= 0) && !mmrRes.containsKey(key)
-                val needCover = !hasCover.containsKey(key)
-                if (!needRes && !needCover) continue
+                val needEmbed = !embedMap.containsKey(key)
+                if (!needRes && !needEmbed) continue
                 try {
                     val mmr = MediaMetadataRetriever()
                     try {
@@ -139,9 +142,16 @@ class DuplicatesActivity : AppCompatActivity() {
                             val rh = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
                             if (rw > 0 && rh > 0) mmrRes[key] = minOf(rw, rh)
                         }
-                        if (needCover) { val c = mmr.embeddedPicture != null; hasCover[key] = c; if (c) coverSet.add(key) }
+                        if (needEmbed) {
+                            fun m(k: Int) = mmr.extractMetadata(k)?.trim().orEmpty()
+                            val embedded = m(MediaMetadataRetriever.METADATA_KEY_ARTIST).isNotEmpty() ||      // 배우
+                                m(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST).isNotEmpty() ||            // 스튜디오
+                                m(MediaMetadataRetriever.METADATA_KEY_ALBUM).isNotEmpty() ||                  // 시리즈
+                                m(MediaMetadataRetriever.METADATA_KEY_GENRE).isNotEmpty()                     // 장르
+                            embedMap[key] = embedded; if (embedded) embedSet.add(key)
+                        }
                     } finally { mmr.release() }
-                } catch (e: Throwable) { JavDiag.ex("dup.enrich", e); if (needCover) hasCover[key] = false }
+                } catch (e: Throwable) { JavDiag.ex("dup.enrich", e); if (needEmbed) embedMap[key] = false }
                 runOnUiThread { if (myGen == gen) adapter?.notifyItemChanged(idx) }
             }
             // 임베드/해상도 확보 후 KEEP 재산출 → 마커 갱신
@@ -150,7 +160,7 @@ class DuplicatesActivity : AppCompatActivity() {
                 if (myGen != gen) return@runOnUiThread
                 keepUris.clear(); keepUris.addAll(keeps)
                 adapter?.notifyDataSetChanged()
-                JavDiag.log("dup", "enrich 완료: 커버=${hasCover.count { it.value }}/${hasCover.size}  KEEP=${keeps.size}")
+                JavDiag.log("dup", "enrich 완료: 임베드=${embedMap.count { it.value }}/${embedMap.size}  KEEP=${keeps.size}")
             }
         }.start()
     }

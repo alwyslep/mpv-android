@@ -68,7 +68,7 @@ class VideoAdapter(
     private val showFolder: Boolean = false,        // 중복 검수: meta 에 📁폴더 표기
     private val keepUris: Set<String> = emptySet(),  // 중복 검수: ✅추천(KEEP) 표시할 uri 들
     private val resByUri: Map<String, Int> = emptyMap(),  // 중복 검수: MediaStore 0x0 보완용 MMR 짧은변(px)
-    private val coverUris: Set<String> = emptySet(),  // 중복 검수: 임베드 커버 있는 uri(🖼 표시)
+    private val embedUris: Set<String> = emptySet(),  // 중복 검수: 우리 임베드(메타) 된 uri(🖼임베드 표시)
     private val driveTagFolders: Set<String> = emptySet(),  // 동일폴더명이 여러 드라이브에 충돌 → 💾드라이브 태그할 폴더명
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
@@ -125,7 +125,7 @@ class VideoAdapter(
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
         val uriStr = v.uri.toString()
-        val cover = if (showFolder && coverUris.contains(uriStr)) "🖼임베드" else ""
+        val cover = if (showFolder && embedUris.contains(uriStr)) "🖼임베드" else ""
         val folder = if (showFolder && v.folderName.isNotEmpty()) {
             if (driveTagFolders.contains(v.folderName)) "💾${MediaLibrary.volLabel(v.volume)} · 📁${v.folderName}"  // 충돌 → 드라이브 태그
             else "📁${v.folderName}"
