@@ -285,12 +285,12 @@ class MediaLibraryActivity : AppCompatActivity() {
         val active = ContextCompat.getColor(this, R.color.icon_active)
         val normal = com.google.android.material.color.MaterialColors.getColor(
             toolbar, com.google.android.material.R.attr.colorOnSurface)
-        fun tint(id: Int, on: Boolean) {
-            toolbar.menu.findItem(id)?.icon?.mutate()?.setTint(if (on) active else normal)
+        fun tint(key: String, on: Boolean) {
+            toolbar.menu.findItem(LibToolbar.menuId(key))?.icon?.mutate()?.setTint(if (on) active else normal)
         }
-        tint(103, LibPrefs.sortActive(this))   // LibToolbar: sort=103
-        tint(104, LibPrefs.quickActive(this))  // tune=104
-        tint(106, LibPrefs.filterActive(this)) // filter=106
+        tint("sort", LibPrefs.sortActive(this))    // key 기준(재배치-안전)
+        tint("tune", LibPrefs.quickActive(this))
+        tint("filter", LibPrefs.filterActive(this))
     }
 
     // B-52 A: 현재 목록(videos/tree) 영상 중 커버 없는 것만 hub 커버 재임베드(JEmbed skipIfHasCover).

@@ -16,6 +16,7 @@ object LibToolbar {
         Spec("sort", R.drawable.ic_sort_24, "정렬", "정렬 기준·오름/내림차순 변경"),
         Spec("tune", R.drawable.ic_tune_24, "빠른 설정", "표시 항목·커버 크기 등 빠른 설정"),
         Spec("select", R.drawable.ic_check_circle_24, "선택(임베드)", "여러 영상을 직접 골라 일괄 임베드/이동/썸네일"),
+        Spec("embedauto", R.drawable.ic_embed_24, "임베드(자동)", "메타·커버 없는 영상만 자동으로 일괄 임베드(선택 불필요)"),
         Spec("filter", R.drawable.ic_filter_alt_24dp, "필터", "해상도·상태·확장자·메타 조건으로 필터"),
         Spec("move", R.drawable.ic_folder_24, "이동", "선택 영상을 다른 폴더로 이동"),
         Spec("thumb", R.drawable.ic_image, "썸네일 지정", "선택 영상의 썸네일 위치를 일괄 지정"),
@@ -24,8 +25,10 @@ object LibToolbar {
         Spec("settings", R.drawable.ic_settings_24, "설정", "앱 설정 열기"),
         Spec("dup", R.drawable.ic_dup_24, "중복 찾기", "품번이 같은 중복 파일 찾기"),
         Spec("refresh", R.drawable.ic_refresh_24, "새로고침", "목록 새로고침"),
-        Spec("embedauto", R.drawable.ic_embed_24, "임베드(자동)", "메타·커버 없는 영상만 자동으로 일괄 임베드(선택 불필요)"),
     )
+
+    // 재배치-안전: key 로 메뉴 id(100+index) 조회. (applyIconTints 등 고정 id 의존 제거용)
+    fun menuId(key: String): Int = ALL.indexOfFirst { it.key == key }.let { if (it >= 0) 100 + it else -1 }
 
     fun build(toolbar: MaterialToolbar, enabled: Set<String>, gridIsGrid: Boolean?, on: (String) -> Unit) {
         toolbar.menu.clear()
