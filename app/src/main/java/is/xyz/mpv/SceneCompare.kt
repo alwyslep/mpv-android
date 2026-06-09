@@ -29,7 +29,7 @@ object SceneCompare {
         Thread {
             val vids = MediaLibrary.queryVideos(ctx)
                 .filter { JavCode.dupKey(it.name) == code && !MediaLibrary.isTrashOrTemp(it) }
-                .distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }   // 같은 파일 합침
+                .distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.volume}|${v.size}|${v.width}x${v.height}|${v.name}" }   // 같은 파일 합침(드라이브 포함 — 교차드라이브 복사본 보존)
                 .sortedWith(compareByDescending<Vid> { minOf(it.width, it.height) }.thenByDescending { it.size })
             JavDiag.log("scene", "tap='$name' code=$code  matched=${vids.size}")
             vids.forEach { JavDiag.log("scene", "  '${it.name}' folder=${it.folderName} ${it.width}x${it.height} ${it.size}B path=${if (it.path.isEmpty()) "NOPATH" else it.path}") }

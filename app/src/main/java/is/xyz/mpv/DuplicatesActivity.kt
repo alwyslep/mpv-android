@@ -66,8 +66,9 @@ class DuplicatesActivity : AppCompatActivity() {
         Thread {
             val raw = MediaLibrary.queryVideos(this)
                 .filter { !MediaLibrary.isTrashOrTemp(it) }   // 휴지통/remux임시/크기0 제외
-            // 같은 '파일'(MediaStore 중복행)만 합침: 경로 있으면 경로, 없으면 크기(바이트)+해상도+이름 으로 식별.
-            val all = raw.distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }
+            // 같은 '파일'(같은 드라이브 내 중복행)만 합침: 경로 있으면 경로, 없으면 드라이브+크기+해상도+이름.
+            //  ※ volume 포함 필수 — 빼면 두 드라이브의 동일 복사본(같은 바이트)을 한 파일로 합쳐 교차드라이브 중복이 사라짐.
+            val all = raw.distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.volume}|${v.size}|${v.width}x${v.height}|${v.name}" }
             // 동일 폴더명이 여러 드라이브에 존재하면(충돌) 그 폴더명만 💾드라이브 태그 — 라이브러리 전체 기준.
             val volsByFolder = HashMap<String, MutableSet<String>>()
             for (v in all) if (v.folderName.isNotEmpty()) volsByFolder.getOrPut(v.folderName) { HashSet() }.add(v.volume)
