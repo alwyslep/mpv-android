@@ -46,7 +46,9 @@ object LibToolbar {
         toolbar.menu.clear()
         val tips = HashMap<Int, CharSequence>()
         // 표시 순서는 사용자 정의(order), id 는 ALL 캐논 인덱스(100+ci) 유지 → 핸들러/menuId 불변.
-        order(toolbar.context).forEachIndexed { pos, key ->
+        val ord = order(toolbar.context)
+        JavDiag.log("order", "build apply=[${ord.take(6).joinToString(",")}...]")
+        ord.forEachIndexed { pos, key ->
             val ci = ALL.indexOfFirst { it.key == key }
             if (ci < 0) return@forEachIndexed
             val s = ALL[ci]

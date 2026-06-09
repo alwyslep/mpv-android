@@ -27,6 +27,7 @@ class ToolbarOrderActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         keys.clear(); keys.addAll(LibToolbar.order(this))
+        JavDiag.log("order", "onCreate keys=${keys.size} [${keys.joinToString(",")}]")
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -72,6 +73,7 @@ class ToolbarOrderActivity : AppCompatActivity() {
     override fun onPause() {
         super.onPause()
         LibToolbar.setOrder(this, keys)
+        JavDiag.log("order", "save [${keys.joinToString(",")}]")
     }
 
     inner class VH(row: LinearLayout) : RecyclerView.ViewHolder(row) {
@@ -114,19 +116,21 @@ class ToolbarOrderActivity : AppCompatActivity() {
         @android.annotation.SuppressLint("ClickableViewAccessibility")
         override fun onBindViewHolder(h: VH, position: Int) {
             val spec = LibToolbar.ALL.firstOrNull { it.key == keys[position] } ?: return
+            JavDiag.log("order", "bind[$position] ${spec.key}")
             h.icon.setImageResource(spec.icon)
             h.icon.setColorFilter(0xFFDDDDDD.toInt())
             h.label.text = spec.label
-            h.up.setOnClickListener { val p = h.bindingAdapterPosition; if (p > 0) move(p, p - 1) }
-            h.down.setOnClickListener { val p = h.bindingAdapterPosition; if (p in 0 until keys.size - 1) move(p, p + 1) }
+            h.up.setOnClickListener { val p = h.bindingAdapterPosition; JavDiag.log("order", "▲ tap p=$p"); if (p > 0) move(p, p - 1) }
+            h.down.setOnClickListener { val p = h.bindingAdapterPosition; JavDiag.log("order", "▼ tap p=$p"); if (p in 0 until keys.size - 1) move(p, p + 1) }
             h.handle.setOnTouchListener { _, e ->
                 if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) { touchHelper.startDrag(h); true } else false
             }
         }
 
         fun move(from: Int, to: Int) {
-            if (from < 0 || to < 0 || from >= keys.size || to >= keys.size || from == to) return
+            if (from < 0 || to < 0 || from >= keys.size || to >= keys.size || from == to) { JavDiag.log("order", "move skip $from→$to"); return }
             val k = keys.removeAt(from); keys.add(to, k); notifyItemMoved(from, to)
+            JavDiag.log("order", "move $from→$to ok [${keys.joinToString(",")}]")
         }
     }
 
