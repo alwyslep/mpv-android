@@ -67,6 +67,7 @@ class VideoAdapter(
     private val grid: Boolean,
     private val showFolder: Boolean = false,        // 중복 검수: meta 에 📁폴더 표기
     private val keepUris: Set<String> = emptySet(),  // 중복 검수: ✅추천(KEEP) 표시할 uri 들
+    private val resByUri: Map<String, Int> = emptyMap(),  // 중복 검수: MediaStore 0x0 보완용 MMR 짧은변(px)
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
 
@@ -148,6 +149,12 @@ class VideoAdapter(
                     rb.text = "${resTag(localShort)}→$expStr ⚠"
                 }
             }
+        } else if (resByUri[rKey] != null && resByUri[rKey]!! > 0) {
+            // 중복 검수: MMR 로 구한 실해상도(MediaStore 0x0 보완) — 즉시 표시
+            rb.visibility = View.VISIBLE
+            rb.setBackgroundColor(badgeDark)
+            val mp = resByUri[rKey]!!
+            rb.text = if (mp in 1..719) "${mp}p ⚠".also { rb.setBackgroundColor(badgeRed) } else "${mp}p"
         } else {
             // MediaStore height=0(임베드 remux/SAF) → hub /resolutions 값으로 표시(마커 아님)
             rb.visibility = View.GONE

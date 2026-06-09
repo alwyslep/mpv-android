@@ -28,4 +28,22 @@ object JavCode {
         UNCEN_PREFIX.find(s)?.let { return it.value.uppercase() }
         return null
     }
+
+    // 무하이픈/무구분 라벨숫자 폴백(MIDV189, ABP410) — 중복 그룹핑 전용.
+    private val LOOSE = Regex("(?i)\\b([a-z]{2,6})[ _]?(\\d{3,5})\\b")
+
+    /**
+     * 중복 그룹핑 전용 키 — hub 키 아님(조회용 아님).
+     *  extract() 가 변형 접미사(-C 중국자막·_2/_part·무수정·(1) 등)는 코드만 뽑아 이미 흡수.
+     *  추가로 구분자 무관 정규화 + 무하이픈 형(MIDV189) 폴백으로 하이픈본과 합류.
+     *  무하이픈 폴백 오탐(영단어)은 단독이면 그룹에서 탈락하므로 검수 화면 영향 제한적.
+     */
+    fun dupKey(name: String): String? {
+        extract(name)?.let { return norm(it) }
+        val s = RESOLUTION.replace(name.substringBeforeLast('.'), " ")
+        LOOSE.find(s)?.let { return (it.groupValues[1] + it.groupValues[2]).uppercase() }
+        return null
+    }
+
+    private fun norm(c: String) = c.uppercase().replace("-", "").replace("_", "").replace(" ", "")
 }

@@ -7,6 +7,8 @@ import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.IntentSenderRequest
 import androidx.documentfile.provider.DocumentFile
 import androidx.appcompat.app.AlertDialog
 
@@ -125,22 +127,54 @@ object VideoTrash {
 
     private fun safTrash(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
         Thread {
-            val ok = try {
-                val authority = u.authority!!
-                val treeId = DocumentsContract.getTreeDocumentId(u)
-                val treeUri = DocumentsContract.buildTreeDocumentUri(authority, treeId)
-                val root = DocumentFile.fromTreeUri(ctx, treeUri)
-                val trash = root?.findFile(TRASH_DIR)?.takeIf { it.isDirectory } ?: root?.createDirectory(TRASH_DIR)
-                val parent = parentDocUri(u)
-                if (trash != null && parent != null)
-                    DocumentsContract.moveDocument(ctx.contentResolver, u, parent, trash.uri) != null
-                else false
-            } catch (e: Throwable) { JavDiag.ex("safTrash", e); false }   // 무음 catch 금지
+            val ok = safTrashCore(ctx, u)
             (ctx as? Activity)?.runOnUiThread {
                 if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "휴지통으로 이동: $name") }
                 else toast(ctx, "삭제 실패: $name")
             }
         }.start()
+    }
+
+    // SAF 휴지통 이동 동기 코어(UI 없음) — 단건/일괄 공용.
+    private fun safTrashCore(ctx: Context, u: Uri): Boolean = try {
+        val authority = u.authority!!
+        val treeId = DocumentsContract.getTreeDocumentId(u)
+        val treeUri = DocumentsContract.buildTreeDocumentUri(authority, treeId)
+        val root = DocumentFile.fromTreeUri(ctx, treeUri)
+        val trash = root?.findFile(TRASH_DIR)?.takeIf { it.isDirectory } ?: root?.createDirectory(TRASH_DIR)
+        val parent = parentDocUri(u)
+        if (trash != null && parent != null)
+            DocumentsContract.moveDocument(ctx.contentResolver, u, parent, trash.uri) != null
+        else false
+    } catch (e: Throwable) { JavDiag.ex("safTrash", e); false }   // 무음 catch 금지
+
+    // 일괄 휴지통 — 중복 검수 '작은쪽 일괄정리' 등. 확인창 1회 → MediaStore 는 createTrashRequest 일괄(OS 확인창 1회),
+    //   SAF 는 .mpv-trash 로 순차 이동. items=(uri,name). launcher 는 IntentSender 결과(→재로드) 받는 런처.
+    fun bulkTrashConfirm(act: Activity, items: List<Pair<Uri, String>>,
+                         launcher: ActivityResultLauncher<IntentSenderRequest>, onDone: () -> Unit) {
+        if (items.isEmpty()) { toast(act, "정리할 항목 없음"); return }
+        AlertDialog.Builder(act)
+            .setTitle("작은 중복 일괄정리")
+            .setMessage("각 품번에서 추천(최대용량)만 남기고 ${items.size}개를 휴지통으로 보냅니다.\n내부=30일 복구 · 외부=.mpv-trash 복구가능")
+            .setNegativeButton(act.getString(R.string.dialog_cancel), null)
+            .setPositiveButton("휴지통으로(${items.size})") { _, _ -> doBulkTrash(act, items, launcher, onDone) }
+            .show()
+    }
+
+    private fun doBulkTrash(act: Activity, items: List<Pair<Uri, String>>,
+                            launcher: ActivityResultLauncher<IntentSenderRequest>, onDone: () -> Unit) {
+        val ms = items.map { it.first }.filter { it.authority == MediaStore.AUTHORITY }
+        val saf = items.filter { it.first.authority != MediaStore.AUTHORITY }
+        if (saf.isNotEmpty()) Thread {
+            var ok = 0; for ((u, _) in saf) if (safTrashCore(act, u)) ok++
+            act.runOnUiThread { toast(act, "외부 ${ok}/${saf.size} 휴지통 이동"); if (ms.isEmpty()) onDone() }
+        }.start()
+        if (ms.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            try {
+                val pi = MediaStore.createTrashRequest(act.contentResolver, ms, true)
+                launcher.launch(IntentSenderRequest.Builder(pi.intentSender).build())   // OS 확인창 → 결과 콜백서 재로드
+            } catch (e: Throwable) { JavDiag.ex("bulkTrash.ms", e); toast(act, "일괄 휴지통 실패: ${e.message}") }
+        } else if (ms.isEmpty() && saf.isEmpty()) onDone()
     }
 
     // SAF document uri 의 부모 document uri (moveDocument sourceParent 용). JMove 와 동일 규칙.
