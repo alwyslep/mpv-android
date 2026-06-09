@@ -70,6 +70,7 @@ class VideoAdapter(
     private val resByUri: Map<String, Int> = emptyMap(),  // 중복 검수: MediaStore 0x0 보완용 MMR 짧은변(px)
     private val embedUris: Set<String> = emptySet(),  // 중복 검수: 우리 임베드(메타) 된 uri(🖼임베드 표시)
     private val driveTagFolders: Set<String> = emptySet(),  // 동일폴더명이 여러 드라이브에 충돌 → 💾드라이브 태그할 폴더명
+    private val onItemRemoved: ((String) -> Unit)? = null,  // 중복 검수: 타일 삭제 후 그룹 정리 후크
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
 
@@ -225,7 +226,7 @@ class VideoAdapter(
         h.itemView.setOnLongClickListener {
             VideoActions.longPress(it, us, v.name,
                 onChanged = { notifyItemChanged(h.bindingAdapterPosition) },
-                onRemoved = { removeItem(us) },   // 59: 삭제 후 타일 즉시 제거
+                onRemoved = { removeItem(us); onItemRemoved?.invoke(us) },   // 59: 삭제 후 타일 즉시 제거 + 그룹 정리 후크
                 permanent = v.folderPath.contains(".mpv-trash"))   // B-68: 휴지통 폴더(MediaStore 경로)면 영구삭제
             true
         }

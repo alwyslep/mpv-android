@@ -103,8 +103,33 @@ class DuplicatesActivity : AppCompatActivity() {
     private fun rebuild() {
         val grid = LibPrefs.grid(this)
         recycler.layoutManager = if (grid) GridLayoutManager(this, LibPrefs.spanCount(this)) else LinearLayoutManager(this)
-        adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes, embedUris = embedSet, driveTagFolders = driveTagFolders) { v -> play(v) }
+        adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes,
+            embedUris = embedSet, driveTagFolders = driveTagFolders,
+            onItemRemoved = { uri -> reconcileAfterRemove(uri) }) { v -> play(v) }
         recycler.adapter = adapter
+    }
+
+    // 타일 1개 휴지통 후 즉시 반영(재로드/재스캔 없이): 그룹이 1개만 남으면 생존자도 제거(중복 해소),
+    //   카운트·✅추천 갱신. 3개↑ 그룹은 유지하되 KEEP 재산출.
+    private fun reconcileAfterRemove(removedUri: String) {
+        val newGroups = ArrayList<List<Vid>>()
+        val alsoRemove = ArrayList<String>()
+        var resolvedCode: String? = null
+        for (g in groups) {
+            if (g.none { it.uri.toString() == removedUri }) { newGroups.add(g); continue }
+            val remain = g.filterNot { it.uri.toString() == removedUri }
+            if (remain.size >= 2) newGroups.add(remain)                         // 아직 중복(3개↑→2개↑)
+            else { remain.forEach { alsoRemove.add(it.uri.toString()) }         // 해소 — 생존자도 제거
+                   resolvedCode = remain.firstOrNull()?.let { JavCode.dupKey(it.name) } }
+        }
+        groups = newGroups
+        dups = newGroups.flatten()
+        alsoRemove.forEach { adapter?.removeItem(it) }
+        keepUris.clear(); keepUris.addAll(computeKeeps())
+        toolbar.title = "품번 중복  ${groups.size}건 · ${dups.size}개"
+        adapter?.notifyDataSetChanged()
+        resolvedCode?.let { Toast.makeText(this, "「$it」 중복 정리 — 1개 남김", Toast.LENGTH_SHORT).show() }
+        if (dups.isEmpty()) Toast.makeText(this, "중복 모두 정리됨", Toast.LENGTH_SHORT).show()
     }
 
     // KEEP 추천 산출 — 그룹별: 우리 임베드(메타) → 해상도 → 크기 순 최상.
