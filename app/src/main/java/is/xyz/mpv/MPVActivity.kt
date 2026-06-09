@@ -377,12 +377,15 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         if (removed) result.putExtra("removed", true)
         if (includeTimePos) {
             // psc 가 eof 로 비워졌으면(완료 경로) END_FILE 직전 보존값 사용
-            val pos = if (psc.position >= 0) psc.position else lastPos
             val dur = if (psc.duration > 0) psc.duration else lastDur
+            // 끝까지 봄(eof-reached) 이면 pos=dur 강제 → watch=2 보장(내/외부 공통, keep-open·위치클리어 quirk 무관).
+            val eof = try { MPVLib.getPropertyBoolean("eof-reached") ?: false } catch (_: Throwable) { false }
+            val pos = if (eof && dur > 0) dur
+                      else if (psc.position >= 0) psc.position else lastPos
             result.putExtra("position", pos.toInt())
             result.putExtra("duration", dur.toInt())
             // 4: 외부/내부 통일 — MPVActivity 가 직접 진행위치 저장(결과 반환에만 의존하지 않음)
-            JavDiag.log("autonext", "save psc.pos=${psc.position} lastPos=$lastPos →pos=$pos psc.dur=${psc.duration} lastDur=$lastDur →dur=$dur name=${mediaName()} uri=${playbackUri()?.take(48)}")
+            JavDiag.log("autonext", "save eof=$eof psc.pos=${psc.position} lastPos=$lastPos →pos=$pos dur=$dur name=${mediaName()} uri=${playbackUri()?.take(48)}")
             playbackUri()?.let { u -> if (dur > 0 && pos in 0..dur) Progress.save(this, u, mediaName(), pos, dur) }
         }
         if (includeTracks) {

@@ -278,8 +278,9 @@ internal object Utils {
         val pad = convertDp(ctx, 8f)
         val sw = ctx.resources.displayMetrics.widthPixels
         val x = loc[0].coerceIn(pad, maxOf(pad, sw - tv.measuredWidth - pad))   // 화면 밖 방지
-        // above=true: 앵커(베너 버튼) 위로 — 베너 높이보다 약간 높게(하단 베너 가림 방지)
-        val y = if (above) loc[1] - tv.measuredHeight - convertDp(ctx, 12f)
+        // above=true: 베너(앵커의 부모) 위로 — 베너 범위 밖 위에 띄워 버튼을 가리지 않음.
+        val bannerTop = (anchor.parent as? android.view.View)?.let { p -> IntArray(2).also { p.getLocationOnScreen(it) }[1] } ?: loc[1]
+        val y = if (above) bannerTop - tv.measuredHeight - convertDp(ctx, 6f)
                 else loc[1] + anchor.height + convertDp(ctx, 2f)
         try {
             pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, y)
