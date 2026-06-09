@@ -222,23 +222,24 @@ internal object Utils {
         dismissTip()
         val ctx = anchor.context
         val parent = anchor.parent as? android.view.ViewGroup
-        var firstLeft = Int.MAX_VALUE; var rowBottom = 0
+        var firstLeft = Int.MAX_VALUE; var rowTop = Int.MAX_VALUE
         if (parent != null) {
             for (i in 0 until parent.childCount) {
                 val c = parent.getChildAt(i); if (c.width == 0 || c.visibility != android.view.View.VISIBLE) continue
                 val loc = IntArray(2); c.getLocationOnScreen(loc)
-                firstLeft = minOf(firstLeft, loc[0]); rowBottom = maxOf(rowBottom, loc[1] + c.height)
+                firstLeft = minOf(firstLeft, loc[0]); rowTop = minOf(rowTop, loc[1])
             }
         }
         if (firstLeft == Int.MAX_VALUE) {
-            val l = IntArray(2); anchor.getLocationOnScreen(l); firstLeft = l[0]; rowBottom = l[1] + anchor.height
+            val l = IntArray(2); anchor.getLocationOnScreen(l); firstLeft = l[0]; rowTop = l[1]
         }
         val tv = buildTipView(ctx, text); val pw = newTipPopup(ctx, tv); tipPopup = pw
         val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
         tv.measure(unspec, unspec)
         val x = maxOf(convertDp(ctx, 8f), firstLeft - tv.measuredWidth - convertDp(ctx, 8f))   // 첫 아이콘 왼쪽(화면 8dp 한계)
         try {
-            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowBottom + convertDp(ctx, 2f))
+            // 아이콘 행과 같은 높이(행 상단)에 표시 — 한 줄 아래로 내려가지 않게.
+            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowTop)
         } catch (_: Throwable) { tipPopup = null; return }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }

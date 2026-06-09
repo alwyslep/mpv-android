@@ -14,7 +14,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 
-// 55b: 툴바 아이콘 순서 설정 — 롱프레스 드래그(또는 ≡ 핸들)로 재배치, prefs 저장.
+// 55b: 툴바 아이콘 순서 설정 — ▲▼ 버튼(확실) + ≡ 핸들/롱프레스 드래그로 재배치, prefs 저장.
 //   ALL 은 캐논(id 고정), 순서만 사용자 정의. 저장은 onPause(나갈 때 자동).
 class ToolbarOrderActivity : AppCompatActivity() {
     private val keys = ArrayList<String>()
@@ -42,16 +42,16 @@ class ToolbarOrderActivity : AppCompatActivity() {
         root.addView(toolbar, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
 
         val hint = TextView(this).apply {
-            text = "길게 눌러 끌어 순서를 바꾸세요. (오른쪽 ≡ 핸들로도 드래그)"
+            text = "▲▼ 버튼으로 옮기거나, ≡ 핸들/길게 눌러 끌어 순서를 바꾸세요."
             textSize = 12f; setPadding(dp(16f), dp(8f), dp(16f), dp(8f)); setTextColor(0xFFAAAAAA.toInt())
         }
         root.addView(hint)
 
         val recycler = RecyclerView(this).apply { layoutManager = LinearLayoutManager(this@ToolbarOrderActivity) }
         adapter = Adapter()
-        recycler.adapter = adapter
         touchHelper = ItemTouchHelper(DragCallback())
         touchHelper.attachToRecyclerView(recycler)
+        recycler.adapter = adapter
         root.addView(recycler, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
 
         val reset = MaterialButton(this).apply {
@@ -77,23 +77,33 @@ class ToolbarOrderActivity : AppCompatActivity() {
     inner class VH(v: View) : RecyclerView.ViewHolder(v) {
         val icon: ImageView = v.findViewById(1)
         val label: TextView = v.findViewById(2)
-        val handle: TextView = v.findViewById(3)
+        val up: TextView = v.findViewById(3)
+        val down: TextView = v.findViewById(4)
+        val handle: TextView = v.findViewById(5)
     }
 
     inner class Adapter : RecyclerView.Adapter<VH>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): VH {
-            val row = LinearLayout(parent.context).apply {
+            val ctx = parent.context
+            fun arrow(c: String) = TextView(ctx).apply {
+                text = c; textSize = 20f; setTextColor(0xFFCCCCCC.toInt())
+                gravity = Gravity.CENTER
+                setPadding(dp(12f), dp(6f), dp(12f), dp(6f)); isClickable = true
+            }
+            val row = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-                setPadding(dp(16f), dp(14f), dp(16f), dp(14f))
+                setPadding(dp(16f), dp(10f), dp(8f), dp(10f))
                 layoutParams = RecyclerView.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             }
-            val icon = ImageView(parent.context).apply { id = 1; layoutParams = LinearLayout.LayoutParams(dp(26f).toInt(), dp(26f).toInt()) }
-            val label = TextView(parent.context).apply {
-                id = 2; textSize = 15f; setPadding(dp(16f), 0, dp(16f), 0)
+            val icon = ImageView(ctx).apply { id = 1; layoutParams = LinearLayout.LayoutParams(dp(26f), dp(26f)) }
+            val label = TextView(ctx).apply {
+                id = 2; textSize = 15f; setPadding(dp(16f), 0, dp(8f), 0)
                 layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             }
-            val handle = TextView(parent.context).apply { id = 3; text = "≡"; textSize = 22f; setTextColor(0xFF888888.toInt()) }
-            row.addView(icon); row.addView(label); row.addView(handle)
+            val up = arrow("▲").apply { id = 3 }
+            val down = arrow("▼").apply { id = 4 }
+            val handle = TextView(ctx).apply { id = 5; text = "≡"; textSize = 22f; setTextColor(0xFF888888.toInt()); setPadding(dp(10f), dp(6f), dp(6f), dp(6f)) }
+            row.addView(icon); row.addView(label); row.addView(up); row.addView(down); row.addView(handle)
             return VH(row)
         }
 
@@ -105,14 +115,15 @@ class ToolbarOrderActivity : AppCompatActivity() {
             h.icon.setImageResource(spec.icon)
             h.icon.setColorFilter(0xFFDDDDDD.toInt())
             h.label.text = spec.label
+            h.up.setOnClickListener { val p = h.bindingAdapterPosition; if (p > 0) move(p, p - 1) }
+            h.down.setOnClickListener { val p = h.bindingAdapterPosition; if (p in 0 until keys.size - 1) move(p, p + 1) }
             h.handle.setOnTouchListener { _, e ->
-                if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) touchHelper.startDrag(h)
-                false
+                if (e.actionMasked == android.view.MotionEvent.ACTION_DOWN) { touchHelper.startDrag(h); true } else false
             }
         }
 
         fun move(from: Int, to: Int) {
-            if (from < 0 || to < 0 || from >= keys.size || to >= keys.size) return
+            if (from < 0 || to < 0 || from >= keys.size || to >= keys.size || from == to) return
             val k = keys.removeAt(from); keys.add(to, k); notifyItemMoved(from, to)
         }
     }

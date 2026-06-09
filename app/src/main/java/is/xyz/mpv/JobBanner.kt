@@ -73,7 +73,7 @@ object JobBanner {
         }
         val bars = LinearLayout(ctx).apply {
             tag = "bars"; orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(px(150f), LinearLayout.LayoutParams.WRAP_CONTENT)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 3f)   // 57: 길게(label:bars=1:3)
                 .apply { marginStart = px(18f); gravity = Gravity.CENTER_VERTICAL }
             addView(rowAll); addView(rowItem)
         }
