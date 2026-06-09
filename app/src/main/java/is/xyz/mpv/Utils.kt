@@ -196,15 +196,35 @@ internal object Utils {
     }
 
     // 툴바 액션 아이콘은 menuItem.itemId 와 같은 id 의 뷰로 렌더 → 레이아웃 후 findViewById 로 커스텀 툴팁 부착.
+    // 56: 툴팁이 아이콘을 가리지 않게, 모든 툴바 툴팁을 *맨 왼쪽 아이콘의 왼쪽* 빈 공간(아이콘 행 아래)에 고정 표시.
     fun tipMenu(toolbar: android.view.View, tips: Map<Int, CharSequence>) {
-        toolbar.post { for ((id, t) in tips) toolbar.findViewById<android.view.View>(id)?.let { tip(it, t) } }
+        toolbar.post {
+            val ctx = toolbar.context
+            val views = tips.keys.mapNotNull { id -> toolbar.findViewById<android.view.View>(id)?.let { id to it } }
+            if (views.isEmpty()) return@post
+            val locs = views.map { (_, v) -> IntArray(2).also { v.getLocationOnScreen(it) } to v.height }
+            val firstIconLeft = locs.minOf { it.first[0] }                 // 맨 왼쪽 아이콘 x
+            val rowBottom = locs.maxOf { it.first[1] + it.second }         // 아이콘 행 하단 y
+            val leftClamp = IntArray(2).also { toolbar.getLocationOnScreen(it) }[0] + convertDp(ctx, 8f)
+            for ((id, v) in views) {
+                val t = tips[id] ?: continue
+                androidx.appcompat.widget.TooltipCompat.setTooltipText(v, null)
+                if (!LibPrefs.showTooltips(ctx)) { v.setOnLongClickListener(null); v.setOnHoverListener(null); continue }
+                v.setOnLongClickListener { showTipAt(v, t, firstIconLeft, rowBottom, leftClamp); true }
+                v.setOnHoverListener { vv, e ->
+                    when (e.actionMasked) {
+                        android.view.MotionEvent.ACTION_HOVER_ENTER -> showTipAt(vv, t, firstIconLeft, rowBottom, leftClamp)
+                        android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTip()
+                    }
+                    false
+                }
+            }
+        }
     }
 
-    private fun showTip(anchor: android.view.View, text: CharSequence) {
-        dismissTip()
-        val ctx = anchor.context
+    private fun buildTipView(ctx: android.content.Context, text: CharSequence): android.widget.TextView {
         val padH = convertDp(ctx, 10f); val padV = convertDp(ctx, 6f)
-        val tv = android.widget.TextView(ctx).apply {
+        return android.widget.TextView(ctx).apply {
             this.text = text
             setTextColor(0xFFFFA726.toInt())   // 밝은 주황
             textSize = 13f
@@ -214,13 +234,36 @@ internal object Utils {
                 setColor(0xFF1B5E20.toInt())   // 어두운 녹색
             }
         }
-        val pw = android.widget.PopupWindow(tv,
+    }
+
+    private fun newTipPopup(ctx: android.content.Context, tv: android.view.View) =
+        android.widget.PopupWindow(tv,
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT).apply {
             isOutsideTouchable = true; isFocusable = false
             elevation = convertDp(ctx, 4f).toFloat()
         }
-        tipPopup = pw
+
+    // 56: 첫 아이콘 왼쪽(빈 공간)·아이콘 행 아래에 고정 — 어느 아이콘이든 같은 위치, 아이콘 안 가림.
+    private fun showTipAt(anchor: android.view.View, text: CharSequence, firstIconLeft: Int, rowBottom: Int, leftClamp: Int) {
+        dismissTip()
+        val ctx = anchor.context
+        val tv = buildTipView(ctx, text)
+        val pw = newTipPopup(ctx, tv); tipPopup = pw
+        val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+        tv.measure(unspec, unspec)
+        val x = maxOf(leftClamp, firstIconLeft - tv.measuredWidth - convertDp(ctx, 8f))   // 첫 아이콘 왼쪽
+        try {
+            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowBottom + convertDp(ctx, 2f))
+        } catch (_: Throwable) { tipPopup = null; return }
+        anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
+    }
+
+    private fun showTip(anchor: android.view.View, text: CharSequence) {
+        dismissTip()
+        val ctx = anchor.context
+        val tv = buildTipView(ctx, text)
+        val pw = newTipPopup(ctx, tv); tipPopup = pw
         val loc = IntArray(2); anchor.getLocationOnScreen(loc)
         try {
             pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START,
