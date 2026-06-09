@@ -68,6 +68,7 @@ class VideoAdapter(
     private val showFolder: Boolean = false,        // 중복 검수: meta 에 📁폴더 표기
     private val keepUris: Set<String> = emptySet(),  // 중복 검수: ✅추천(KEEP) 표시할 uri 들
     private val resByUri: Map<String, Int> = emptyMap(),  // 중복 검수: MediaStore 0x0 보완용 MMR 짧은변(px)
+    private val coverUris: Set<String> = emptySet(),  // 중복 검수: 임베드 커버 있는 uri(🖼 표시)
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
 
@@ -122,10 +123,12 @@ class VideoAdapter(
         fun resTag(n: Int) = if (isPortrait) "↕${n}p" else "${n}p"
         val sz = if (LibPrefs.showSize(ctx)) MediaLibrary.fmtSize(v.size) else ""
         val ext = if (LibPrefs.showExt(ctx)) v.nameExt.substringAfterLast(".", "").uppercase() else ""
+        val uriStr = v.uri.toString()
+        val cover = if (showFolder && coverUris.contains(uriStr)) "🖼임베드" else ""
         val folder = if (showFolder && v.folderName.isNotEmpty()) "📁${v.folderName}" else ""
-        val isKeep = keepUris.contains(v.uri.toString())
-        val metaParts = listOf(sz, ext, folder).filter { it.isNotEmpty() }.joinToString("  ·  ")
-        h.meta.text = if (isKeep) "✅추천(최대용량)  $metaParts" else metaParts
+        val isKeep = keepUris.contains(uriStr)
+        val metaParts = listOf(sz, ext, cover, folder).filter { it.isNotEmpty() }.joinToString("  ·  ")
+        h.meta.text = if (isKeep) "✅추천  $metaParts" else metaParts
         if (isKeep) h.meta.setTextColor(0xFF66BB6A.toInt())   // KEEP = 초록
         else run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
         // 해상도 배지(썸네일 위). badgeDark=기본, badgeRed=저화질/불일치 경고.
