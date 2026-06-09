@@ -209,8 +209,8 @@ internal object Utils {
                 v.setOnLongClickListener { showMenuTip(v, t); true }
                 v.setOnHoverListener { vv, e ->
                     when (e.actionMasked) {
-                        android.view.MotionEvent.ACTION_HOVER_ENTER -> showMenuTip(vv, t)
-                        android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTipFor(vv)
+                        android.view.MotionEvent.ACTION_HOVER_ENTER -> { JavDiag.log("tip", "ENTER ${t.toString().take(10)}"); showMenuTip(vv, t) }
+                        android.view.MotionEvent.ACTION_HOVER_EXIT -> { JavDiag.log("tip", "EXIT ${t.toString().take(10)} guard=${tipAnchor === vv}"); dismissTipFor(vv) }
                     }
                     false
                 }
@@ -241,7 +241,8 @@ internal object Utils {
         try {
             // 아이콘 행과 같은 높이(행 상단)에 표시 — 한 줄 아래로 내려가지 않게.
             pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowTop)
-        } catch (_: Throwable) { tipPopup = null; tipAnchor = null; return }
+            JavDiag.log("tip", "show @${x},$rowTop w=${tv.measuredWidth}")
+        } catch (e: Throwable) { JavDiag.ex("tip.show", e); tipPopup = null; tipAnchor = null; return }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }
 
