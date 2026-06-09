@@ -4,7 +4,11 @@
     android:viewportWidth="24"
     android:viewportHeight="24"
     android:tint="?attr/colorControlNormal">
+    <!-- 커버 보강 = 프레임에 커버(＋)를 채워넣기 — 썸네일(사진) 아이콘과 구분 -->
     <path
         android:fillColor="@android:color/white"
-        android:pathData="M22,16V4c0,-1.1 -0.9,-2 -2,-2H8C6.9,2 6,2.9 6,4v12c0,1.1 0.9,2 2,2h12c1.1,0 2,-0.9 2,-2zM11,12l2.03,2.71L16,9l4,5H8l3,-2zM2,6v14c0,1.1 0.9,2 2,2h14v-2H4V6H2z" />
+        android:pathData="M19,3H5C3.89,3 3,3.9 3,5v14c0,1.1 0.89,2 2,2h14c1.1,0 2,-0.9 2,-2V5C21,3.9 20.1,3 19,3zM19,19H5V5h14V19z" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16,13h-3v3h-2v-3H8v-2h3V8h2v3h3V13z" />
 </vector>

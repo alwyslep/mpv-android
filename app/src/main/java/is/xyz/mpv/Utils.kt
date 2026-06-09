@@ -179,6 +179,7 @@ internal object Utils {
     // 55: 커스텀 툴팁 — 시스템 툴팁(A13 에선 색 테마 불가)을 대체. 다크그린 배경 + 밝은 주황 글자.
     //     long-press(터치) + 마우스 hover 모두 지원. showTooltips off 면 미설정.
     private var tipPopup: android.widget.PopupWindow? = null
+    private var tipAnchor: android.view.View? = null   // 현재 툴팁 소유 뷰 — 연속 호버 시 이전 EXIT 가 새 툴팁 끄는 것 방지
 
     fun tip(view: android.view.View, text: CharSequence, above: Boolean = false) {
         androidx.appcompat.widget.TooltipCompat.setTooltipText(view, null)  // 시스템 툴팁 끔(커스텀으로 대체)
@@ -189,7 +190,7 @@ internal object Utils {
         view.setOnHoverListener { v, e ->
             when (e.actionMasked) {
                 android.view.MotionEvent.ACTION_HOVER_ENTER -> showTip(v, text, above)
-                android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTip()
+                android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTipFor(v)
             }
             false
         }
@@ -209,7 +210,7 @@ internal object Utils {
                 v.setOnHoverListener { vv, e ->
                     when (e.actionMasked) {
                         android.view.MotionEvent.ACTION_HOVER_ENTER -> showMenuTip(vv, t)
-                        android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTip()
+                        android.view.MotionEvent.ACTION_HOVER_EXIT -> dismissTipFor(vv)
                     }
                     false
                 }
@@ -233,14 +234,14 @@ internal object Utils {
         if (firstLeft == Int.MAX_VALUE) {
             val l = IntArray(2); anchor.getLocationOnScreen(l); firstLeft = l[0]; rowTop = l[1]
         }
-        val tv = buildTipView(ctx, text); val pw = newTipPopup(ctx, tv); tipPopup = pw
+        val tv = buildTipView(ctx, text); val pw = newTipPopup(ctx, tv); tipPopup = pw; tipAnchor = anchor
         val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
         tv.measure(unspec, unspec)
         val x = maxOf(convertDp(ctx, 8f), firstLeft - tv.measuredWidth - convertDp(ctx, 8f))   // 첫 아이콘 왼쪽(화면 8dp 한계)
         try {
             // 아이콘 행과 같은 높이(행 상단)에 표시 — 한 줄 아래로 내려가지 않게.
             pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowTop)
-        } catch (_: Throwable) { tipPopup = null; return }
+        } catch (_: Throwable) { tipPopup = null; tipAnchor = null; return }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }
 
@@ -270,7 +271,7 @@ internal object Utils {
         dismissTip()
         val ctx = anchor.context
         val tv = buildTipView(ctx, text)
-        val pw = newTipPopup(ctx, tv); tipPopup = pw
+        val pw = newTipPopup(ctx, tv); tipPopup = pw; tipAnchor = anchor
         val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
         tv.measure(unspec, unspec)
         val loc = IntArray(2); anchor.getLocationOnScreen(loc)
@@ -282,14 +283,17 @@ internal object Utils {
                 else loc[1] + anchor.height + convertDp(ctx, 2f)
         try {
             pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, y)
-        } catch (_: Throwable) { tipPopup = null; return }
+        } catch (_: Throwable) { tipPopup = null; tipAnchor = null; return }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }
 
     private fun dismissTip() {
         try { tipPopup?.dismiss() } catch (_: Throwable) {}
-        tipPopup = null
+        tipPopup = null; tipAnchor = null
     }
+
+    // 연속 호버 안정화: 그 뷰가 현재 툴팁 소유주일 때만 dismiss(다른 아이콘 ENTER 로 바뀐 새 툴팁은 유지).
+    private fun dismissTipFor(v: android.view.View) { if (tipAnchor === v) dismissTip() }
 
     // 58: 라이브러리 화면 RTL 토글 적용. 각 라이브러리 액티비티 onCreate(setContentView 후) 호출.
     fun applyRtl(act: android.app.Activity) {
