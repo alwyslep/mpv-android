@@ -28,7 +28,8 @@ data class Vid(
     val height: Int,
     val folderName: String,
     val folderPath: String,
-    val dateModified: Long
+    val dateModified: Long,
+    val volume: String = ""   // 드라이브 식별 — MediaStore VOLUME_NAME / SAF 루트(USB)명. 동일폴더명 충돌 구분용.
 )
 
 data class Fold(
@@ -67,6 +68,13 @@ object MediaLibrary {
         }
     }
 
+    // 드라이브 라벨 — 동일 폴더명 충돌 시 표시. 내장=external_primary, USB/SD=시리얼 첫 세그먼트, SAF=루트명.
+    fun volLabel(vol: String): String = when {
+        vol.isEmpty() -> "?"
+        vol == "external_primary" || vol == "external" -> "내장"
+        else -> vol.substringBefore('-').uppercase()
+    }
+
     // 중복탐지/장면비교 제외 대상: 휴지통(.mpv-trash) · remux 임시파일 · 크기0(미완성/임시).
     //   휴지통 보낸 중복이 다시 중복으로 잡히는 것 방지(B-68).
     fun isTrashOrTemp(v: Vid): Boolean =
@@ -85,7 +93,8 @@ object MediaLibrary {
             MediaStore.Video.Media.HEIGHT,
             MediaStore.Video.Media.DATE_MODIFIED,
             MediaStore.Video.Media.RELATIVE_PATH,      // 스코프 스토리지: DATA 비어도 채워짐
-            MediaStore.Video.Media.BUCKET_DISPLAY_NAME // 직속 폴더명
+            MediaStore.Video.Media.BUCKET_DISPLAY_NAME, // 직속 폴더명
+            MediaStore.Video.Media.VOLUME_NAME          // 드라이브(내장=external_primary, USB/SD=시리얼)
         )
         val coll = MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         val sort = "${MediaStore.Video.Media.DATE_MODIFIED} DESC"
@@ -100,6 +109,7 @@ object MediaLibrary {
             val iDate = c.getColumnIndexOrThrow(MediaStore.Video.Media.DATE_MODIFIED)
             val iRel = c.getColumnIndex(MediaStore.Video.Media.RELATIVE_PATH)
             val iBucket = c.getColumnIndex(MediaStore.Video.Media.BUCKET_DISPLAY_NAME)
+            val iVol = c.getColumnIndex(MediaStore.Video.Media.VOLUME_NAME)
             while (c.moveToNext()) {
                 val id = c.getLong(iId)
                 val data = c.getString(iData) ?: ""
@@ -128,7 +138,8 @@ object MediaLibrary {
                         height = c.getInt(iH),
                         folderName = fname,
                         folderPath = parent,
-                        dateModified = c.getLong(iDate)
+                        dateModified = c.getLong(iDate),
+                        volume = (if (iVol >= 0) c.getString(iVol) else null) ?: ""
                     )
                 )
             }
@@ -193,6 +204,7 @@ object MediaLibrary {
                                     folderName = dpath.substringAfterLast("/"),
                                     folderPath = dpath,
                                     dateModified = lm / 1000,
+                                    volume = rootName,   // SAF 드라이브(USB 루트명)
                                 )
                             )
                         }

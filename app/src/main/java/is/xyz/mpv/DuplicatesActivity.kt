@@ -23,6 +23,7 @@ class DuplicatesActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
     private var dups: List<Vid> = emptyList()
     private var groups: List<List<Vid>> = emptyList()
+    private var driveTagFolders: Set<String> = emptySet()   // 동일폴더명이 여러 드라이브 충돌 → 태그
     private val keepUris = java.util.Collections.synchronizedSet(HashSet<String>())  // 안정 인스턴스(어댑터가 라이브 참조)
     private val mmrRes = ConcurrentHashMap<String, Int>()      // uri → 짧은변 px(MMR 보완)
     private val hasCover = ConcurrentHashMap<String, Boolean>() // uri → 임베드 커버 존재(MMR embeddedPicture)
@@ -66,6 +67,10 @@ class DuplicatesActivity : AppCompatActivity() {
                 .filter { !MediaLibrary.isTrashOrTemp(it) }   // 휴지통/remux임시/크기0 제외
             // 같은 '파일'(MediaStore 중복행)만 합침: 경로 있으면 경로, 없으면 크기(바이트)+해상도+이름 으로 식별.
             val all = raw.distinctBy { v -> if (v.path.isNotEmpty()) v.path else "${v.size}|${v.width}x${v.height}|${v.name}" }
+            // 동일 폴더명이 여러 드라이브에 존재하면(충돌) 그 폴더명만 💾드라이브 태그 — 라이브러리 전체 기준.
+            val volsByFolder = HashMap<String, MutableSet<String>>()
+            for (v in all) if (v.folderName.isNotEmpty()) volsByFolder.getOrPut(v.folderName) { HashSet() }.add(v.volume)
+            val tagFolders = volsByFolder.filterValues { it.size > 1 }.keys.toSet()
             val byCode = HashMap<String, MutableList<Vid>>()
             for (v in all) {
                 val code = JavCode.dupKey(v.name) ?: continue   // variant 관용(무하이픈 폴백 포함)
@@ -83,6 +88,7 @@ class DuplicatesActivity : AppCompatActivity() {
                 if (isFinishing) return@runOnUiThread
                 dups = list
                 groups = dupGroups
+                driveTagFolders = tagFolders
                 keepUris.clear(); keepUris.addAll(computeKeeps())   // 1차: 임베드 정보 전이라 사실상 크기 기준
                 toolbar.title = "품번 중복  ${dupGroups.size}건 · ${list.size}개"
                 rebuild()
@@ -96,7 +102,7 @@ class DuplicatesActivity : AppCompatActivity() {
     private fun rebuild() {
         val grid = LibPrefs.grid(this)
         recycler.layoutManager = if (grid) GridLayoutManager(this, LibPrefs.spanCount(this)) else LinearLayoutManager(this)
-        adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes, coverUris = coverSet) { v -> play(v) }
+        adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes, coverUris = coverSet, driveTagFolders = driveTagFolders) { v -> play(v) }
         recycler.adapter = adapter
     }
 

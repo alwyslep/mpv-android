@@ -19,9 +19,9 @@ import androidx.appcompat.app.AlertDialog
 object SceneCompare {
     private val POSITIONS = listOf(10, 30, 50, 70, 90)
 
-    private fun labelText(v: Vid, shortSide: Int): String {
+    private fun labelText(v: Vid, shortSide: Int, folderText: String): String {
         val res = if (shortSide > 0) "${shortSide}p" else "?"
-        return "$res · ${MediaLibrary.fmtSize(v.size)}\n📁 ${v.folderName.ifEmpty { "(폴더?)" }}\n${v.name}"
+        return "$res · ${MediaLibrary.fmtSize(v.size)}\n$folderText\n${v.name}"
     }
 
     fun show(ctx: Context, name: String) {
@@ -49,16 +49,28 @@ object SceneCompare {
         val cellW = (dm.widthPixels - posW) / cols - (16 * d).toInt()
         val cellH = cellW * 9 / 16
 
-        // 헤더(열별 라벨: 해상도·크기·📁폴더·이름)
+        // 동일 폴더명이 매칭들 사이 여러 드라이브에 충돌하면 그 폴더만 💾드라이브 태그.
+        val volsByFolder = HashMap<String, MutableSet<String>>()
+        vids.forEach { if (it.folderName.isNotEmpty()) volsByFolder.getOrPut(it.folderName) { HashSet() }.add(it.volume) }
+        val tagFolders = volsByFolder.filterValues { it.size > 1 }.keys
+        val folderTexts = vids.map { v ->
+            when {
+                v.folderName.isEmpty() -> "📁 (폴더?)"
+                tagFolders.contains(v.folderName) -> "💾${MediaLibrary.volLabel(v.volume)} · 📁 ${v.folderName}"
+                else -> "📁 ${v.folderName}"
+            }
+        }
+
+        // 헤더(열별 라벨: 해상도·크기·폴더(드라이브)·이름)
         val headerRow = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         headerRow.addView(TextView(ctx).apply { layoutParams = LinearLayout.LayoutParams(posW, LinearLayout.LayoutParams.WRAP_CONTENT) })
         val headerLbls = ArrayList<TextView>()
-        vids.forEach { v ->
+        vids.forEachIndexed { i, v ->
             val lbl = TextView(ctx).apply {
                 setTextColor(0xFFD0D8E0.toInt()); textSize = 11f; maxLines = 4; setPadding(8, 6, 8, 6)
                 ellipsize = android.text.TextUtils.TruncateAt.MIDDLE
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = labelText(v, minOf(v.width, v.height))
+                text = labelText(v, minOf(v.width, v.height), folderTexts[i])
             }
             headerRow.addView(lbl); headerLbls.add(lbl)
         }
@@ -85,11 +97,11 @@ object SceneCompare {
         AlertDialog.Builder(ctx).setTitle("장면 비교 · $code  (${vids.size}개)")
             .setView(ScrollView(ctx).apply { addView(LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL; setPadding((12 * d).toInt(), (10 * d).toInt(), (12 * d).toInt(), (8 * d).toInt()); addView(grid) }) })
             .setPositiveButton("닫기", null).show()
-        extractAll(act, vids, imgs, headerLbls, cellW, cellH)
+        extractAll(act, vids, imgs, headerLbls, folderTexts, cellW, cellH)
     }
 
     // 파일당 MMR 1회 open → 길이/해상도 확보 후 위치별 프레임 추출(디코더 동시 0).
-    private fun extractAll(act: Activity, vids: List<Vid>, imgs: Array<Array<ImageView?>>, headerLbls: List<TextView>, w: Int, h: Int) {
+    private fun extractAll(act: Activity, vids: List<Vid>, imgs: Array<Array<ImageView?>>, headerLbls: List<TextView>, folderTexts: List<String>, w: Int, h: Int) {
         Thread {
             vids.forEachIndexed { col, v ->
                 var shortSide = minOf(v.width, v.height)
@@ -104,7 +116,7 @@ object SceneCompare {
                         if (rw > 0 && rh > 0) shortSide = minOf(rw, rh)
                     }
                     val ss = shortSide
-                    act.runOnUiThread { if (col < headerLbls.size) headerLbls[col].text = labelText(v, ss) }
+                    act.runOnUiThread { if (col < headerLbls.size) headerLbls[col].text = labelText(v, ss, folderTexts[col]) }
                     POSITIONS.forEachIndexed { r, pct ->
                         val tUs = if (durMs > 0) durMs * pct / 100 * 1000L else 1_000_000L
                         val bmp = try {
