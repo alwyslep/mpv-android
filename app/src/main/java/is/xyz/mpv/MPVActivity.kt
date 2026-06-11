@@ -1579,6 +1579,7 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
     //   restore 파라미터: 하위 메뉴에서 'Backspace=이전 메뉴'로 돌아올 때 같은 일시정지 세션을 공유
     //   (재개 없이 메뉴 간 이동). DEL 최초 호출은 인자 생략 → pauseForDialog() 신규 세션.
     private fun openActionMenu(restore: StateRestoreCallback = pauseForDialog()) {
+        withFolderList { }   // 삭제/이동 전 폴더 목록 미리 캐시(afterCurrentFileGone 이 삭제 전 목록으로 다음 결정)
         val uri = playbackUri()
         if (uri == null) { showToast("이 영상엔 액션을 쓸 수 없음 (uri 없음)"); restore(); return }
         val name = mediaName() ?: ""
@@ -1682,37 +1683,50 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
         startActivityForResult(intent, RCODE_MOVE_DEST)
     }
 
-    // 현재 재생 파일이 사라짐(휴지통/이동) → mpv 플레이리스트에 다음이 있으면 그걸로,
-    //   없으면(라이브러리 단일파일 실행) removed 신호와 함께 종료 → 런처가 폴더 다음 영상으로 advance.
+    // 현재 재생 파일이 사라짐(휴지통/이동) → 폴더 컨텍스트면 *내부 전환*으로 다음 영상 재생(PgDn 처럼 계속 가능),
+    //   아니면(또는 폴더 끝) removed 신호와 함께 종료 → 런처가 폴더로 복귀. (singleTask 라 finish-재실행 대신 내부전환.)
     private fun afterCurrentFileGone() {
-        if (psc.playlistCount > 1 && psc.playlistPos < psc.playlistCount - 1)
-            playlistNext()
-        else
-            finishWithResult(RESULT_OK, removed = true)
+        if (psc.playlistCount > 1 && psc.playlistPos < psc.playlistCount - 1) { playlistNext(); return }
+        if (intent.getStringExtra("folder_path").isNullOrEmpty()) { finishWithResult(RESULT_OK, removed = true); return }
+        val trashed = playbackUri()
+        // 캐시는 삭제 전 조회분이라 사라진 파일이 아직 있음 → 그 다음 항목으로. 이후 캐시 무효화(재쿼리).
+        withFolderList { list ->
+            val idx = list.indexOfFirst { it.uri.toString() == trashed }
+            folderVidsCache = null
+            val ni = idx + 1
+            if (idx >= 0 && ni in list.indices) switchTo(list[ni])
+            else finishWithResult(RESULT_OK, removed = true)   // 폴더 끝/못찾음 → 종료
+        }
     }
 
-    // PgDn/PgUp 폴더 내 이동 — 폴더 목록은 무거운 MediaStore 쿼리라 백그라운드 1회 캐시.
+    // PgDn/PgUp 폴더 내 이동 + DEL 삭제 후 다음 — 폴더 목록은 무거운 MediaStore 쿼리라 백그라운드 1회 캐시.
     private var folderVidsCache: List<Vid>? = null
-    private fun navigateFolder(dir: Int) {
+
+    private fun folderQuery(fp: String): List<Vid> =
+        LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), fp))
+            .filter { FilterEngine.passes(this, it) }
+
+    // 폴더 목록을 보장(캐시 우선, 없으면 백그라운드 1회 쿼리) 후 cb(메인스레드). 폴더 컨텍스트 아니면 빈 목록.
+    private fun withFolderList(cb: (List<Vid>) -> Unit) {
         val fp = intent.getStringExtra("folder_path")
-        if (fp.isNullOrEmpty()) return                       // 폴더 컨텍스트 아님(홈/검색 등) → 무시
-        folderVidsCache?.let { doNav(it, dir); return }
+        if (fp.isNullOrEmpty()) { cb(emptyList()); return }
+        folderVidsCache?.let { cb(it); return }
         Thread {
-            val list = try {
-                LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), fp))
-                    .filter { FilterEngine.passes(this, it) }
-            } catch (e: Throwable) { JavDiag.ex("navFolder", e); emptyList() }
-            runOnUiThread { folderVidsCache = list; doNav(list, dir) }
+            val list = try { folderQuery(fp) } catch (e: Throwable) { JavDiag.ex("folderList", e); emptyList() }
+            runOnUiThread { folderVidsCache = list; cb(list) }
         }.start()
     }
 
-    private fun doNav(list: List<Vid>, dir: Int) {
-        val cur = playbackUri() ?: return
-        val idx = list.indexOfFirst { it.uri.toString() == cur }
-        if (idx < 0) return
-        val ni = idx + dir
-        if (ni !in list.indices) { showToast(if (dir > 0) "폴더 마지막 영상" else "폴더 첫 영상"); return }
-        switchTo(list[ni])
+    private fun navigateFolder(dir: Int) {
+        if (intent.getStringExtra("folder_path").isNullOrEmpty()) return   // 홈/검색 등 → 무시
+        withFolderList { list ->
+            val cur = playbackUri() ?: return@withFolderList
+            val idx = list.indexOfFirst { it.uri.toString() == cur }
+            if (idx < 0) return@withFolderList
+            val ni = idx + dir
+            if (ni !in list.indices) { showToast(if (dir > 0) "폴더 마지막 영상" else "폴더 첫 영상"); return@withFolderList }
+            switchTo(list[ni])
+        }
     }
 
     // 현재 파일 진행 저장 후 대상으로 내부 전환(loadfile replace). intent 교체로 DEL·이어보기 정합.

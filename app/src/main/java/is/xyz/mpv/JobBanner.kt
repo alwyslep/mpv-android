@@ -23,6 +23,25 @@ object JobBanner {
     private const val CANCEL_TXT = "안전 중단"
     private const val CANCEL_TIP = "진행 중인 항목까지 안전하게 마치고 멈춥니다.\n작업물 손상 없이 정상 종료(중간에 강제로 끊지 않음)."
 
+    // 76: 단일 '만남' 진행바. 전체(완료 항목, 왼→오 파랑) + 현재 항목(미충진 영역을 오른쪽 끝→왼쪽 초록).
+    //   항목이 100%면 빈칸까지 초록으로 차서 전체가 한 칸 전진(가운데서 만남).
+    class MeetBar(ctx: android.content.Context) : View(ctx) {
+        private var overall = 0f
+        private var item = 0f
+        private val pBg = android.graphics.Paint().apply { color = 0xFF2A3440.toInt() }
+        private val pAll = android.graphics.Paint().apply { color = C_ALL }
+        private val pItem = android.graphics.Paint().apply { color = C_ITEM }
+        fun set(o: Float, i: Float) { overall = o.coerceIn(0f, 1f); item = i.coerceIn(0f, 1f); invalidate() }
+        override fun onDraw(canvas: android.graphics.Canvas) {
+            val w = width.toFloat(); val h = height.toFloat()
+            canvas.drawRect(0f, 0f, w, h, pBg)              // 배경(미충진)
+            val ow = w * overall
+            if (ow > 0f) canvas.drawRect(0f, 0f, ow, h, pAll)            // 전체: 왼→오
+            val itemW = (w - ow) * item
+            if (itemW > 0f) canvas.drawRect(w - itemW, 0f, w, h, pItem)  // 항목: 오른쪽 끝→왼
+        }
+    }
+
     fun attach(act: Activity) {
         if (act is MPVActivity) return
         val root = act.findViewById<ViewGroup>(android.R.id.content) ?: return
@@ -50,35 +69,13 @@ object JobBanner {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
                 .apply { gravity = Gravity.CENTER_VERTICAL }
         }
-        // 더블 진행바 — 전체(위, 파랑)/개별(아래, 초록) 세로 스택. 작은 캡션으로 구분.
-        fun caption(t: String) = TextView(ctx).apply {
-            text = t; setTextColor(0xFFB0BEC5.toInt()); textSize = 9f
-            layoutParams = LinearLayout.LayoutParams(px(26f), LinearLayout.LayoutParams.WRAP_CONTENT)
-                .apply { gravity = Gravity.CENTER_VERTICAL }
-        }
-        fun bar(tg: String, color: Int) = ProgressBar(ctx, null, android.R.attr.progressBarStyleHorizontal).apply {
-            tag = tg; max = 100; progressTintList = ColorStateList.valueOf(color)
-            scaleY = 0.75f
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { gravity = Gravity.CENTER_VERTICAL }
-        }
-        val rowAll = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            addView(caption("전체")); addView(bar("oa", C_ALL))
-        }
-        val rowItem = LinearLayout(ctx).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            setPadding(0, px(3f), 0, 0)
-            addView(caption("항목")); addView(bar("oi", C_ITEM))
-        }
-        Utils.tip(rowAll, "전체 진행 — 처리한 항목 / 총 항목 (실시간)", above = true)   // 베너 위에 표시
-        Utils.tip(rowItem, "현재 항목(파일) 처리 진행률 %", above = true)
-        val bars = LinearLayout(ctx).apply {
-            tag = "bars"; orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 2f)   // 57/58: 길게(문자열 공간 위해 1:2)
+        // 76: 단일 '만남' 진행바(2줄→1줄). 전체(왼→오 파랑) + 현재항목(미충진 영역 오른쪽끝→왼 초록)이 만남.
+        val meet = MeetBar(ctx).apply {
+            tag = "mb"
+            layoutParams = LinearLayout.LayoutParams(0, px(9f), 2f)
                 .apply { marginStart = px(18f); gravity = Gravity.CENTER_VERTICAL }
-            addView(rowAll); addView(rowItem)
         }
+        Utils.tip(meet, "전체 진행(파랑, 처리/총) + 현재 항목 %(초록, 오른쪽→왼쪽)", above = true)
         val cancel = Button(ctx).apply {
             tag = "c"; text = CANCEL_TXT; isAllCaps = false; setTextColor(Color.WHITE); setBackgroundColor(0x33FFFFFF)
             minWidth = 0; minimumWidth = 0; setPadding(px(20f), px(6f), px(20f), px(6f))
@@ -91,7 +88,7 @@ object JobBanner {
             tag = TAG; orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
             setBackgroundColor(BG); setPadding(px(36f), px(12f), px(36f), px(12f))
             visibility = View.GONE
-            addView(label); addView(bars); addView(cancel)
+            addView(label); addView(meet); addView(cancel)
         }
     }
 
@@ -100,12 +97,10 @@ object JobBanner {
         bar.visibility = if (show) View.VISIBLE else View.GONE
         if (!show) return
         val text = bar.findViewWithTag<TextView>("t")
-        val bars = bar.findViewWithTag<LinearLayout>("bars")
-        val pbAll = bar.findViewWithTag<ProgressBar>("oa")
-        val pbItem = bar.findViewWithTag<ProgressBar>("oi")
+        val meet = bar.findViewWithTag<MeetBar>("mb")
         val cancel = bar.findViewWithTag<Button>("c")
         if (JobProgress.doneMsg.isNotEmpty()) {
-            text.text = JobProgress.doneMsg; bars.visibility = View.GONE; cancel.visibility = View.GONE
+            text.text = JobProgress.doneMsg; meet.visibility = View.GONE; cancel.visibility = View.GONE
             return
         }
         val tot = JobProgress.total.coerceAtLeast(1)
@@ -122,10 +117,9 @@ object JobBanner {
         sb.append("  "); part("${JobProgress.pct}%", 0xFF4FC3F7L)                              // 진행률(하늘색)
         if (JobProgress.line.isNotEmpty()) { sb.append("   "); part(JobProgress.line, 0xFFFFC107L) }  // 항목(노랑)
         text.text = sb
-        bars.visibility = View.VISIBLE
-        // 전체바 = 실시간: 완료 항목 + 현재 항목 진행분. 6/10 처리중이면 50% + (현재%/10).
-        pbAll.progress = (JobProgress.idx * 100 + JobProgress.pct) / tot
-        pbItem.progress = JobProgress.pct                            // 개별: 현 항목 진행
+        meet.visibility = View.VISIBLE
+        // 전체=완료 항목 비율(idx/총, 칸 점프) · 항목=현재 %(미충진 영역을 오른쪽→왼쪽). 100%면 만나서 +1칸.
+        meet.set(JobProgress.idx.toFloat() / tot, JobProgress.pct / 100f)
         cancel.visibility = View.VISIBLE
         if (!JobProgress.isCancelled()) { cancel.isEnabled = true; cancel.text = CANCEL_TXT }
     }
