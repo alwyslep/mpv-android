@@ -189,6 +189,11 @@ class MediaLibraryActivity : AppCompatActivity() {
         Thread {
             if (!seeded) { Utils.seedConfig(this); seeded = true }   // 번들 기본 스크립트/conf 복원(없을 때만)
             val allVids = MediaLibrary.queryVideos(this)
+            // 외부 유입(다운로드/remux/이동) 미색인 영상 자동 스캔 → 잡히면 1회만 reload.
+            //   현재 결과로 먼저 화면을 그리고(아래), 스캔은 백그라운드에서 진행 → 새 파일 흡수 후 갱신.
+            MediaLibrary.scanNewFiles(this, allVids) { found ->
+                if (found) runOnUiThread { if (!isFinishing) load() }
+            }
             if (mode == "videos") {
                 val vids = LibPrefs.sortVids(this, "home_videos", allVids).filter { FilterEngine.passes(this, it) }
                 runOnUiThread {
