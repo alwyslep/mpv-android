@@ -67,6 +67,7 @@ object VideoTrash {
                 } catch (e: Throwable) { JavDiag.ex("bulkPermDelete", e); false }
                 if (r) { ok++; ThumbLoader.invalidate(act, u, name) } else fail++
             }
+            if (ok > 0) MediaLibrary.clearSafCache()   // 74: SAF 영구삭제 반영
             act.runOnUiThread { pendingReload = true; toast(act, "영구삭제: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone() }
         }.start()
     }
@@ -77,6 +78,7 @@ object VideoTrash {
                 if (u.authority == MediaStore.AUTHORITY) ctx.contentResolver.delete(u, null, null) > 0
                 else DocumentsContract.deleteDocument(ctx.contentResolver, u)
             } catch (e: Throwable) { JavDiag.ex("permDelete", e); false }
+            if (ok) MediaLibrary.clearSafCache()   // 74: SAF 영구삭제 반영
             (ctx as? Activity)?.runOnUiThread {
                 if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); pendingReload = true; toast(ctx, "영구 삭제: $name") }
                 else toast(ctx, "삭제 실패: $name")
@@ -112,6 +114,7 @@ object VideoTrash {
                         catch (e: Throwable) { JavDiag.ex("emptyTrash.del", e); false }
                 if (r) ok++ else fail++
             }
+            if (ok > 0) MediaLibrary.clearSafCache()   // 74: SAF 휴지통 비우기 반영
             (ctx as? Activity)?.runOnUiThread {
                 toast(ctx, "영구삭제 완료: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
                 onDone()
@@ -159,6 +162,7 @@ object VideoTrash {
     private fun safTrash(ctx: Context, u: Uri, name: String, onRemoved: () -> Unit) {
         Thread {
             val ok = safTrashCore(ctx, u)
+            if (ok) MediaLibrary.clearSafCache()   // 74: SAF 이동 → 세션캐시 무효화(없으면 홈이 재시작 전까지 stale)
             (ctx as? Activity)?.runOnUiThread {
                 if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); pendingReload = true; toast(ctx, "휴지통으로 이동: $name") }
                 else toast(ctx, "삭제 실패: $name")
@@ -198,6 +202,7 @@ object VideoTrash {
         val saf = items.filter { it.first.authority != MediaStore.AUTHORITY }
         if (saf.isNotEmpty()) Thread {
             var ok = 0; for ((u, _) in saf) if (safTrashCore(act, u)) ok++
+            if (ok > 0) MediaLibrary.clearSafCache()   // 74: SAF 변경 반영
             act.runOnUiThread { pendingReload = true; toast(act, "외부 ${ok}/${saf.size} 휴지통 이동"); if (ms.isEmpty()) onDone() }
         }.start()
         if (ms.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
