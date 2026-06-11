@@ -118,8 +118,10 @@ object JobBanner {
         if (JobProgress.line.isNotEmpty()) { sb.append("   "); part(JobProgress.line, 0xFFFFC107L) }  // 항목(노랑)
         text.text = sb
         meet.visibility = View.VISIBLE
-        // 전체=완료 항목 비율(idx/총, 칸 점프) · 항목=현재 %(미충진 영역을 오른쪽→왼쪽). 100%면 만나서 +1칸.
-        meet.set(JobProgress.idx.toFloat() / tot, JobProgress.pct / 100f)
+        // 86: 전체바 = (완료항목×100 + 현재%)/(총×100) — *실시간*(이전 idx/tot 는 항목100% 전까지 안 움직이는 버그).
+        //   항목 = 현재% 를 빈 공간(1-전체)의 비율로 오른쪽→왼쪽. 단일항목(tot=1)이면 전체가 곧 진행이라 항목 생략.
+        meet.set((JobProgress.idx * 100 + JobProgress.pct) / (tot * 100f),
+                 if (tot > 1) JobProgress.pct / 100f else 0f)
         cancel.visibility = View.VISIBLE
         if (!JobProgress.isCancelled()) { cancel.isEnabled = true; cancel.text = CANCEL_TXT }
     }

@@ -83,6 +83,11 @@ class VideoAdapter(
     override fun selectableVids(): List<Vid> = items
     override fun refreshSelection() { notifyDataSetChanged() }
     override fun notifyItem(uri: String) { val t = android.net.Uri.parse(uri); val i = items.indexOfFirst { it.uri == t }; if (i >= 0) notifyItemChanged(i) }
+    // 84/85: 배치 진행 마커
+    private val frozenMarks = HashSet<String>()
+    private var processingUri: String? = null
+    override fun setFrozenMarks(uris: Set<String>) { frozenMarks.clear(); frozenMarks.addAll(uris); notifyDataSetChanged() }
+    override fun setProcessingUri(uri: String?) { val old = processingUri; processingUri = uri; old?.let { notifyItem(it) }; uri?.let { notifyItem(it) } }
     override fun removeItem(uri: String) {
         val t = android.net.Uri.parse(uri)   // Uri equals 비교 — 문자열 round-trip 표현차(SAF 인코딩) 무관
         val i = items.indexOfFirst { it.uri == t }
@@ -219,16 +224,21 @@ class VideoAdapter(
         val isSel = selectionMode && selected.contains(us)
         h.check?.visibility = if (selectionMode) View.VISIBLE else View.GONE
         h.check?.isChecked = isSel
-        // 75: 선택 가독성 — 썸네일에 강한 컬러 테두리 + 반투명 오버레이 + 딤(그리드/리스트 공통).
-        //   FrameLayout.foreground 는 API21 에서도 안전(View.foreground 는 23+ 라 캐스팅).
+        // 75/84/85: 선택 가독성 마커 — 처리중(밝은노랑) > 선택/임베드대상(밝은빨강). 그리드/리스트 공통.
+        //   FrameLayout.foreground 는 API21 안전(View.foreground 는 23+ 라 캐스팅).
+        val markColor: Int? = when {
+            us == processingUri -> 0xFFFFD600.toInt()                        // 현재 처리중 = 밝은 노랑
+            isSel || frozenMarks.contains(us) -> 0xFFFF1744.toInt()          // 선택/임베드 대상 = 밝은 빨강
+            else -> null
+        }
         (h.thumbBox as? android.widget.FrameLayout)?.foreground =
-            if (isSel) android.graphics.drawable.GradientDrawable().apply {
+            if (markColor != null) android.graphics.drawable.GradientDrawable().apply {
                 val d = ctx.resources.displayMetrics.density
-                setStroke((3 * d).toInt(), 0xFF42A5F5.toInt())   // 밝은 파랑 테두리
-                setColor(0x3342A5F5.toInt())                     // 옅은 파랑 채움(선택 강조)
+                setStroke((4 * d).toInt(), markColor)                        // 두꺼운 테두리
+                setColor(markColor and 0x40FFFFFF)                           // 같은 색 반투명 채움(alpha 25%)
                 cornerRadius = 6 * d
             } else null
-        h.thumb.alpha = if (isSel) 0.55f else 1f
+        h.thumb.alpha = if (markColor != null) 0.5f else 1f
         h.itemView.setOnClickListener {
             if (selectionMode) {
                 if (!selected.remove(us)) selected.add(us)

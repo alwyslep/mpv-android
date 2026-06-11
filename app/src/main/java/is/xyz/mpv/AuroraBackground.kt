@@ -38,6 +38,7 @@ data class AuroraConfig(
     val sat: Float,          // 채도
     val value: Float,        // 명도
     val baseAlpha: Int,      // 글로우 기본 불투명도
+    val randomCycle: Boolean = false,  // 82: 랜덤 프리셋이면 한 화면 안에서도 몇 초마다 무작위 효과로 전환
 )
 
 /** 효과들이 공유하는 재사용 버퍼 — 프레임마다 새 객체 생성 방지. */
@@ -87,7 +88,9 @@ object AuroraMath {
 class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
 
     private val scratch = AuroraScratch()
-    private val effect: AuroraEffect = AuroraEffects.byId(cfg.effectId)
+    private var effect: AuroraEffect = AuroraEffects.byId(cfg.effectId)
+    // 82: 랜덤 프리셋이면 한 화면 안에서도 4~10초(랜덤) 간격으로 무작위 효과 전환.
+    private var nextSwapMs = if (cfg.randomCycle) SystemClock.uptimeMillis() + randSwapDelay() else 0L
 
     private var running = false
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -114,8 +117,15 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
         if (b.isEmpty) return
         if (!running && isVisible) start()   // lazy 시작
 
+        val now = SystemClock.uptimeMillis()
+        if (cfg.randomCycle && now >= nextSwapMs) {   // 82: 주기마다 무작위 효과 전환(현재와 다른 것)
+            var e = AuroraEffects.ALL.random()
+            if (AuroraEffects.ALL.size > 1) while (e === effect) e = AuroraEffects.ALL.random()
+            effect = e
+            nextSwapMs = now + randSwapDelay()
+        }
         canvas.drawRect(b, scratch.basePaint)
-        effect.draw(canvas, b, SystemClock.uptimeMillis(), cfg, scratch)
+        effect.draw(canvas, b, now, cfg, scratch)
     }
 
     override fun setVisible(visible: Boolean, restart: Boolean): Boolean {
@@ -134,6 +144,9 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
         val BASE = Color.parseColor("#0A0B10")
 
         private const val FRAME_DELAY_MS = 33L   // ≈30fps (이전 45L≈22fps) — 더 부드러운 움직임
+
+        // 82: 랜덤 사이클 효과 전환 간격(4~10초 무작위).
+        private fun randSwapDelay(): Long = kotlin.random.Random.nextLong(4000L, 10000L)
 
         // ── SharedPreferences 키 ──
         const val KEY_ENABLED = "aurora_enabled"
@@ -155,7 +168,8 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
             } catch (_: ClassCastException) {
                 prefs.getString(key, def.toString())?.toIntOrNull() ?: def
             }
-            val preset = AuroraPresets.byId(prefs.getString(KEY_PRESET, DEF_PRESET))
+            val presetId = prefs.getString(KEY_PRESET, DEF_PRESET)
+            val preset = AuroraPresets.byId(presetId)   // 랜덤이면 초기 1개 무작위(이후 drawable 이 주기 전환)
             val scale = intPref(KEY_SPEED, DEF_SPEED).coerceIn(25, 400) / 100f
             // 맥동 깊이: 슬라이더가 설정돼 있으면 우선, 없으면 프리셋 기본값.
             val depthPct = intPref(KEY_PULSE_DEPTH, preset.depth).coerceIn(0, 100)
@@ -168,6 +182,7 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
                 sat = intPref(KEY_SAT, (preset.sat * 100).toInt()).coerceIn(0, 100) / 100f,
                 value = intPref(KEY_VALUE, (preset.value * 100).toInt()).coerceIn(0, 100) / 100f,
                 baseAlpha = (intPref(KEY_GLOW, 38).coerceIn(10, 100) * 255 / 100),
+                randomCycle = AuroraPresets.isRandom(presetId),   // 82: 랜덤이면 화면 안에서도 주기 전환
             )
         }
 

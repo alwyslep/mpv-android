@@ -25,6 +25,9 @@ interface SelectableVids {
     fun refreshSelection()            // notifyDataSetChanged
     fun notifyItem(uri: String)       // 항목 1개 갱신 — 임베드 완료 시 그 타일 썸네일 즉시 반영
     fun removeItem(uri: String)       // 항목 1개 제거 — 이동 완료 시 목록에서 즉시 사라짐
+    // 84/85: 임베드 등 배치 진행 중 마커 — 대상(선택유지)·현재처리중. 미지원 어댑터(Tree 등)는 no-op.
+    fun setFrozenMarks(uris: Set<String>) {}   // 임베드 대상(빨강) 마커 유지(선택모드 종료 후에도)
+    fun setProcessingUri(uri: String?) {}      // 현재 처리중 파일(노랑) 마커
 }
 
 /**
@@ -177,14 +180,19 @@ class SelectionController(
 
     // B-68(52): 중앙 팝업 제거 → 하단 리치 배너(JobProgress)로 진행/중단. 선택모드는 즉시 빠져나옴.
     private fun runEmbed(items: List<Pair<Uri, String>>, skipIfHasCover: Boolean, titlePrefix: String) {
+        val a = sel
+        val targetUris = items.map { it.first.toString() }.toSet()   // 85: 임베드 대상(선택 유지 마커용)
         exit()                                                  // 선택모드 종료(배너로 진행 추적)
+        a?.setFrozenMarks(targetUris)                           // 85: 대상 타일을 빨강 마커로 계속 표시
         JobProgress.start("$titlePrefix (${"%,d".format(items.size)}개)", items.size)
         JEmbed.embedBatch(act, items,
             onProgress = { idx, total, code, stage, pct ->
                 val one = if (stage == "remux") pct else if (stage == "embed") 100 else 0
                 JobProgress.update(idx, "$code  $stage", one)
+                act.runOnUiThread { a?.setProcessingUri(items.getOrNull(idx)?.first?.toString()) }   // 84: 현재 처리중 = 노랑
             },
             onDone = { ok, fail, _ ->
+                act.runOnUiThread { a?.setProcessingUri(null); a?.setFrozenMarks(emptySet()) }
                 runCatching { onReload() }
                 val head = if (JobProgress.isCancelled()) "중단됨" else "완료"
                 JobProgress.done("$titlePrefix $head: 성공 $ok, 실패 $fail")
