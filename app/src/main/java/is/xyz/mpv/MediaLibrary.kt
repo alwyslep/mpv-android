@@ -702,6 +702,9 @@ object Playback {
     //   다음 항목을 캡처해야 정확(제거로 인덱스가 당겨지므로).
     fun wasRemoved(data: Intent?): Boolean = data?.getBooleanExtra("removed", false) ?: false
 
+    // PgDn(+1)/PgUp(-1) 수동 넘김 신호. 0=없음. 런처가 폴더에서 해당 방향 영상을 fresh 실행.
+    fun advanceDir(data: Intent?): Int = data?.getIntExtra("advance", 0) ?: 0
+
     // 자동 다음재생 조건: 설정 ON + 방금 작품을 끝까지 봄(다 봄).
     fun shouldAdvance(ctx: Context, uri: String, name: String?): Boolean {
         val auto = androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx).getBoolean("autoplay_next", false)

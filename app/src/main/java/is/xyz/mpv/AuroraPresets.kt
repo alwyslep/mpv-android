@@ -79,14 +79,25 @@ object AuroraPresets {
 
     const val DEFAULT_ID = "mesh_soft"
 
+    // 특수 프리셋 — 매 배경 생성(앱 실행·화면 진입·설정 변경) 시 60종 중 무작위 1개.
+    const val RANDOM_ID = "random"
+
+    fun isRandom(id: String?): Boolean = id == RANDOM_ID
+
+    /** 랜덤 선택 시 — 실제 적용할 임의 프리셋 1개. */
+    fun randomPreset(): P = ALL.random()
+
     private val map: Map<String, P> = ALL.associateBy { it.id }
 
-    fun byId(id: String?): P = map[id] ?: map[DEFAULT_ID] ?: ALL.first()
+    fun byId(id: String?): P =
+        if (isRandom(id)) randomPreset() else map[id] ?: map[DEFAULT_ID] ?: ALL.first()
 
-    /** ListPreference.entryValues 용 — 안정적 id. */
-    fun ids(): Array<CharSequence> = ALL.map { it.id as CharSequence }.toTypedArray()
+    /** ListPreference.entryValues 용 — 안정적 id. 맨 앞에 랜덤. */
+    fun ids(): Array<CharSequence> =
+        (listOf(RANDOM_ID as CharSequence) + ALL.map { it.id as CharSequence }).toTypedArray()
 
-    /** ListPreference.entries 용 — ko=true 면 한글 라벨. */
+    /** ListPreference.entries 용 — ko=true 면 한글 라벨. 맨 앞에 랜덤. */
     fun labels(ko: Boolean): Array<CharSequence> =
-        ALL.map { (if (ko) it.labelKo else it.labelEn) as CharSequence }.toTypedArray()
+        (listOf((if (ko) "🎲 랜덤 (매번 바뀜)" else "🎲 Random (varies)") as CharSequence) +
+            ALL.map { (if (ko) it.labelKo else it.labelEn) as CharSequence }).toTypedArray()
 }

@@ -159,38 +159,50 @@ object VideoHeal {
             }.show()
     }
 
-    // 폴더 일괄 — items 중 손상 파일만 복구. onDone 으로 목록 갱신.
+    // 폴더 일괄 — items 중 손상 파일만 복구. 두 종류: PNG 디코이(스트림 strip) + stco 오프셋(4GB+ co64).
     fun healFolderConfirm(ctx: Context, items: List<Pair<Uri, String>>, onDone: () -> Unit = {}) {
         Thread {
-            val targets = items.filter { peekCorrupt(ctx, it.first) }
+            val png = items.filter { peekCorrupt(ctx, it.first) }
+            val pngSet = png.mapTo(HashSet()) { it.first }
+            // stco 오프셋 손상(4GB+ in-place 태깅 버그) — MoovHeal 이 크기 게이트(3.5GB)로 빠르게 거름.
+            val moov = items.filter { it.first !in pngSet && MoovHeal.isBroken(ctx, it.first) }
             (ctx as? Activity)?.runOnUiThread {
-                if (targets.isEmpty()) { toast(ctx, "복구할 손상 파일 없음"); return@runOnUiThread }
+                if (png.isEmpty() && moov.isEmpty()) { toast(ctx, "복구할 손상 파일 없음"); return@runOnUiThread }
+                val parts = buildList {
+                    if (png.isNotEmpty()) add("PNG 디코이 ${png.size}개")
+                    if (moov.isNotEmpty()) add("오프셋(4GB) ${moov.size}개")
+                }.joinToString(" · ")
                 AlertDialog.Builder(ctx)
                     .setTitle("폴더 복구")
-                    .setMessage("손상 파일 ${targets.size}개를 복구(원본 교체)합니다.")
+                    .setMessage("$parts 복구(원본 교체·무손실).")
                     .setNegativeButton(ctx.getString(R.string.dialog_cancel), null)
-                    .setPositiveButton("복구") { _, _ -> runBatch(ctx, targets, onDone) }
+                    .setPositiveButton("복구") { _, _ -> runBatch(ctx, png, moov, onDone) }
                     .show()
             }
         }.start()
     }
 
-    private fun runBatch(ctx: Context, targets: List<Pair<Uri, String>>, onDone: () -> Unit) {
+    private fun runBatch(ctx: Context, png: List<Pair<Uri, String>>, moov: List<Pair<Uri, String>>, onDone: () -> Unit) {
         val app = ctx.applicationContext
-        JobProgress.start("PNG 복구 (${targets.size}개)", targets.size)   // 하단 리치 배너(비모달·지속·중단)
+        val total = png.size + moov.size
+        JobProgress.start("손상 복구 (${total}개)", total)   // 하단 리치 배너(비모달·지속·중단)
         Thread {
-            var ok = 0; var fail = 0
-            for ((idx, it) in targets.withIndex()) {
+            var ok = 0; var fail = 0; var idx = 0
+            for ((u, nm) in png) {
                 if (JobProgress.isCancelled()) break                     // 우아한 종료(현재 항목 완료 후)
-                val (u, nm) = it
-                val total = sizeOf(app, u)
-                val r = healUri(app, u, total) { done ->
-                    JobProgress.update(idx, nm, if (total > 0) (done * 100 / total).toInt() else 0)
+                val sz = sizeOf(app, u)
+                val r = healUri(app, u, sz) { done ->
+                    JobProgress.update(idx, nm, if (sz > 0) (done * 100 / sz).toInt() else 0)
                 }
-                if (r.first) ok++ else fail++
+                if (r.first) ok++ else fail++; idx++
+            }
+            for ((u, nm) in moov) {
+                if (JobProgress.isCancelled()) break
+                JobProgress.update(idx, nm, 0)
+                if (MoovHeal.repair(app, u)) ok++ else fail++; idx++
             }
             val head = if (JobProgress.isCancelled()) "중단됨" else "완료"
-            JobProgress.done("PNG 복구 $head: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
+            JobProgress.done("복구 $head: ${ok}개" + if (fail > 0) ", 실패 $fail" else "")
             mainHandler.post { runCatching { onDone() } }
         }.start()
     }

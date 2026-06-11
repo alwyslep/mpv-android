@@ -219,29 +219,34 @@ internal object Utils {
     }
 
     // 56: 같은 행(부모) 아이콘들의 현재 위치로 맨왼쪽 x·행하단 y 산출 → 첫 아이콘 왼쪽·행 아래에 표시.
+    //   좌표 산출/표시는 anchor.post 로 레이아웃 정착 후 실행 — 임베드/heal/move 시 하단 배너가 붙으며
+    //   layout 이 한 번 더 도는 타이밍에 getLocationOnScreen 이 stale 값을 주던 문제 방지(상·하단 동일 규칙).
     private fun showMenuTip(anchor: android.view.View, text: CharSequence) {
         dismissTip()
         val ctx = anchor.context
-        val parent = anchor.parent as? android.view.ViewGroup
-        var firstLeft = Int.MAX_VALUE; var rowTop = Int.MAX_VALUE
-        if (parent != null) {
-            for (i in 0 until parent.childCount) {
-                val c = parent.getChildAt(i); if (c.width == 0 || c.visibility != android.view.View.VISIBLE) continue
-                val loc = IntArray(2); c.getLocationOnScreen(loc)
-                firstLeft = minOf(firstLeft, loc[0]); rowTop = minOf(rowTop, loc[1])
-            }
-        }
-        if (firstLeft == Int.MAX_VALUE) {
-            val l = IntArray(2); anchor.getLocationOnScreen(l); firstLeft = l[0]; rowTop = l[1]
-        }
         val tv = buildTipView(ctx, text); val pw = newTipPopup(ctx, tv); tipPopup = pw; tipAnchor = anchor
-        val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
-        tv.measure(unspec, unspec)
-        val x = maxOf(convertDp(ctx, 8f), firstLeft - tv.measuredWidth - convertDp(ctx, 8f))   // 첫 아이콘 왼쪽(화면 8dp 한계)
-        try {
-            // 아이콘 행과 같은 높이(행 상단)에 표시 — 한 줄 아래로 내려가지 않게.
-            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowTop)
-        } catch (_: Throwable) { tipPopup = null; tipAnchor = null; return }
+        anchor.post {
+            if (tipPopup !== pw) return@post   // 그새 다른 툴팁으로 교체됨
+            val parent = anchor.parent as? android.view.ViewGroup
+            var firstLeft = Int.MAX_VALUE; var rowTop = Int.MAX_VALUE
+            if (parent != null) {
+                for (i in 0 until parent.childCount) {
+                    val c = parent.getChildAt(i); if (c.width == 0 || c.visibility != android.view.View.VISIBLE) continue
+                    val loc = IntArray(2); c.getLocationOnScreen(loc)
+                    firstLeft = minOf(firstLeft, loc[0]); rowTop = minOf(rowTop, loc[1])
+                }
+            }
+            if (firstLeft == Int.MAX_VALUE) {
+                val l = IntArray(2); anchor.getLocationOnScreen(l); firstLeft = l[0]; rowTop = l[1]
+            }
+            val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+            tv.measure(unspec, unspec)
+            val x = maxOf(convertDp(ctx, 8f), firstLeft - tv.measuredWidth - convertDp(ctx, 8f))   // 첫 아이콘 왼쪽(화면 8dp 한계)
+            try {
+                // 아이콘 행과 같은 높이(행 상단)에 표시 — 한 줄 아래로 내려가지 않게.
+                pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, rowTop)
+            } catch (_: Throwable) { if (tipPopup === pw) { tipPopup = null; tipAnchor = null }; return@post }
+        }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }
 
@@ -272,23 +277,27 @@ internal object Utils {
         val ctx = anchor.context
         val tv = buildTipView(ctx, text)
         val pw = newTipPopup(ctx, tv); tipPopup = pw; tipAnchor = anchor
-        val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
-        tv.measure(unspec, unspec)
-        val loc = IntArray(2); anchor.getLocationOnScreen(loc)
-        val pad = convertDp(ctx, 8f)
-        val sw = ctx.resources.displayMetrics.widthPixels
-        val x = loc[0].coerceIn(pad, maxOf(pad, sw - tv.measuredWidth - pad))   // 화면 밖 방지
-        // above=true: 베너 *최상단* 위로 — 부모 체인을 content(FrameLayout) 직전까지 올라가 베너 뷰의 top.
-        //   (전체/항목 바처럼 베너 안에 중첩된 뷰여도 베너 범위 밖 위에 표시.)
-        var topView: android.view.View = anchor
-        var pp = anchor.parent
-        while (pp is android.view.View && pp !is android.widget.FrameLayout) { topView = pp; pp = pp.parent }
-        val bannerTop = IntArray(2).also { topView.getLocationOnScreen(it) }[1]
-        val y = if (above) bannerTop - tv.measuredHeight - convertDp(ctx, 6f)
-                else loc[1] + anchor.height + convertDp(ctx, 2f)
-        try {
-            pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, y)
-        } catch (_: Throwable) { tipPopup = null; tipAnchor = null; return }
+        // 좌표 산출/표시는 anchor.post 로 레이아웃 정착 후 — 배너가 막 붙어 layout 이 도는 타이밍의 stale 좌표 방지.
+        anchor.post {
+            if (tipPopup !== pw) return@post
+            val unspec = android.view.View.MeasureSpec.makeMeasureSpec(0, android.view.View.MeasureSpec.UNSPECIFIED)
+            tv.measure(unspec, unspec)
+            val loc = IntArray(2); anchor.getLocationOnScreen(loc)
+            val pad = convertDp(ctx, 8f)
+            val sw = ctx.resources.displayMetrics.widthPixels
+            val x = loc[0].coerceIn(pad, maxOf(pad, sw - tv.measuredWidth - pad))   // 화면 밖 방지
+            // above=true: 베너 *최상단* 위로 — 부모 체인을 content(FrameLayout) 직전까지 올라가 베너 뷰의 top.
+            //   (전체/항목 바처럼 베너 안에 중첩된 뷰여도 베너 범위 밖 위에 표시.)
+            var topView: android.view.View = anchor
+            var pp = anchor.parent
+            while (pp is android.view.View && pp !is android.widget.FrameLayout) { topView = pp; pp = pp.parent }
+            val bannerTop = IntArray(2).also { topView.getLocationOnScreen(it) }[1]
+            val y = if (above) bannerTop - tv.measuredHeight - convertDp(ctx, 6f)
+                    else loc[1] + anchor.height + convertDp(ctx, 2f)
+            try {
+                pw.showAtLocation(anchor, android.view.Gravity.TOP or android.view.Gravity.START, x, y)
+            } catch (_: Throwable) { if (tipPopup === pw) { tipPopup = null; tipAnchor = null } }
+        }
         anchor.postDelayed({ if (tipPopup === pw) dismissTip() }, 3500)
     }
 

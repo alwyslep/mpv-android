@@ -32,11 +32,16 @@ class FolderVideosActivity : AppCompatActivity() {
             val rmNext = if (Playback.wasRemoved(res.data) && u != null) {
                 val i = vids.indexOfFirst { it.uri.toString() == u }; if (i >= 0) vids.getOrNull(i + 1) else null
             } else null
+            val adv = Playback.advanceDir(res.data)   // PgDn(+1)/PgUp(-1) 수동 넘김
             rebuild()
-            if (rmNext != null) play(rmNext)
-            // 자동 다음 재생: 방금 작품을 끝까지 봤고(다 봄) 다음이 있으면
-            else if (u != null && Playback.shouldAdvance(this, u, vids.find { it.uri.toString() == u }?.name) && playIndex + 1 in vids.indices) {
-                play(vids[playIndex + 1])
+            when {
+                // 삭제/이동된 경우: 제거된 항목 *다음*으로(9 삭제→10). 끝이면 advance 없음.
+                rmNext != null -> play(rmNext)
+                // PgUp/PgDn 수동 넘김: 현재 영상 기준 prev/next. 경계 밖이면 그대로 폴더에 머무름.
+                adv != 0 && playIndex + adv in vids.indices -> play(vids[playIndex + adv])
+                // 자동 다음 재생: 방금 작품을 끝까지 봤고(다 봄) 다음이 있으면.
+                u != null && Playback.shouldAdvance(this, u, vids.find { it.uri.toString() == u }?.name) && playIndex + 1 in vids.indices ->
+                    play(vids[playIndex + 1])
             }
         }
 
