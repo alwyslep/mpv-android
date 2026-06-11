@@ -91,6 +91,9 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
     private var effect: AuroraEffect = AuroraEffects.byId(cfg.effectId)
     // 82: 랜덤 프리셋이면 한 화면 안에서도 4~10초(랜덤) 간격으로 무작위 효과 전환.
     private var nextSwapMs = if (cfg.randomCycle) SystemClock.uptimeMillis() + randSwapDelay() else 0L
+    // 88: 효과 전환을 부드럽게 — 이전 효과를 잠시 들고 크로스페이드.
+    private var prevEffect: AuroraEffect? = null
+    private var transStartMs = 0L
 
     private var running = false
     private val frameCallback = object : Choreographer.FrameCallback {
@@ -121,11 +124,22 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
         if (cfg.randomCycle && now >= nextSwapMs) {   // 82: 주기마다 무작위 효과 전환(현재와 다른 것)
             var e = AuroraEffects.ALL.random()
             if (AuroraEffects.ALL.size > 1) while (e === effect) e = AuroraEffects.ALL.random()
+            prevEffect = effect          // 88: 이전 효과 보존 → 크로스페이드 시작
             effect = e
+            transStartMs = now
             nextSwapMs = now + randSwapDelay()
         }
         canvas.drawRect(b, scratch.basePaint)
-        effect.draw(canvas, b, now, cfg, scratch)
+        val pe = prevEffect
+        val t = if (pe != null) ((now - transStartMs).toFloat() / TRANS_MS).coerceIn(0f, 1f) else 1f
+        if (pe != null && t < 1f) {   // 88: 부드러운 전환 — 이전(페이드아웃) + 새 효과(페이드인) 알파 합성
+            val l = b.left.toFloat(); val tp = b.top.toFloat(); val r = b.right.toFloat(); val bt = b.bottom.toFloat()
+            canvas.saveLayerAlpha(l, tp, r, bt, ((1f - t) * 255).toInt()); pe.draw(canvas, b, now, cfg, scratch); canvas.restore()
+            canvas.saveLayerAlpha(l, tp, r, bt, (t * 255).toInt()); effect.draw(canvas, b, now, cfg, scratch); canvas.restore()
+        } else {
+            prevEffect = null
+            effect.draw(canvas, b, now, cfg, scratch)
+        }
     }
 
     override fun setVisible(visible: Boolean, restart: Boolean): Boolean {
@@ -147,6 +161,7 @@ class AuroraDrawable(private val cfg: AuroraConfig) : Drawable() {
 
         // 82: 랜덤 사이클 효과 전환 간격(4~10초 무작위).
         private fun randSwapDelay(): Long = kotlin.random.Random.nextLong(4000L, 10000L)
+        private const val TRANS_MS = 1200f   // 88: 효과 크로스페이드 길이(ms)
 
         // ── SharedPreferences 키 ──
         const val KEY_ENABLED = "aurora_enabled"

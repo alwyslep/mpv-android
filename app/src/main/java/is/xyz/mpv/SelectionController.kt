@@ -182,6 +182,7 @@ class SelectionController(
     private fun runEmbed(items: List<Pair<Uri, String>>, skipIfHasCover: Boolean, titlePrefix: String) {
         val a = sel
         val targetUris = items.map { it.first.toString() }.toSet()   // 85: 임베드 대상(선택 유지 마커용)
+        val completed = java.util.Collections.synchronizedSet(HashSet<String>())   // 87: 완료분(중단 시 이것만 선택 유지)
         exit()                                                  // 선택모드 종료(배너로 진행 추적)
         a?.setFrozenMarks(targetUris)                           // 85: 대상 타일을 빨강 마커로 계속 표시
         JobProgress.start("$titlePrefix (${"%,d".format(items.size)}개)", items.size)
@@ -192,13 +193,22 @@ class SelectionController(
                 act.runOnUiThread { a?.setProcessingUri(items.getOrNull(idx)?.first?.toString()) }   // 84: 현재 처리중 = 노랑
             },
             onDone = { ok, fail, _ ->
-                act.runOnUiThread { a?.setProcessingUri(null); a?.setFrozenMarks(emptySet()) }
-                runCatching { onReload() }
+                act.runOnUiThread {
+                    a?.setProcessingUri(null); a?.setFrozenMarks(emptySet())
+                    // 87: 완료분만 선택 유지(미완료=중단분 해제) → 그대로 '이동' 가능하게 선택바(이동) 표시.
+                    //   전체 reload 는 생략(선택 유지) — 완료 타일은 onItemDone 의 notifyItem 로 이미 커버 갱신됨.
+                    if (a != null && completed.isNotEmpty()) {
+                        a.selected.clear(); a.selected.addAll(completed)
+                        enter(showEmbed = false, showMove = true)
+                    } else exit()
+                }
                 val head = if (JobProgress.isCancelled()) "중단됨" else "완료"
-                JobProgress.done("$titlePrefix $head: 성공 $ok, 실패 $fail")
+                JobProgress.done("$titlePrefix $head: 성공 $ok, 실패 $fail · 완료분 선택됨(이동 가능)")
             },
             cancel = { JobProgress.isCancelled() },             // 배너 중단 버튼 → 우아한 종료
-            onItemDone = { uri, success -> if (success) runCatching { sel?.notifyItem(uri.toString()) } },
+            onItemDone = { uri, success ->
+                if (success) { completed.add(uri.toString()); act.runOnUiThread { runCatching { a?.notifyItem(uri.toString()) } } }
+            },
             skipIfHasCover = skipIfHasCover)
     }
 
