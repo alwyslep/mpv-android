@@ -118,8 +118,9 @@ object JobBanner {
             sb.setSpan(android.text.style.ForegroundColorSpan(color.toInt()), st, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
         }
         part(titleClean, 0xFFE0E0E0L)
-        if (tot > 1) { sb.append("  "); part("${JobProgress.idx + 1}/$tot", 0xFF66BB6AL) }
-        if (JobProgress.line.isNotEmpty()) { sb.append("   "); part(JobProgress.line, 0xFFFFC107L) }
+        if (tot > 1) { sb.append("  "); part("${JobProgress.idx + 1}/$tot", 0xFF66BB6AL) }   // n/N(초록)
+        sb.append("  "); part("${JobProgress.pct}%", 0xFF4FC3F7L)                              // 진행률(하늘색)
+        if (JobProgress.line.isNotEmpty()) { sb.append("   "); part(JobProgress.line, 0xFFFFC107L) }  // 항목(노랑)
         text.text = sb
         bars.visibility = View.VISIBLE
         // 전체바 = 실시간: 완료 항목 + 현재 항목 진행분. 6/10 처리중이면 50% + (현재%/10).

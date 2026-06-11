@@ -170,7 +170,10 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun play(v: Vid) {
         playIndex = vids.indexOfFirst { it.uri == v.uri }
         pendingUri = v.uri.toString()
-        playLauncher.launch(Playback.intentFor(this, v.uri.toString(), v.name))
+        // 폴더 경로 전달 → 플레이어가 PgDn/PgUp 로 폴더 내 다음/이전을 *내부 loadfile* 로 즉시 전환
+        //   (singleTask 라 finish-후-재실행은 연속 시 결과 체인이 깨짐 → 내부 전환이 빠르고 안정).
+        val i = Playback.intentFor(this, v.uri.toString(), v.name).putExtra("folder_path", folderPath)
+        playLauncher.launch(i)
     }
 
     @Suppress("DEPRECATION")

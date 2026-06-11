@@ -1014,10 +1014,10 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             KeyEvent.KEYCODE_GUIDE -> openTopMenu()
             // B-68: 물리 DEL 키 → 일시정지 + 액션 시트(찜/평점/장면/휴지통/이동/상세). DeX 키보드.
             KeyEvent.KEYCODE_FORWARD_DEL -> openActionMenu()
-            // 폴더 내 다음/이전 영상 수동 넘김(PgDn/PgUp) — 진행률·시청상태·트랙을 기록(라이브러리 복귀)하며
-            //   런처가 폴더 다음/이전을 fresh 실행. (옛 prev_next_file.lua 의 loadfile 우회 문제 없음.)
-            KeyEvent.KEYCODE_PAGE_DOWN -> finishWithResult(RESULT_OK, includeTimePos = true, includeTracks = true, advance = 1)
-            KeyEvent.KEYCODE_PAGE_UP -> finishWithResult(RESULT_OK, includeTimePos = true, includeTracks = true, advance = -1)
+            // 폴더 내 다음/이전 영상 수동 넘김(PgDn/PgUp) — 플레이어 내부에서 직접 loadfile 전환.
+            //   진행률은 전환 전 저장. singleTask 라 finish-후-재실행 연쇄가 깨지므로 내부 전환이 정답(빠름·안정).
+            KeyEvent.KEYCODE_PAGE_DOWN -> navigateFolder(1)
+            KeyEvent.KEYCODE_PAGE_UP -> navigateFolder(-1)
             // B-68: DeX Backspace — 재생 중엔 처음으로 되감기(메뉴 안에선 다이얼로그가 직접 '이전 메뉴' 처리).
             KeyEvent.KEYCODE_DEL -> MPVLib.command(arrayOf("seek", "0", "absolute"))
             KeyEvent.KEYCODE_NUMPAD_ENTER, KeyEvent.KEYCODE_DPAD_CENTER -> player.cyclePause()
@@ -1689,6 +1689,51 @@ class MPVActivity : AppCompatActivity(), MPVLib.EventObserver, TouchGesturesObse
             playlistNext()
         else
             finishWithResult(RESULT_OK, removed = true)
+    }
+
+    // PgDn/PgUp 폴더 내 이동 — 폴더 목록은 무거운 MediaStore 쿼리라 백그라운드 1회 캐시.
+    private var folderVidsCache: List<Vid>? = null
+    private fun navigateFolder(dir: Int) {
+        val fp = intent.getStringExtra("folder_path")
+        if (fp.isNullOrEmpty()) return                       // 폴더 컨텍스트 아님(홈/검색 등) → 무시
+        folderVidsCache?.let { doNav(it, dir); return }
+        Thread {
+            val list = try {
+                LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), fp))
+                    .filter { FilterEngine.passes(this, it) }
+            } catch (e: Throwable) { JavDiag.ex("navFolder", e); emptyList() }
+            runOnUiThread { folderVidsCache = list; doNav(list, dir) }
+        }.start()
+    }
+
+    private fun doNav(list: List<Vid>, dir: Int) {
+        val cur = playbackUri() ?: return
+        val idx = list.indexOfFirst { it.uri.toString() == cur }
+        if (idx < 0) return
+        val ni = idx + dir
+        if (ni !in list.indices) { showToast(if (dir > 0) "폴더 마지막 영상" else "폴더 첫 영상"); return }
+        switchTo(list[ni])
+    }
+
+    // 현재 파일 진행 저장 후 대상으로 내부 전환(loadfile replace). intent 교체로 DEL·이어보기 정합.
+    private fun switchTo(v: Vid) {
+        playbackUri()?.let { cu ->
+            val dur = if (psc.duration > 0) psc.duration else lastDur
+            val pos = if (psc.position >= 0) psc.position else lastPos
+            if (dur > 0 && pos in 0..dur) Progress.save(this, cu, mediaName(), pos, dur)
+        }
+        val ni = Intent(intent)
+        ni.data = v.uri
+        ni.putExtra("media_name", v.name)
+        ni.removeExtra("position")
+        Progress.get(this, v.uri.toString(), v.name)?.let { (p, d) -> if (p > 3000 && p < d - 3000) ni.putExtra("position", p) }
+        setIntent(ni)
+        val filepath = parsePathFromIntent(ni)
+        if (filepath == null) { showToast("열 수 없음: ${v.name}"); return }
+        val startMs = ni.getIntExtra("position", 0)
+        if (startMs > 0) MPVLib.command(arrayOf("set", "file-local-options/start", "${startMs / 1000f}"))
+        MPVLib.command(arrayOf("loadfile", filepath, "replace"))
+        JavDiag.log("autonext", "pgnav → ${v.name} start=${startMs}ms")
     }
 
     private fun openAdvancedMenu(restoreState: StateRestoreCallback) {
