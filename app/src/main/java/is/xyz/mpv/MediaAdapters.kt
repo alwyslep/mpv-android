@@ -74,6 +74,7 @@ class VideoAdapter(
     private val driveTagUris: Set<String> = emptySet(),  // 그룹이 여러 드라이브에 걸친 파일 uri → 💾드라이브 태그
     private val onItemRemoved: ((String) -> Unit)? = null,  // 중복 검수: 타일 삭제 후 그룹 정리 후크
     private val uriThumbKey: Boolean = false,  // 중복 검수: 커버 디스크 캐시를 uri 키로 분리(같은 품번 공유 차단)
+    private val mismatchUris: Set<String> = emptySet(),  // 중복 검수: 임베드 품번≠파일명 품번 → ⚠파일명 줄 표기
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
 
@@ -141,8 +142,10 @@ class VideoAdapter(
         } else ""
         val isKeep = keepUris.contains(uriStr)
         val metaParts = listOf(sz, ext, cover, folder).filter { it.isNotEmpty() }.joinToString("  ·  ")
-        if (showFolder) { h.meta.isSingleLine = false; h.meta.maxLines = 2 }   // 경로줄 + 추천줄
-        h.meta.text = if (isKeep) "$metaParts\n✅추천" else metaParts            // 경로 다음 줄에 추천
+        val misLine = if (showFolder && mismatchUris.contains(uriStr)) "⚠파일명 ${v.name}" else ""  // 타일 품번=임베드, 그룹핑=파일명
+        if (showFolder) { h.meta.isSingleLine = false; h.meta.maxLines = 3 }   // 경로줄 + ⚠파일명줄 + 추천줄
+        h.meta.text = listOf(metaParts, misLine, if (isKeep) "✅추천" else "")
+            .filter { it.isNotEmpty() }.joinToString("\n")
         if (isKeep) h.meta.setTextColor(0xFF66BB6A.toInt())   // KEEP = 초록
         else run { val tvc = android.util.TypedValue(); ctx.theme.resolveAttribute(com.google.android.material.R.attr.colorOnSurfaceVariant, tvc, true); h.meta.setTextColor(tvc.data) }
         // 해상도 배지(썸네일 위). badgeDark=기본, badgeRed=저화질/불일치 경고.

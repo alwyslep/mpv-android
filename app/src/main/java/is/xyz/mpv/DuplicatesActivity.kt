@@ -29,6 +29,8 @@ class DuplicatesActivity : AppCompatActivity() {
     // 우리 임베드 판정(원본커버만 있는 건 제외) = JEmbed 메타(배우/스튜디오/시리즈/장르) 존재. covr 단독 아님.
     private val embedMap = ConcurrentHashMap<String, Boolean>() // uri → 우리 임베드 여부
     private val embedSet = java.util.Collections.synchronizedSet(HashSet<String>())  // 임베드된 uri(어댑터 라이브 참조)
+    private val misMap = ConcurrentHashMap<String, Boolean>()   // uri → 임베드 품번≠파일명 품번(타일 ⚠파일명 표기)
+    private val misSet = java.util.Collections.synchronizedSet(HashSet<String>())  // 불일치 uri(어댑터 라이브 참조)
     private val durMap = ConcurrentHashMap<String, Long>()      // uri → 재생길이ms(MMR; 잘린/부분 파일 식별)
     private var pendingUri: String? = null
     private var adapter: VideoAdapter? = null
@@ -108,7 +110,7 @@ class DuplicatesActivity : AppCompatActivity() {
         adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes,
             embedUris = embedSet, driveTagUris = driveTagUris,
             onItemRemoved = { uri -> reconcileAfterRemove(uri) },
-            uriThumbKey = true) { v -> play(v) }
+            uriThumbKey = true, mismatchUris = misSet) { v -> play(v) }
         recycler.adapter = adapter
     }
 
@@ -164,7 +166,8 @@ class DuplicatesActivity : AppCompatActivity() {
                 val needRes = (v.width <= 0 || v.height <= 0) && !mmrRes.containsKey(key)
                 val needEmbed = !embedMap.containsKey(key)
                 val needDur = v.durationMs <= 0 && !durMap.containsKey(key)
-                if (!needRes && !needEmbed && !needDur) continue
+                val needMis = !misMap.containsKey(key)
+                if (!needRes && !needEmbed && !needDur && !needMis) continue
                 try {
                     val mmr = MediaMetadataRetriever()
                     try {
@@ -183,8 +186,16 @@ class DuplicatesActivity : AppCompatActivity() {
                                 m(MediaMetadataRetriever.METADATA_KEY_GENRE).isNotEmpty()                     // 장르
                             embedMap[key] = embedded; if (embedded) embedSet.add(key)
                         }
+                        if (needMis) {
+                            // 그룹핑=파일명·타일 표기=임베드 ©nam 이라 어긋나면 "이름 다른데 왜 중복?" 혼란 → ⚠파일명 표기.
+                            val raw = mmr.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)?.trim().orEmpty()
+                            val emb = if (raw.isEmpty()) null else JavCode.extract(raw)
+                            val fc = JavCode.extract(v.name)
+                            val mis = emb != null && fc != null && !JavCode.same(emb, fc)
+                            misMap[key] = mis; if (mis) misSet.add(key)
+                        }
                     } finally { mmr.release() }
-                } catch (e: Throwable) { JavDiag.ex("dup.enrich", e); if (needEmbed) embedMap[key] = false }
+                } catch (e: Throwable) { JavDiag.ex("dup.enrich", e); if (needEmbed) embedMap[key] = false; if (needMis) misMap[key] = false }
                 runOnUiThread { if (myGen == gen) adapter?.notifyItemChanged(idx) }
             }
             // 임베드/해상도 확보 후 KEEP 재산출 → 마커 갱신
