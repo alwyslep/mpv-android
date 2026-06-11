@@ -233,7 +233,12 @@ class MediaLibraryActivity : AppCompatActivity() {
                 }
             } else {
                 // folder
-                val folds = LibPrefs.sortFolds(this, "home_folders", MediaLibrary.folders(allVids))
+                val baseFolds = LibPrefs.sortFolds(this, "home_folders", MediaLibrary.folders(allVids))
+                // 74: 내장 파일 시스템 휴지통(IS_TRASHED)을 홈 최상단 가상 '🗑 휴지통' 폴더로 노출(있을 때만).
+                val sysTrash = MediaLibrary.queryTrashed(this)
+                val folds = if (sysTrash.isNotEmpty())
+                    listOf(Fold("🗑 휴지통", MediaLibrary.SYS_TRASH_PATH, sysTrash.size, sysTrash.first())) + baseFolds
+                else baseFolds
                 runOnUiThread {
                     if (isFinishing) return@runOnUiThread
                     empty.visibility = if (folds.isEmpty()) View.VISIBLE else View.GONE

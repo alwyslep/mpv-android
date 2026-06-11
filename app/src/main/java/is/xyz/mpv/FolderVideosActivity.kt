@@ -87,8 +87,12 @@ class FolderVideosActivity : AppCompatActivity() {
     private fun reload() {
         findViewById<View>(R.id.loading_bar)?.visibility = View.VISIBLE   // B-64(45): 필터/로드 진행 표시
         Thread {
-            val list = LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
-                .filter { FilterEngine.passes(this, it) }
+            // 74: 시스템 휴지통(가상 폴더)이면 IS_TRASHED 영상 목록, 아니면 일반 폴더(+필터).
+            val list = if (folderPath == MediaLibrary.SYS_TRASH_PATH)
+                LibPrefs.sortVids(this, "folder", MediaLibrary.queryTrashed(this))
+            else
+                LibPrefs.sortVids(this, "folder", MediaLibrary.videosIn(MediaLibrary.queryVideos(this), folderPath))
+                    .filter { FilterEngine.passes(this, it) }
             runOnUiThread {
                 if (isFinishing) return@runOnUiThread
                 vids = list
@@ -111,7 +115,7 @@ class FolderVideosActivity : AppCompatActivity() {
     }
 
     // B-68(52): 공통 12아이콘 툴바. 폴더 화면 활성 = toggle/sort/tune/select/filter/move/thumb/heal (나머지 회색).
-    private val isTrash get() = folderPath.contains(".mpv-trash")
+    private val isTrash get() = folderPath.contains(".mpv-trash") || folderPath == MediaLibrary.SYS_TRASH_PATH
 
     private fun setupToolbar() {
         val prefs = getSharedPreferences("media_library", MODE_PRIVATE)
