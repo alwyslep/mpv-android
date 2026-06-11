@@ -107,7 +107,8 @@ class DuplicatesActivity : AppCompatActivity() {
         recycler.layoutManager = if (grid) GridLayoutManager(this, LibPrefs.spanCount(this)) else LinearLayoutManager(this)
         adapter = VideoAdapter(dups.toMutableList(), grid, showFolder = true, keepUris = keepUris, resByUri = mmrRes,
             embedUris = embedSet, driveTagUris = driveTagUris,
-            onItemRemoved = { uri -> reconcileAfterRemove(uri) }) { v -> play(v) }
+            onItemRemoved = { uri -> reconcileAfterRemove(uri) },
+            uriThumbKey = true) { v -> play(v) }
         recycler.adapter = adapter
     }
 

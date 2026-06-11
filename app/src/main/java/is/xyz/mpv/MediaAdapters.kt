@@ -73,6 +73,7 @@ class VideoAdapter(
     private val embedUris: Set<String> = emptySet(),  // 중복 검수: 우리 임베드(메타) 된 uri(🖼임베드 표시)
     private val driveTagUris: Set<String> = emptySet(),  // 그룹이 여러 드라이브에 걸친 파일 uri → 💾드라이브 태그
     private val onItemRemoved: ((String) -> Unit)? = null,  // 중복 검수: 타일 삭제 후 그룹 정리 후크
+    private val uriThumbKey: Boolean = false,  // 중복 검수: 커버 디스크 캐시를 uri 키로 분리(같은 품번 공유 차단)
     private val onClick: (Vid) -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>(), SelectableVids {
 
@@ -220,7 +221,7 @@ class VideoAdapter(
         } else {
             h.badge.visibility = View.GONE
         }
-        ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
+        ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name, uriDiskKey = uriThumbKey)
         val isSel = selectionMode && selected.contains(us)
         h.check?.visibility = if (selectionMode) View.VISIBLE else View.GONE
         h.check?.isChecked = isSel

@@ -182,7 +182,8 @@ object ThumbLoader {
         titleView: TextView?,
         uri: Uri,
         fallbackName: String,
-        durView: TextView? = null
+        durView: TextView? = null,
+        uriDiskKey: Boolean = false   // 중복검수: 같은 품번 파일끼리 code: 디스크 캐시 공유 → 파일별 커버 비교 불가. uri 키로 분리.
     ) {
         val key = uri.toString()
         thumb.tag = key
@@ -190,7 +191,7 @@ object ThumbLoader {
         titleView?.tag = key
         durView?.tag = key
 
-        val diskKey = MediaKey.of(key, fallbackName)                 // 1: 디스크 캐시는 품번/파일명 기준(이동 무관)
+        val diskKey = if (uriDiskKey) key else MediaKey.of(key, fallbackName)   // 1: 기본=품번/파일명 기준(이동 무관)
         val customMs = LibPrefs.customThumbPos(thumb.context, diskKey) // 2/5: 장면 지정(품번 키) — 이동해도 유지
         val cb = if (customMs >= 0) null else bmpCache.get(key)      // 지정 시 메모리 캐시(커버) 무시
         val cm = metaCache[key]
