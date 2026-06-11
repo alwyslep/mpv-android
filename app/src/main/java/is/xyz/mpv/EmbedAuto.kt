@@ -7,7 +7,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 
 // B-68(52): 자동 일괄 임베드 — (일괄)복구처럼 후보만 자동 처리. 선택 불필요.
-//   embedBatch(skipIfHasCover=true): 이미 커버 있는 mp4 는 skip(⊘), 커버 없거나 TS 인 것만 풀임베드(remux+메타+커버).
+//   embedBatch(skipIfHasCover=true): covr 있고 임베드 품번=파일명 품번인 mp4 만 skip(⊘),
+//   커버 없거나·품번 불일치(rename)거나·TS 인 것은 풀임베드(remux+메타+커버).
 //   진행/중단은 하단 배너(JobProgress) 공용. SelectionController 무관(SAF 등 선택모드 없는 화면도 사용).
 object EmbedAuto {
     fun confirm(ctx: Context, items: List<Pair<Uri, String>>, onDone: () -> Unit) {

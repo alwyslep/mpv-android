@@ -76,7 +76,7 @@ object JEmbed {
         onDone: (ok: Int, fail: Int, fails: List<String>) -> Unit,
         cancel: () -> Boolean = { false },
         onItemDone: (uri: Uri, ok: Boolean) -> Unit = { _, _ -> },
-        skipIfHasCover: Boolean = false   // B-52 A: 커버 보강 모드 — 이미 covr 있는 파일은 건너뜀
+        skipIfHasCover: Boolean = false   // 보강 모드 — covr 있고 임베드 품번=파일명 품번인 파일만 건너뜀
     ) {
         val app = ctx.applicationContext
         Thread {
@@ -102,7 +102,7 @@ object JEmbed {
                 val msg = (try {
                     processOne(app, uri, code, recForEmbed, skipIfHasCover) { stage, pct -> ui { onProgress(i, items.size, label, stage, pct) } }
                 } catch (e: Throwable) { "실패: ${e.javaClass.simpleName}: ${e.message}" }) + metaNote
-                if (msg.startsWith("⊘")) { ok++; continue }   // 커버 이미 있음 — skip(재썸네일 불필요)
+                if (msg.startsWith("⊘")) { ok++; continue }   // 임베드 최신 — skip(재썸네일 불필요)
                 if (msg.contains("✓")) {
                     ok++
                     val p = if (uri.scheme == "file") uri.path else pathFromMediaStore(app, uri)
@@ -118,13 +118,19 @@ object JEmbed {
         }.start()
     }
 
-    // B-52 A: 파일에 임베드 커버(covr) 존재 여부 — MMR embeddedPicture(내부 path/외부 SAF 모두).
-    private fun fileHasCover(ctx: Context, uri: Uri): Boolean {
+    // B-52 A → v101: 보강/자동 경로 skip 판정 — covr 존재 **그리고** 임베드 품번 == 파일명 품번.
+    //   ©nam="$code $title"(jav_dl mutagen 동일)이라 MMR TITLE 에서 품번 재추출·비교 가능.
+    //   파일명 품번 교체(REAL-797.mp4→BONY-182.mp4 rename) 시 불일치 → 풀 리프레시(일반 임베드와 일관).
+    //   TITLE 없음/품번 판독불가도 리프레시 — 1회 갱신 후 ©nam 에 품번이 박혀 다음 회차부터 skip(수렴).
+    private fun isFreshEmbedded(ctx: Context, uri: Uri, code: String): Boolean {
         val mmr = android.media.MediaMetadataRetriever()
         return try {
             val path = if (uri.scheme == "file") uri.path else pathFromMediaStore(ctx, uri)
             if (path != null) mmr.setDataSource(path) else mmr.setDataSource(ctx, uri)
-            mmr.embeddedPicture != null
+            if (mmr.embeddedPicture == null) return false
+            val title = mmr.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_TITLE) ?: return false
+            val embedded = JavCode.extract(title) ?: return false
+            JavCode.same(embedded, code)
         } catch (_: Throwable) { false } finally { runCatching { mmr.release() } }
     }
 
@@ -140,8 +146,8 @@ object JEmbed {
                            skipIfHasCover: Boolean = false,
                            onProgress: ((String, Int) -> Unit)? = null): String {
         val embedSkip = rec == null || code.isBlank()   // 품번/메타 없으면 remux 만 하고 임베드 생략
-        // B-52 A: 커버 보강 모드 — TS 아니고(=remux 불필요) 이미 커버 있으면 건너뜀(파일 재작성 회피).
-        if (skipIfHasCover && !embedSkip && !isTsUri(ctx, uri) && fileHasCover(ctx, uri)) return "⊘ 커버 이미 있음"
+        // 보강 모드 — TS 아니고(=remux 불필요) covr 있고 임베드 품번이 파일명 품번과 일치할 때만 건너뜀.
+        if (skipIfHasCover && !embedSkip && !isTsUri(ctx, uri) && isFreshEmbedded(ctx, uri, code)) return "⊘ 임베드 최신(품번 일치)"
         // ── 내부저장소(File path, 쓰기 가능) ──
         val path = if (uri.scheme == "file") uri.path else pathFromMediaStore(ctx, uri)
         if (path != null && File(path).canWrite()) {

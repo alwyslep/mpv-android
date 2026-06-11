@@ -49,5 +49,8 @@ object JavCode {
         return null
     }
 
+    /** 두 raw 코드의 구분자-무관 동일성(REAL-797 ↔ REAL797 ↔ REAL_797). 임베드 최신성 판정용. */
+    fun same(a: String, b: String) = norm(a) == norm(b)
+
     private fun norm(c: String) = c.uppercase().replace("-", "").replace("_", "").replace(" ", "")
 }

@@ -310,7 +310,7 @@ class MediaLibraryActivity : AppCompatActivity() {
         tint("filter", LibPrefs.filterActive(this))
     }
 
-    // B-52 A: 현재 목록(videos/tree) 영상 중 커버 없는 것만 hub 커버 재임베드(JEmbed skipIfHasCover).
+    // B-52 A: 현재 목록(videos/tree) 중 커버 없거나 임베드 품번≠파일명 품번인 것만 재임베드(JEmbed skipIfHasCover).
     private fun coverFixAll() {
         val items = homeVids.map { (u, n) -> Uri.parse(u) to (JavCode.extract(n) ?: "") }
         if (items.isEmpty()) { Toast.makeText(this, "영상 목록에서 사용하세요(폴더 모드 아님)", Toast.LENGTH_SHORT).show(); return }
