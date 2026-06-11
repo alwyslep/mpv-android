@@ -19,6 +19,11 @@ object VideoTrash {
     private const val TRASH_DIR = ".mpv-trash"
     private const val REQ_TRASH = 0x7A5
 
+    // 74: 삭제(휴지통/영구) 후 화면 복귀 시 재조회 정합 신호. MediaStore 휴지통은 시스템 확인창 결과를
+    //   안 기다리고 낙관 제거하므로(즉시 반응), 복귀(onResume) 때 reload 로 취소분 복원·확정분 반영 → '엉성' 제거.
+    @Volatile var pendingReload = false
+    fun consumePendingReload(): Boolean { val r = pendingReload; pendingReload = false; return r }
+
     // ⚠️ 다이얼로그는 AppCompat AlertDialog.Builder 만 쓴다 — MaterialAlertDialogBuilder 는 호스트
     //   액티비티 테마가 Material 이어야 하는데 MPVActivity=Theme.AppCompat.Light(비 Material)라 예외→
     //   확인창 미표시(B-68 휴지통 무동작 근본). ThemeOverlay 오버라이드로도 checkMaterialTheme 통과 못 함.
@@ -62,7 +67,7 @@ object VideoTrash {
                 } catch (e: Throwable) { JavDiag.ex("bulkPermDelete", e); false }
                 if (r) { ok++; ThumbLoader.invalidate(act, u, name) } else fail++
             }
-            act.runOnUiThread { toast(act, "영구삭제: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone() }
+            act.runOnUiThread { pendingReload = true; toast(act, "영구삭제: ${ok}개" + if (fail > 0) ", 실패 $fail" else ""); onDone() }
         }.start()
     }
 
@@ -73,7 +78,7 @@ object VideoTrash {
                 else DocumentsContract.deleteDocument(ctx.contentResolver, u)
             } catch (e: Throwable) { JavDiag.ex("permDelete", e); false }
             (ctx as? Activity)?.runOnUiThread {
-                if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "영구 삭제: $name") }
+                if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); pendingReload = true; toast(ctx, "영구 삭제: $name") }
                 else toast(ctx, "삭제 실패: $name")
             }
         }.start()
@@ -123,6 +128,7 @@ object VideoTrash {
                 act.startIntentSenderForResult(pi.intentSender, REQ_TRASH, null, 0, 0, 0)
                 ThumbLoader.invalidate(ctx, u, name)
                 onRemoved()
+                pendingReload = true   // 시스템 확인창 결과를 복귀 시 reload 로 정합(취소면 복원)
             } else {
                 AlertDialog.Builder(ctx)
                     .setTitle(ctx.getString(R.string.action_trash))
@@ -154,7 +160,7 @@ object VideoTrash {
         Thread {
             val ok = safTrashCore(ctx, u)
             (ctx as? Activity)?.runOnUiThread {
-                if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); toast(ctx, "휴지통으로 이동: $name") }
+                if (ok) { ThumbLoader.invalidate(ctx, u, name); onRemoved(); pendingReload = true; toast(ctx, "휴지통으로 이동: $name") }
                 else toast(ctx, "삭제 실패: $name")
             }
         }.start()
@@ -192,7 +198,7 @@ object VideoTrash {
         val saf = items.filter { it.first.authority != MediaStore.AUTHORITY }
         if (saf.isNotEmpty()) Thread {
             var ok = 0; for ((u, _) in saf) if (safTrashCore(act, u)) ok++
-            act.runOnUiThread { toast(act, "외부 ${ok}/${saf.size} 휴지통 이동"); if (ms.isEmpty()) onDone() }
+            act.runOnUiThread { pendingReload = true; toast(act, "외부 ${ok}/${saf.size} 휴지통 이동"); if (ms.isEmpty()) onDone() }
         }.start()
         if (ms.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             try {

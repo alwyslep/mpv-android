@@ -109,10 +109,18 @@ object JobBanner {
             return
         }
         val tot = JobProgress.total.coerceAtLeast(1)
-        // 문자열: 제목 (n/N)  진행률%  ·  현재항목  (제목·%는 항상, 항목명은 길면 잘림)
-        val cnt = if (tot > 1) " (${JobProgress.idx + 1}/$tot)" else ""
-        val head = "${JobProgress.title}$cnt  ${JobProgress.pct}%".trim()
-        text.text = if (JobProgress.line.isNotEmpty()) "$head  ·  ${JobProgress.line}" else head
+        // 단순·컬러: 제목(밝은회색) · n/N(초록) · 현재항목(노랑). %는 아래 진행바가 보여주므로 텍스트에서 생략.
+        //   제목 끝의 중복 "(20개)" 는 n/N 과 겹치므로 제거.
+        val titleClean = JobProgress.title.replace(Regex("\\s*\\(\\d[\\d,]*개\\)\\s*$"), "")
+        val sb = android.text.SpannableStringBuilder()
+        fun part(s: String, color: Long) {
+            val st = sb.length; sb.append(s)
+            sb.setSpan(android.text.style.ForegroundColorSpan(color.toInt()), st, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        part(titleClean, 0xFFE0E0E0L)
+        if (tot > 1) { sb.append("  "); part("${JobProgress.idx + 1}/$tot", 0xFF66BB6AL) }
+        if (JobProgress.line.isNotEmpty()) { sb.append("   "); part(JobProgress.line, 0xFFFFC107L) }
+        text.text = sb
         bars.visibility = View.VISIBLE
         // 전체바 = 실시간: 완료 항목 + 현재 항목 진행분. 6/10 처리중이면 50% + (현재%/10).
         pbAll.progress = (JobProgress.idx * 100 + JobProgress.pct) / tot

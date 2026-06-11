@@ -216,8 +216,19 @@ class VideoAdapter(
             h.badge.visibility = View.GONE
         }
         ThumbLoader.load(h.thumb, h.code, h.title, v.uri, v.name)
+        val isSel = selectionMode && selected.contains(us)
         h.check?.visibility = if (selectionMode) View.VISIBLE else View.GONE
-        h.check?.isChecked = selected.contains(us)
+        h.check?.isChecked = isSel
+        // 75: 선택 가독성 — 썸네일에 강한 컬러 테두리 + 반투명 오버레이 + 딤(그리드/리스트 공통).
+        //   FrameLayout.foreground 는 API21 에서도 안전(View.foreground 는 23+ 라 캐스팅).
+        (h.thumbBox as? android.widget.FrameLayout)?.foreground =
+            if (isSel) android.graphics.drawable.GradientDrawable().apply {
+                val d = ctx.resources.displayMetrics.density
+                setStroke((3 * d).toInt(), 0xFF42A5F5.toInt())   // 밝은 파랑 테두리
+                setColor(0x3342A5F5.toInt())                     // 옅은 파랑 채움(선택 강조)
+                cornerRadius = 6 * d
+            } else null
+        h.thumb.alpha = if (isSel) 0.55f else 1f
         h.itemView.setOnClickListener {
             if (selectionMode) {
                 if (!selected.remove(us)) selected.add(us)

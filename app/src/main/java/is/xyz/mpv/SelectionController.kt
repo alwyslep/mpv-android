@@ -48,7 +48,7 @@ class SelectionController(
             R.id.sel_all to "현재 목록 전체 선택/해제", R.id.sel_embed to "선택 영상에 hub 메타·커버 임베드(품번 없으면 remux만)",
             R.id.sel_move to "선택 영상을 다른 폴더로 이동", R.id.sel_thumb to "선택 영상의 썸네일 위치를 일괄 지정",
             R.id.sel_delete to "선택 영상 영구 삭제(복구 불가)", R.id.sel_cancel to "선택 모드 종료"
-        ).forEach { (id, t) -> selBar.findViewById<View>(id)?.let { Utils.tip(it, t) } }
+        ).forEach { (id, t) -> selBar.findViewById<View>(id)?.let { Utils.tip(it, t, above = true) } }   // 하단 바 → 툴팁은 바 위(외부)
     }
     fun unbind() { sel = null }
 

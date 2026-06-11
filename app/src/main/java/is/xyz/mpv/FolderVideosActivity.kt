@@ -34,15 +34,21 @@ class FolderVideosActivity : AppCompatActivity() {
             } else null
             val adv = Playback.advanceDir(res.data)   // PgDn(+1)/PgUp(-1) 수동 넘김
             rebuild()
-            when {
-                // 삭제/이동된 경우: 제거된 항목 *다음*으로(9 삭제→10). 끝이면 advance 없음.
-                rmNext != null -> play(rmNext)
+            // 다음에 재생할 대상을 *현재* playIndex 로 먼저 확정.
+            val next: Vid? = when {
+                // 삭제/이동된 경우: 제거된 항목 *다음*으로(9 삭제→10). 끝이면 없음.
+                rmNext != null -> rmNext
                 // PgUp/PgDn 수동 넘김: 현재 영상 기준 prev/next. 경계 밖이면 그대로 폴더에 머무름.
-                adv != 0 && playIndex + adv in vids.indices -> play(vids[playIndex + adv])
+                adv != 0 && playIndex + adv in vids.indices -> vids[playIndex + adv]
                 // 자동 다음 재생: 방금 작품을 끝까지 봤고(다 봄) 다음이 있으면.
                 u != null && Playback.shouldAdvance(this, u, vids.find { it.uri.toString() == u }?.name) && playIndex + 1 in vids.indices ->
-                    play(vids[playIndex + 1])
+                    vids[playIndex + 1]
+                else -> null
             }
+            // ⚠️ 콜백 *안*에서 launcher.launch 를 재호출하면 연쇄(콜백→launch→콜백→launch) 2단째부터
+            //   ActivityResult 레지스트리 상태 충돌로 실행이 누락돼 폴더로 죽는다(PgDn 연속 시 3번째 실패).
+            //   → post 로 콜백을 빠져나온 뒤(다음 프레임, 완전 RESUMED) 실행해 매 launch 를 독립시킨다.
+            if (next != null) recycler.post { play(next) }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -148,6 +154,7 @@ class FolderVideosActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         setupToolbar()   // 55b: 아이콘 순서 변경 후 복귀 시 반영
+        if (VideoTrash.consumePendingReload()) reload()   // 74: 삭제(휴지통/영구) 후 정합(취소 복원·확정 반영)
     }
 
     override fun onPause() {

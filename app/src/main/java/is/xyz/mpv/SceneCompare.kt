@@ -19,9 +19,19 @@ import androidx.appcompat.app.AlertDialog
 object SceneCompare {
     private val POSITIONS = listOf(10, 30, 50, 70, 90)
 
-    private fun labelText(v: Vid, shortSide: Int, folderText: String): String {
-        val res = if (shortSide > 0) "${shortSide}p" else "?"
-        return "$res · ${MediaLibrary.fmtSize(v.size)}\n$folderText\n${v.name}"
+    // 컬러·단순: 해상도(초록, 알 때만) · 크기(회색) / 폴더(흐림, 있을 때만) / 이름(밝게).
+    //   값 못 구한 "?"·"(폴더?)" 군더더기 placeholder 는 아예 생략(엉성 제거).
+    private fun labelText(v: Vid, shortSide: Int, folderText: String): CharSequence {
+        val sb = android.text.SpannableStringBuilder()
+        fun part(s: String, color: Long) {
+            val st = sb.length; sb.append(s)
+            sb.setSpan(android.text.style.ForegroundColorSpan(color.toInt()), st, sb.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        if (shortSide > 0) { part("${shortSide}p", 0xFF66BB6AL); sb.append("  ") }
+        part(MediaLibrary.fmtSize(v.size), 0xFFB0BEC5L)
+        if (folderText.isNotEmpty()) { sb.append("\n"); part(folderText, 0xFF90A4AEL) }
+        sb.append("\n"); part(v.name, 0xFFECEFF1L)
+        return sb
     }
 
     fun show(ctx: Context, name: String) {
@@ -53,7 +63,7 @@ object SceneCompare {
         val multiVol = vids.map { it.volume }.distinct().size > 1
         val folderTexts = vids.map { v ->
             when {
-                v.folderName.isEmpty() -> "📁 (폴더?)"
+                v.folderName.isEmpty() -> ""   // 폴더 미상이면 군더더기 없이 생략
                 multiVol -> "💾${MediaLibrary.volLabel(v.volume)} · 📁 ${v.folderName}"
                 else -> "📁 ${v.folderName}"
             }
